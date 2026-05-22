@@ -8,16 +8,20 @@ const dgram = require('dgram')
 const os = require('os')
 
 const UDP_PORT = 5556
+const VERSION_WATCH_TIMEOUT = 25000
 const SYNC_INTERVAL = 3000 // 3 seconds — fast version check, full pull only when changed
 
 let server = null
 let udpSocket = null
 let udpBroadcastTimer = null
 let clientSyncTimer = null
+let clientWatchTimer = null
+let clientWatchActive = false
 let db = null // { dbAll, dbGet, dbRun, saveDB, uuid }
 
 let dataVersion = 0 // bumps on any server-side data change
 let lastKnownVersion = -1 // client tracks server version to skip unchanged polls
+const versionWatchers = new Set()
 
 let state = {
   mode: 'off',       // 'off' | 'server' | 'client'
@@ -42,6 +46,7 @@ function onDataChanged (cb) { _dataChangedCallback = cb }
 function bumpVersion () {
   dataVersion++
   broadcastServerNow()
+  notifyVersionWatchers('changed')
 }
 
 async function forceSync () {
@@ -72,6 +77,41 @@ const LOCAL_ONLY_SETTINGS = new Set([
 
 function isLocalOnlySetting (key) {
   return LOCAL_ONLY_SETTINGS.has(key)
+}
+
+const DELETABLE_TABLES = new Set([
+  'products', 'categories', 'specials', 'deals', 'deal_products', 'staff',
+  'keyboard_buttons', 'keyboard_pages', 'transactions', 'transaction_items',
+  'payments', 'cash_drawer'
+])
+
+function applyDeletedRecords (records, opts = {}) {
+  if (!Array.isArray(records) || !db) return
+  if (opts.replace) db.dbRun("DELETE FROM deleted_records")
+
+  for (const r of records) {
+    const table = r?.table_name
+    const recordId = r?.record_id
+    if (!table || recordId == null || !DELETABLE_TABLES.has(table)) continue
+
+    db.dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES (?1, ?2)",
+             [table, String(recordId)])
+
+    if (table === 'keyboard_pages') {
+      db.dbRun("DELETE FROM keyboard_pages WHERE page = ?1", [String(recordId)])
+      db.dbRun("DELETE FROM keyboard_buttons WHERE page = ?1", [String(recordId)])
+      db.dbRun("UPDATE keyboard_buttons SET active = 0 WHERE type = 'page_link' AND parent_id = ?1", [String(recordId)])
+    } else if (table === 'deal_products') {
+      const [dealId, productId] = String(recordId).split(':')
+      if (dealId && productId) {
+        db.dbRun("DELETE FROM deal_products WHERE deal_id = ?1 AND product_id = ?2", [dealId, productId])
+      }
+    } else {
+      db.dbRun(`DELETE FROM ${table} WHERE id = ?1`, [String(recordId)])
+      if (table === 'deals') db.dbRun("DELETE FROM deal_products WHERE deal_id = ?1", [String(recordId)])
+      if (table === 'keyboard_buttons') db.dbRun("DELETE FROM keyboard_buttons WHERE parent_id = ?1", [String(recordId)])
+    }
+  }
 }
 
 const MASTER_TABLE_COLUMNS = {
@@ -129,6 +169,56 @@ function jsonReply (res, data, status = 200) {
   const body = JSON.stringify(data)
   res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) })
   res.end(body)
+}
+
+function finishVersionWatcher (watcher, changed, reason) {
+  if (!watcher || watcher.done) return
+  watcher.done = true
+  if (watcher.timer) clearTimeout(watcher.timer)
+  versionWatchers.delete(watcher)
+  try {
+    jsonReply(watcher.res, {
+      ok: true,
+      changed: !!changed,
+      reason: reason || (changed ? 'changed' : 'timeout'),
+      version: dataVersion,
+      serverTime: new Date().toISOString()
+    })
+  } catch (_) {}
+}
+
+function notifyVersionWatchers (reason = 'changed') {
+  for (const watcher of [...versionWatchers]) {
+    if (watcher.sinceVersion !== dataVersion) finishVersionWatcher(watcher, true, reason)
+  }
+}
+
+function watchVersion (req, res, sinceVersion, registerId) {
+  if (sinceVersion !== dataVersion) {
+    return jsonReply(res, {
+      ok: true,
+      changed: true,
+      reason: 'changed',
+      version: dataVersion,
+      serverTime: new Date().toISOString()
+    })
+  }
+
+  const watcher = {
+    res,
+    sinceVersion,
+    registerId: registerId || 'unknown',
+    done: false,
+    timer: null
+  }
+  watcher.timer = setTimeout(() => finishVersionWatcher(watcher, false, 'timeout'), VERSION_WATCH_TIMEOUT)
+  req.on('close', () => {
+    if (watcher.done) return
+    watcher.done = true
+    if (watcher.timer) clearTimeout(watcher.timer)
+    versionWatchers.delete(watcher)
+  })
+  versionWatchers.add(watcher)
 }
 
 function readBody (req) {
@@ -201,7 +291,7 @@ function startServer (port, dbHelpers) {
     }
 
     try {
-      await handleRoute(req, res, url, path)
+      await handleRoute(req, res, url, path, registerId)
     } catch (e) {
       console.error('LAN API error:', e.message)
       jsonReply(res, { error: e.message }, 500)
@@ -226,7 +316,7 @@ function startServer (port, dbHelpers) {
   startUdpBroadcast(port)
 }
 
-async function handleRoute (req, res, url, path) {
+async function handleRoute (req, res, url, path, registerId = 'unknown') {
   const since = url.searchParams.get('since') || '1970-01-01T00:00:00'
 
   // ── GET endpoints (master data) ──
@@ -252,24 +342,32 @@ async function handleRoute (req, res, url, path) {
       case '/api/version':
         return jsonReply(res, { version: dataVersion, serverTime: new Date().toISOString() })
 
+      case '/api/watch': {
+        const sinceVersion = Number.parseInt(url.searchParams.get('since') || '-1', 10)
+        return watchVersion(req, res, Number.isFinite(sinceVersion) ? sinceVersion : -1, registerId)
+      }
+
       case '/api/products':
         return jsonReply(res, db.dbAll(
-          "SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.updated_at > ?1", [since]))
+          "SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE datetime(COALESCE(p.updated_at, '1970-01-01 00:00:00')) >= datetime(?1, '-2 seconds')", [since]))
 
       case '/api/categories':
-        return jsonReply(res, db.dbAll("SELECT * FROM categories WHERE updated_at > ?1", [since]))
+        return jsonReply(res, db.dbAll("SELECT * FROM categories WHERE datetime(COALESCE(updated_at, '1970-01-01 00:00:00')) >= datetime(?1, '-2 seconds')", [since]))
 
       case '/api/specials':
-        return jsonReply(res, db.dbAll("SELECT * FROM specials WHERE updated_at > ?1", [since]))
+        return jsonReply(res, db.dbAll("SELECT * FROM specials WHERE datetime(COALESCE(updated_at, '1970-01-01 00:00:00')) >= datetime(?1, '-2 seconds')", [since]))
 
       case '/api/deals':
-        return jsonReply(res, db.dbAll("SELECT * FROM deals WHERE updated_at > ?1", [since]))
+        return jsonReply(res, db.dbAll("SELECT * FROM deals WHERE datetime(COALESCE(updated_at, '1970-01-01 00:00:00')) >= datetime(?1, '-2 seconds')", [since]))
 
       case '/api/deal_products':
         return jsonReply(res, db.dbAll("SELECT * FROM deal_products"))
 
+      case '/api/deleted':
+        return jsonReply(res, db.dbAll("SELECT table_name, record_id FROM deleted_records"))
+
       case '/api/staff':
-        return jsonReply(res, db.dbAll("SELECT * FROM staff WHERE updated_at > ?1", [since]))
+        return jsonReply(res, db.dbAll("SELECT * FROM staff WHERE datetime(COALESCE(updated_at, '1970-01-01 00:00:00')) >= datetime(?1, '-2 seconds')", [since]))
 
       case '/api/keyboard': {
         const delRows = db.dbAll("SELECT record_id FROM deleted_records WHERE table_name = 'keyboard_buttons'")
@@ -297,6 +395,8 @@ async function handleRoute (req, res, url, path) {
         let kbPages = []
         try { kbPages = db.dbAll("SELECT * FROM keyboard_pages ORDER BY page") } catch (_) {}
         return jsonReply(res, {
+          version: dataVersion,
+          serverTime: new Date().toISOString(),
           products: db.dbAll("SELECT * FROM products"),
           categories: db.dbAll("SELECT * FROM categories"),
           specials: db.dbAll("SELECT * FROM specials"),
@@ -361,13 +461,15 @@ async function handleRoute (req, res, url, path) {
         if (txn.status !== 'voided' && txn.items) {
           for (const item of txn.items) {
             if (item.product_id) {
-              db.dbRun("UPDATE products SET stock_qty = stock_qty - ?1 WHERE id = ?2 AND track_stock = 1",
+              db.dbRun("UPDATE products SET stock_qty = stock_qty - ?1, updated_at = datetime('now') WHERE id = ?2 AND track_stock = 1",
                        [item.qty, item.product_id])
             }
           }
         }
 
         db.saveDB()
+        bumpVersion()
+        if (_dataChangedCallback) _dataChangedCallback()
         return jsonReply(res, { ok: true, id: txnId })
       }
 
@@ -380,6 +482,8 @@ async function handleRoute (req, res, url, path) {
             entry.action, entry.amount || null, entry.note || null,
             entry.created_at || new Date().toISOString()])
         db.saveDB()
+        bumpVersion()
+        if (_dataChangedCallback) _dataChangedCallback()
         return jsonReply(res, { ok: true })
       }
 
@@ -407,19 +511,8 @@ async function handleRoute (req, res, url, path) {
       }
 
       case '/api/deleted': {
-        const ALLOWED_TABLES = new Set(['products','categories','specials','deals','deal_products','staff','keyboard_buttons','keyboard_pages','transactions','transaction_items','payments','cash_drawer'])
         const records = Array.isArray(body) ? body : body.records || []
-        for (const r of records) {
-          if (!r.table_name || !r.record_id) continue
-          if (!ALLOWED_TABLES.has(r.table_name)) continue
-          db.dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES (?1, ?2)",
-                   [r.table_name, r.record_id])
-          if (r.table_name === 'keyboard_pages') db.dbRun("DELETE FROM keyboard_pages WHERE page = ?1", [r.record_id])
-          else if (r.table_name === 'deal_products') {
-            const [dealId, productId] = String(r.record_id).split(':')
-            if (dealId && productId) db.dbRun("DELETE FROM deal_products WHERE deal_id = ?1 AND product_id = ?2", [dealId, productId])
-          } else db.dbRun(`DELETE FROM ${r.table_name} WHERE id = ?1`, [r.record_id])
-        }
+        applyDeletedRecords(records)
         db.saveDB()
         bumpVersion()
         if (_dataChangedCallback) _dataChangedCallback()
@@ -535,6 +628,9 @@ function startUdpListener (onDiscover) {
 
 function startClient (serverIp, port, secret, dbHelpers) {
   db = dbHelpers
+  if (clientSyncTimer) { clearInterval(clientSyncTimer); clientSyncTimer = null }
+  if (clientWatchTimer) { clearTimeout(clientWatchTimer); clientWatchTimer = null }
+  clientWatchActive = false
   state.mode = 'client'
   state.serverIp = serverIp
   state.port = port
@@ -545,23 +641,26 @@ function startClient (serverIp, port, secret, dbHelpers) {
 
   let syncInProgress = false
   let syncAgain = false
+  let currentSyncPromise = null
   const runSyncNow = () => {
     if (syncInProgress) {
       syncAgain = true
-      return
+      return currentSyncPromise || Promise.resolve()
     }
     syncInProgress = true
-    doSyncCycle().catch(e => {
+    currentSyncPromise = doSyncCycle().catch(e => {
       console.error('LAN sync error:', e.message)
       state.error = e.message
       state.connected = false
     }).finally(() => {
       syncInProgress = false
+      currentSyncPromise = null
       if (syncAgain) {
         syncAgain = false
-        setTimeout(runSyncNow, 50)
+        return runSyncNow()
       }
     })
+    return currentSyncPromise
   }
 
   // Periodic sync loop (also serves as reconnection)
@@ -592,6 +691,48 @@ function startClient (serverIp, port, secret, dbHelpers) {
       runSyncNow()
     }
   })
+
+  startVersionWatch(runSyncNow)
+}
+
+function startVersionWatch (runSyncNow) {
+  clientWatchActive = true
+  if (clientWatchTimer) {
+    clearTimeout(clientWatchTimer)
+    clientWatchTimer = null
+  }
+
+  const schedule = (delay = 0) => {
+    if (!clientWatchActive || state.mode !== 'client') return
+    if (clientWatchTimer) clearTimeout(clientWatchTimer)
+    clientWatchTimer = setTimeout(watchOnce, delay)
+  }
+
+  const watchOnce = async () => {
+    if (!clientWatchActive || state.mode !== 'client' || !state.serverIp) return
+    if (!Number.isFinite(lastKnownVersion) || lastKnownVersion < 0) {
+      schedule(1000)
+      return
+    }
+    try {
+      const since = Number.isFinite(lastKnownVersion) ? lastKnownVersion : -1
+      const result = await httpGet(`/api/watch?since=${encodeURIComponent(since)}`, VERSION_WATCH_TIMEOUT + 5000)
+      if (!clientWatchActive || state.mode !== 'client') return
+      state.connected = true
+      state.error = null
+      if (typeof result.version === 'number' && result.version !== lastKnownVersion) {
+        await runSyncNow()
+      }
+      schedule(50)
+    } catch (e) {
+      if (!clientWatchActive || state.mode !== 'client') return
+      state.error = e.message
+      state.connected = false
+      schedule(3000)
+    }
+  }
+
+  schedule(200)
 }
 
 function attemptInitialSync (retries = 0) {
@@ -695,15 +836,6 @@ async function doFullSync () {
     }
   }
 
-  // Merge server deleted_records into local — prevents resurrecting items deleted on server
-  if (data.deleted_records) {
-    db.dbRun("DELETE FROM deleted_records")
-    for (const r of data.deleted_records) {
-      db.dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES (?1, ?2)",
-               [r.table_name, r.record_id])
-    }
-  }
-
   if (data.keyboard_buttons) {
     db.dbRun("DELETE FROM keyboard_buttons")
 
@@ -736,6 +868,11 @@ async function doFullSync () {
         db.dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)", [key, value])
       }
     }
+  }
+
+  // Apply server-side deletes last so a stale row cannot be resurrected by a full sync payload.
+  if (data.deleted_records) {
+    applyDeletedRecords(data.deleted_records, { replace: true })
   }
 
   state.connected = true
@@ -832,7 +969,7 @@ async function doSyncCycle () {
   const lastPull = db.dbGet("SELECT value FROM settings WHERE key = 'lan_last_pull'")?.value || '1970-01-01T00:00:00'
 
   try {
-    const [products, categories, specials, deals, staff, keyboard, dealProducts, settings, kbPages] = await Promise.all([
+    const [products, categories, specials, deals, staff, keyboard, dealProducts, settings, kbPages, deletedRecords] = await Promise.all([
       httpGet(`/api/products?since=${encodeURIComponent(lastPull)}`),
       httpGet(`/api/categories?since=${encodeURIComponent(lastPull)}`),
       httpGet(`/api/specials?since=${encodeURIComponent(lastPull)}`),
@@ -841,7 +978,8 @@ async function doSyncCycle () {
       httpGet('/api/keyboard'),
       httpGet('/api/deal_products'),
       httpGet('/api/settings'),
-      httpGet('/api/keyboard_pages').catch(() => [])
+      httpGet('/api/keyboard_pages').catch(() => []),
+      httpGet('/api/deleted').catch(() => [])
     ])
 
     for (const c of categories) {
@@ -918,6 +1056,8 @@ async function doSyncCycle () {
                  [pg.page, pg.name || ('Page ' + pg.page), pg.cols || 10, pg.rows || 7])
       }
     }
+
+    applyDeletedRecords(deletedRecords)
 
     state.lastPull = serverTime || new Date().toISOString()
     db.dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('lan_last_pull', ?1)", [state.lastPull])
@@ -1537,6 +1677,9 @@ function stopAll () {
   if (udpSocket) { try { udpSocket.close() } catch (_) {}; udpSocket = null }
   if (udpBroadcastTimer) { clearInterval(udpBroadcastTimer); udpBroadcastTimer = null }
   if (clientSyncTimer) { clearInterval(clientSyncTimer); clientSyncTimer = null }
+  if (clientWatchTimer) { clearTimeout(clientWatchTimer); clientWatchTimer = null }
+  clientWatchActive = false
+  for (const watcher of [...versionWatchers]) finishVersionWatcher(watcher, false, 'stopped')
   state.connected = false
   state.mode = 'off'
   state.error = null

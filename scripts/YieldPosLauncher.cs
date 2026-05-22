@@ -99,13 +99,16 @@ internal static class YieldPosLauncher
             "YieldPOS-App-Package-Final",
             "YieldPOS-App-Package",
             "YieldPOS",
-            "yieldpos"
+            "yieldpos",
+            "yieldpos-main"
         };
 
         foreach (string folder in preferredFolders)
         {
             AddIfExists(results, Path.Combine(root, folder, PortableExeName));
             AddIfExists(results, Path.Combine(root, folder, "dist2", PortableExeName));
+            AddIfExists(results, Path.Combine(root, folder, folder, PortableExeName));
+            AddIfExists(results, Path.Combine(root, folder, folder, "dist2", PortableExeName));
         }
 
         try

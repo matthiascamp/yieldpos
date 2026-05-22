@@ -3162,8 +3162,34 @@ function setupIPC() {
   ipcMain.handle('app:update', async () => {
     const { execSync } = require('child_process')
     const https = require('https')
+    const os = require('os')
     const appDir = __dirname
-    const updateRoot = app.isPackaged ? path.dirname(process.execPath) : appDir
+    const launchDir = app.isPackaged ? path.dirname(process.execPath) : appDir
+    const isYieldposMainDir = dir => String(path.basename(dir || '')).toLowerCase() === 'yieldpos-main'
+    let updateRoot = launchDir
+    let nestedInstallToRemove = ''
+    if (app.isPackaged && isYieldposMainDir(launchDir) && isYieldposMainDir(path.dirname(launchDir))) {
+      updateRoot = path.dirname(launchDir)
+      nestedInstallToRemove = launchDir
+    }
+    const relaunchExePath = () => {
+      if (!nestedInstallToRemove) return process.execPath
+      return path.join(updateRoot, path.basename(process.execPath))
+    }
+    const looksLikeAppRoot = dir => !!dir && fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'main.js'))
+    const resolveZipSourceRoot = tmpDir => {
+      let extracted = path.join(tmpDir, 'yieldpos-main')
+      if (!looksLikeAppRoot(extracted)) {
+        const dirs = fs.readdirSync(tmpDir, { withFileTypes: true })
+          .filter(entry => entry.isDirectory())
+          .map(entry => path.join(tmpDir, entry.name))
+        extracted = dirs.find(looksLikeAppRoot) || dirs[0] || extracted
+      }
+      while (looksLikeAppRoot(path.join(extracted, 'yieldpos-main'))) {
+        extracted = path.join(extracted, 'yieldpos-main')
+      }
+      return extracted
+    }
     const { spawn } = require('child_process')
     const psQuote = value => `'${String(value).replace(/'/g, "''")}'`
     const run = (cmd, args, opts = {}) => new Promise((resolve, reject) => {
@@ -3318,8 +3344,8 @@ if (Test-Path -LiteralPath $LauncherPath) {
         await run('unzip', ['-o', tmpZip, '-d', tmpDir])
       }
 
-      const extracted = path.join(tmpDir, 'yieldpos-main')
-      if (!fs.existsSync(extracted)) return { error: 'Download succeeded but extraction failed - folder not found' }
+      const extracted = resolveZipSourceRoot(tmpDir)
+      if (!looksLikeAppRoot(extracted)) return { error: 'Download succeeded but extraction failed - folder not found' }
       try { fs.unlinkSync(tmpZip) } catch (_) {}
 
       saveDBSync()
@@ -3336,6 +3362,7 @@ param(
   [string]$ExePath,
   [string]$ArgsJson,
   [string]$TempRoot,
+  [string]$RemoveAfterCopy,
   [string]$LogPath
 )
 $ErrorActionPreference = 'Stop'
@@ -3371,6 +3398,19 @@ try {
   Log "Copy failed: $($_.Exception.Message)"
   throw
 }
+if ($RemoveAfterCopy) {
+  try {
+    $dstFull = [System.IO.Path]::GetFullPath($Destination).TrimEnd('\\', '/')
+    $removeFull = [System.IO.Path]::GetFullPath($RemoveAfterCopy).TrimEnd('\\', '/')
+    if ($removeFull.StartsWith($dstFull + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase) -and
+        (Test-Path -LiteralPath $removeFull)) {
+      Log "Removing nested old folder $removeFull"
+      Remove-Item -LiteralPath $removeFull -Recurse -Force
+    }
+  } catch {
+    Log "Nested folder cleanup skipped: $($_.Exception.Message)"
+  }
+}
 try { Remove-Item -LiteralPath $TempRoot -Recurse -Force } catch {}
 $args = @()
 if ($ArgsJson) { $args = [string[]]($ArgsJson | ConvertFrom-Json) }
@@ -3380,7 +3420,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       fs.writeFileSync(updaterScript, script, 'utf-8')
       const child = spawn('powershell.exe', [
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', updaterScript,
-        extracted, updateRoot, String(process.pid), process.execPath, JSON.stringify(relaunchArgs), tmpDir, logPath
+        extracted, updateRoot, String(process.pid), relaunchExePath(), JSON.stringify(relaunchArgs), tmpDir, nestedInstallToRemove, logPath
       ], { detached: true, stdio: 'ignore', windowsHide: true })
       child.unref()
 
@@ -3462,10 +3502,10 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         execSync(`unzip -o "${tmpZip}" -d "${tmpDir}"`, { timeout: 30000 })
       }
 
-      const extracted = path.join(tmpDir, 'yieldpos-main')
-      if (!fs.existsSync(extracted)) return { error: 'Download succeeded but extraction failed â€” folder not found' }
+      const extracted = resolveZipSourceRoot(tmpDir)
+      if (!looksLikeAppRoot(extracted)) return { error: 'Download succeeded but extraction failed - folder not found' }
 
-      const skipDirs = new Set(['node_modules', '.git', 'yieldpos'])
+      const skipDirs = new Set(['node_modules', '.git', 'yieldpos', 'yieldpos-main'])
       const skipFiles = new Set(['package-lock.json'])
       const copyRecursive = (src, dest) => {
         const entries = fs.readdirSync(src, { withFileTypes: true })
@@ -3818,6 +3858,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       count++
     }
     saveDBSync()
+    if (count) lanSync.bumpVersion()
     // Re-link keyboard buttons to products after bulk import (images may have arrived)
     relinkKeyboardProducts()
     return count
@@ -3833,6 +3874,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       count++
     }
     saveDBSync()
+    if (count) lanSync.bumpVersion()
     return count
   })
 
@@ -3905,6 +3947,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       count++
     }
     saveDBSync()
+    if (count) lanSync.bumpVersion()
     return count
   })
 
@@ -3986,6 +4029,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       count++
     }
     saveDBSync()
+    if (count) lanSync.bumpVersion()
     return count
   })
 
@@ -3999,6 +4043,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       count++
     }
     saveDBSync()
+    if (count) lanSync.bumpVersion()
     return count
   })
 
@@ -4295,6 +4340,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       count++
     }
     saveDBSync()
+    if (count) lanSync.bumpVersion()
     return count
   })
 
@@ -4410,6 +4456,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       count++
     }
     saveDBSync()
+    if (count) lanSync.bumpVersion()
     return count
   })
 
@@ -4452,6 +4499,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       count++
     }
     saveDBSync()
+    if (count) lanSync.bumpVersion()
     return count
   })
 
@@ -4715,7 +4763,10 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         [pg.page, pg.name || ('Page ' + pg.page), pg.cols || 13, pg.rows || 7])
       count++
     }
-    if (count) saveDBSync()
+    if (count) {
+      saveDBSync()
+      lanSync.bumpVersion()
+    }
     return count
   })
 
@@ -4810,6 +4861,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     }
     if (count) dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
+    if (count) lanSync.bumpVersion()
     return count
   })
 
