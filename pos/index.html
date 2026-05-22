@@ -1750,12 +1750,24 @@ function renderPosGrid () {
   si.focus()
 }
 
+function posButtonProductId (btn) {
+  return btn.product_id || btn.matched_product_id || ''
+}
+
+function posButtonLabel (btn) {
+  const type = btn?.type || ''
+  if (['product', 'fixed_price', 'open_price', 'weighed_open'].includes(type) && btn.product_name) {
+    return btn.product_name
+  }
+  return btn?.label || ''
+}
+
 function renderPosButton (btn, gridStyle) {
   const type = btn.type
   const effectiveType = type
   const bg = esc(btn.bg_color || '#ddd')
   const color = esc(btn.color || '#000')
-  const rawLabel = btn.label || ''
+  const rawLabel = posButtonLabel(btn)
   const label = esc(rawLabel)
   const imageSuppressed = btn.alpha_range === 'image:none'
   const imgSrc = imageSuppressed ? '' : (btn.image || btn.product_image_url || '')
@@ -1820,7 +1832,8 @@ function renderPosButton (btn, gridStyle) {
   }
 
   // Department / product / nav — everything else
-  const hasLinkedProduct = !!(btn.product_id || btn.product_plu)
+  const matchedProductId = posButtonProductId(btn)
+  const hasLinkedProduct = !!matchedProductId
   const isOpenPriceButton = Number(btn.product_open_price || 0) === 1 || (!hasLinkedProduct && effectiveType === 'open_price')
   const isItem = effectiveType === 'fixed_price' || effectiveType === 'open_price' || effectiveType === 'product'
   const priceVal = Number(btn.active_price ?? btn.price ?? 0)
@@ -1846,7 +1859,7 @@ function renderPosButton (btn, gridStyle) {
   const productRef = btn.category_filter || ''
   return `<div class="pos-grid-btn dept-key${imgClass}${itemClass}" data-type="${esc(type)}" data-cat="${esc(productRef)}"
     data-alpha="${esc(btn.alpha_range || '')}" data-label2="${label}" data-price="${priceVal}"
-    data-action="${esc(type)}" data-page-link="${btn.parent_id || ''}" data-product-id="${esc(btn.product_id || '')}"
+    data-action="${esc(type)}" data-page-link="${btn.parent_id || ''}" data-product-id="${esc(matchedProductId)}"
     style="${gridStyle};background:${bg};color:${color}${catColorStyle}">${imgHtml}${labelHtml}${catBadge}</div>`
 }
 
@@ -1901,22 +1914,14 @@ $('#posGrid').addEventListener('click', async e => {
     const name = rawLabel.split('\\n')[0].split('\n')[0].trim()
     const btnPrice = parseFloat(btn.dataset.price) || 0
 
-    // Try to look up linked product from DB
+    // Try to look up the explicit product link/code from the keyboard row.
+    // Do not guess by label: product names on the key can be stale or abbreviated.
     let prod = null
     if (productId) {
       prod = await window.pos.getProductById(productId)
     }
-    if (!prod && productRef) {
+    if (!prod && productRef && ['product', 'fixed_price', 'open_price', 'weighed_open'].includes(type)) {
       prod = await window.pos.getProductById(productRef) || await window.pos.getProductByBarcode(productRef)
-    }
-    // Last resort: search by the button label name
-    if (!prod && name) {
-      const results = await window.pos.searchProducts(name)
-      if (results && results.length === 1) prod = results[0]
-      else if (results && results.length > 1) {
-        const exact = results.find(r => r.name.toLowerCase() === name.toLowerCase().replace(/\s+kg$/i,'').replace(/\s+ea$/i,'').trim())
-        if (exact) prod = exact
-      }
     }
 
     if (priceChangeMode) {
@@ -1951,6 +1956,10 @@ $('#posGrid').addEventListener('click', async e => {
       }
       // Fallback: missing price on label or no stable scale → open modal.
       showWeighedOpenModal(name, labelPrice)
+      return
+    }
+    if (type === 'product' && !prod) {
+      showToast('This product key is not linked to a database product', 'error')
       return
     }
     if (prod) {

@@ -977,10 +977,12 @@ async function initDatabase() {
     }
   } catch (_) {}
 
+  const keyboardHeuristicRepairsEnabled = dbGet("SELECT value FROM settings WHERE key = 'keyboard_heuristic_repairs_enabled'")?.value === '1'
+
   // â”€â”€ Link keyboard buttons to product records â”€â”€
   // Creates product records for open_price/fixed_price buttons that lack a product_id,
   // so they appear in deals search and transaction reports with proper PLU codes.
-  try {
+  if (keyboardHeuristicRepairsEnabled) try {
     const linkDone = dbAll("SELECT value FROM settings WHERE key = 'migration_link_kb_products_v1'")
     if (!linkDone.length) {
       const buttons = dbAll(`
@@ -1094,7 +1096,7 @@ async function initDatabase() {
           OR ABS(COALESCE(price, 0)) > 0.001)`)
   } catch (e) { appLog('error', 'startup', 'Numeric keypad repair failed', e.message) }
 
-  try {
+  if (keyboardHeuristicRepairsEnabled) try {
     const unlinked = dbAll(`
       SELECT id, label, type, price, page, category_filter
       FROM keyboard_buttons
@@ -1162,7 +1164,7 @@ async function initDatabase() {
   // Gray = utility (reprint, price check), Green = payment (subtotal)
   // Open-price products do not have a stored sale price. The cashier supplies
   // the price at sale time; kg items multiply that chosen price by the scale.
-  try {
+  if (keyboardHeuristicRepairsEnabled) try {
     const openPriceCleaned = dbGet("SELECT value FROM settings WHERE key = 'migration_open_price_products_zero_v1'")
     if (!openPriceCleaned || !openPriceCleaned.value) {
       db.run("UPDATE products SET price = 0, updated_at = datetime('now') WHERE open_price = 1 AND ABS(COALESCE(price, 0)) > 0.001")
@@ -1176,7 +1178,7 @@ async function initDatabase() {
   } catch (e) { appLog('error', 'migration', 'Open-price product cleanup failed', e.message) }
 
   // Keep open-price keyboard buttons price-free in both data and display labels.
-  try {
+  if (keyboardHeuristicRepairsEnabled) try {
     const openButtons = dbAll("SELECT id, label, price FROM keyboard_buttons WHERE type = 'open_price' OR product_id IN (SELECT id FROM products WHERE open_price = 1)")
     let cleaned = 0
     for (const btn of openButtons) {
@@ -2013,7 +2015,7 @@ async function initDatabase() {
   // Product DB is the source of truth for sale behaviour. Sellable keyboard
   // buttons should stay type='product'; open price and weighed-open behaviour
   // lives on products.open_price and products.unit.
-  try {
+  if (keyboardHeuristicRepairsEnabled) try {
     const openButtons = dbAll(`
       SELECT id, label, image, page, category_filter, product_id, type
       FROM keyboard_buttons
@@ -2112,7 +2114,7 @@ async function initDatabase() {
 
   // Repair buttons that were previously pointed at generated p-open-* rows even
   // though a real fixed-price product exists. The product DB is authoritative.
-  try {
+  if (keyboardHeuristicRepairsEnabled) try {
     const suspectButtons = dbAll(`
       SELECT kb.id, kb.label, kb.category_filter, kb.product_id
       FROM keyboard_buttons kb
@@ -3677,12 +3679,13 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         AND (s.start_date IS NULL OR s.start_date <= date('now'))
         AND (s.end_date IS NULL OR s.end_date >= date('now'))
       WHERE p.active = 1
-        AND (p.name LIKE ?1 OR p.plu LIKE ?1)
+        AND (p.name LIKE ?1 OR p.plu LIKE ?1 OR p.barcode LIKE ?1)
       ORDER BY
         CASE
           WHEN p.plu = ?2 THEN 0
-          WHEN p.id = ?2 THEN 1
-          WHEN p.name = ?2 THEN 2
+          WHEN p.barcode = ?2 THEN 1
+          WHEN p.id = ?2 THEN 2
+          WHEN p.name = ?2 THEN 3
           ELSE 9
         END,
         p.name
@@ -3702,7 +3705,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         AND (s.start_date IS NULL OR s.start_date <= date('now'))
         AND (s.end_date IS NULL OR s.end_date >= date('now'))
       WHERE p.active = 1
-        AND (p.plu = ?1 OR p.id = ?1)
+        AND (p.barcode = ?1 OR p.plu = ?1 OR p.id = ?1)
     `, [barcode])
   })
 
@@ -4617,31 +4620,45 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
   // â”€â”€ Keyboard Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  ipcMain.handle('db:keyboard:getAll', () => {
-    return dbAll(`SELECT kb.*, p.image_url AS product_image_url, p.plu AS product_plu, p.unit AS product_unit,
-      p.open_price AS product_open_price,
-      COALESCE(s.special_price, p.price) AS active_price
-      FROM keyboard_buttons kb
-      LEFT JOIN products p ON p.id = kb.product_id
-        OR (kb.product_id IS NULL AND kb.category_filter IS NOT NULL AND kb.category_filter != ''
-          AND p.active = 1 AND (p.plu = kb.category_filter OR p.barcode = kb.category_filter))
+  const KEYBOARD_PRODUCT_JOIN = `
+      LEFT JOIN products p ON (
+        (kb.product_id IS NOT NULL AND kb.product_id != '' AND p.id = kb.product_id)
+        OR (
+          (kb.product_id IS NULL OR kb.product_id = '')
+          AND kb.type IN ('product', 'fixed_price', 'open_price', 'weighed_open')
+          AND kb.category_filter IS NOT NULL AND kb.category_filter != ''
+          AND p.active = 1
+          AND (p.id = kb.category_filter OR p.plu = kb.category_filter OR p.barcode = kb.category_filter)
+        )
+      )
+      LEFT JOIN categories pc ON pc.id = p.category_id
       LEFT JOIN specials s ON s.product_id = p.id AND s.active = 1
         AND (s.start_date IS NULL OR s.start_date <= date('now'))
-        AND (s.end_date IS NULL OR s.end_date >= date('now'))
+        AND (s.end_date IS NULL OR s.end_date >= date('now'))`
+
+  const KEYBOARD_BUTTON_SELECT = `SELECT kb.*,
+      p.id AS matched_product_id,
+      p.name AS product_name,
+      p.barcode AS product_barcode,
+      p.image_url AS product_image_url,
+      p.plu AS product_plu,
+      p.unit AS product_unit,
+      p.open_price AS product_open_price,
+      p.category_id AS product_category_id,
+      pc.name AS product_category_name,
+      pc.colour AS product_category_color,
+      COALESCE(s.special_price, p.price) AS active_price
+      FROM keyboard_buttons kb`
+
+  ipcMain.handle('db:keyboard:getAll', () => {
+    return dbAll(`${KEYBOARD_BUTTON_SELECT}
+      ${KEYBOARD_PRODUCT_JOIN}
       WHERE kb.active = 1 ORDER BY kb.page, kb.sort_order`)
   })
 
   ipcMain.handle('db:keyboard:getByPage', (_e, page) => {
-    return dbAll(`SELECT kb.*, p.image_url AS product_image_url, p.plu AS product_plu, p.unit AS product_unit,
-      p.open_price AS product_open_price,
-      COALESCE(s.special_price, p.price) AS active_price
-      FROM keyboard_buttons kb
-      LEFT JOIN products p ON p.id = kb.product_id
-        OR (kb.product_id IS NULL AND kb.category_filter IS NOT NULL AND kb.category_filter != ''
-          AND p.active = 1 AND (p.plu = kb.category_filter OR p.barcode = kb.category_filter))
-      LEFT JOIN specials s ON s.product_id = p.id AND s.active = 1
-        AND (s.start_date IS NULL OR s.start_date <= date('now'))
-        AND (s.end_date IS NULL OR s.end_date >= date('now'))
+    return dbAll(`${KEYBOARD_BUTTON_SELECT}
+      ${KEYBOARD_PRODUCT_JOIN}
       WHERE kb.active = 1 AND kb.page = ?1 ORDER BY kb.grid_row, kb.grid_col`, [page])
   })
 
@@ -4757,16 +4774,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   })
 
   ipcMain.handle('db:keyboard:getAllIncludingInactive', () => {
-    return dbAll(`SELECT kb.*, p.image_url AS product_image_url, p.plu AS product_plu, p.unit AS product_unit,
-      p.open_price AS product_open_price,
-      COALESCE(s.special_price, p.price) AS active_price
-      FROM keyboard_buttons kb
-      LEFT JOIN products p ON p.id = kb.product_id
-        OR (kb.product_id IS NULL AND kb.category_filter IS NOT NULL AND kb.category_filter != ''
-          AND p.active = 1 AND (p.plu = kb.category_filter OR p.barcode = kb.category_filter))
-      LEFT JOIN specials s ON s.product_id = p.id AND s.active = 1
-        AND (s.start_date IS NULL OR s.start_date <= date('now'))
-        AND (s.end_date IS NULL OR s.end_date >= date('now'))
+    return dbAll(`${KEYBOARD_BUTTON_SELECT}
+      ${KEYBOARD_PRODUCT_JOIN}
       ORDER BY kb.page, kb.sort_order`)
   })
 
@@ -4811,11 +4820,11 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     const buttons = dbAll("SELECT * FROM keyboard_buttons WHERE page = ?1 AND active = 1", [srcPage])
     for (const btn of buttons) {
       const newId = uuid()
-      dbRun(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, updated_at)
-        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,1,datetime('now'))`,
+      dbRun(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
+        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,1,datetime('now'))`,
         [newId, btn.label, btn.type, btn.price, btn.image, btn.image_scale || 100, btn.color, btn.bg_color,
          btn.parent_id, btn.category_filter, btn.alpha_range, btn.sort_order, btn.position || 'grid',
-         newPage, btn.grid_row, btn.grid_col, btn.col_span, btn.row_span])
+         newPage, btn.grid_row, btn.grid_col, btn.col_span, btn.row_span, btn.product_id || null])
     }
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
@@ -4915,13 +4924,29 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   })
 
   ipcMain.handle('db:keyboard:validate', () => {
-    const buttons = dbAll(`SELECT kb.*, p.id AS linked_product_id, p.open_price AS product_open_price
+    const buttons = dbAll(`SELECT kb.*,
+        p.id AS linked_product_id,
+        mp.id AS matched_product_id,
+        mp.open_price AS product_open_price
       FROM keyboard_buttons kb
       LEFT JOIN products p ON p.id = kb.product_id
+      LEFT JOIN products mp ON (
+        (kb.product_id IS NOT NULL AND kb.product_id != '' AND mp.id = kb.product_id)
+        OR (
+          (kb.product_id IS NULL OR kb.product_id = '')
+          AND kb.type IN ('product', 'fixed_price', 'open_price', 'weighed_open')
+          AND kb.category_filter IS NOT NULL AND kb.category_filter != ''
+          AND mp.active = 1
+          AND (mp.id = kb.category_filter OR mp.plu = kb.category_filter OR mp.barcode = kb.category_filter)
+        )
+      )
       WHERE kb.active = 1
       ORDER BY kb.page, kb.sort_order`)
     const issues = []
-    const pages = [...new Set(buttons.map(b => b.page || 1))]
+    const pageRows = dbAll("SELECT page FROM keyboard_pages ORDER BY page")
+    const pages = pageRows.length
+      ? pageRows.map(p => p.page)
+      : [...new Set(buttons.map(b => b.page || 1))]
 
     for (const page of pages) {
       const pageButtons = buttons.filter(b => (b.page || 1) === page)
@@ -4957,7 +4982,10 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         if ((btn.type === 'page_link' || btn.type === 'section') && Number(btn.price || 0) > 0) {
           issues.push({ type: 'category_has_price', page, button: btn.label, price: btn.price })
         }
-        if (btn.type === 'product' && !btn.product_id && Number(btn.price || 0) <= 0) {
+        if ((btn.type === 'page_link' || btn.type === 'section') && btn.product_id) {
+          issues.push({ type: 'category_has_product_link', page, button: btn.label, product_id: btn.product_id })
+        }
+        if (btn.type === 'product' && !btn.matched_product_id && Number(btn.price || 0) <= 0) {
           issues.push({ type: 'product_missing_link_or_price', page, button: btn.label })
         }
         if (btn.type === 'product' && btn.product_id && !btn.linked_product_id) {

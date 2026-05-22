@@ -3565,7 +3565,10 @@
                 <label>Type</label>
                 <select id="kbType">
                   <optgroup label="Product">
-                    <option value="product">Product</option>
+                    <option value="product">Database Product</option>
+                    <option value="fixed_price">Fixed Price Key</option>
+                    <option value="open_price">Open Price Key</option>
+                    <option value="weighed_open">Weighed Open Key</option>
                     <option value="section">Category Section</option>
                     <option value="nav">Nav (filtered)</option>
                   </optgroup>
@@ -3632,6 +3635,14 @@
                   <span style="font-size:18px;font-weight:700;color:var(--green)">$</span>
                   <input type="number" id="kbProductPrice" step="0.01" min="0" value="0" style="flex:1;font-size:18px;font-weight:600;padding:8px 10px">
                 </div>
+              </div>
+              <div class="kb-field" style="margin-bottom:8px">
+                <label>Unit</label>
+                <select id="kbProductUnit" style="width:100%">
+                  <option value="each">Each</option>
+                  <option value="kg">Kg</option>
+                  <option value="100g">100g</option>
+                </select>
               </div>
               <div style="margin-bottom:8px">
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text)">
@@ -7128,9 +7139,9 @@
       if (!products.length) { list.innerHTML = '<p style="color:var(--text-dim);font-size:11px;padding:6px">No products found</p>'; return }
       list.innerHTML = products.slice(0, 80).map(p => `
         <div class="kb-prod-item${kbSelectedProduct && kbSelectedProduct.id === p.id ? ' sel-highlight' : ''}"
-             data-prod-id="${esc(p.id)}" data-prod-name="${esc(p.name)}" data-prod-price="${p.price}" data-prod-unit="${esc(p.unit || 'each')}" data-prod-plu="${esc(p.plu || p.barcode || '')}">
+             data-prod-id="${esc(p.id)}" data-prod-name="${esc(p.name)}" data-prod-price="${p.price ?? 0}" data-prod-unit="${esc(p.unit || 'each')}" data-prod-plu="${esc(p.plu || p.barcode || '')}" data-prod-open="${p.open_price ? '1' : '0'}">
           <span>${esc(p.name)}</span>
-          <span class="prod-price">$${(p.price || 0).toFixed(2)}</span>
+          <span class="prod-price">${p.open_price ? 'O/P' : '$' + ((p.active_price ?? p.price ?? 0) || 0).toFixed(2)}</span>
         </div>`).join('')
     }
 
@@ -7148,7 +7159,7 @@
         $$('.kb-prod-item').forEach(el => el.classList.remove('sel-highlight'))
         return
       }
-      kbSelectedProduct = { id, name: item.dataset.prodName, price: parseFloat(item.dataset.prodPrice) || 0, unit: item.dataset.prodUnit || 'each', plu: item.dataset.prodPlu || '' }
+      kbSelectedProduct = { id, name: item.dataset.prodName, price: parseFloat(item.dataset.prodPrice) || 0, unit: item.dataset.prodUnit || 'each', plu: item.dataset.prodPlu || '', open_price: item.dataset.prodOpen === '1' }
       $$('.kb-prod-item').forEach(el => el.classList.remove('sel-highlight'))
       item.classList.add('sel-highlight')
     })
@@ -7698,6 +7709,7 @@
           if (i.type === 'broken_link') return `"${i.button}" on page ${i.page} links to missing page ${i.target_page}`
           if (i.type === 'out_of_bounds') return `"${i.button}" on page ${i.page} at row ${i.row}, col ${i.col} (${i.span}) exceeds grid bounds`
           if (i.type === 'category_has_price') return `"${i.button}" on page ${i.page} is a category/page button but has a price`
+          if (i.type === 'category_has_product_link') return `"${i.button}" on page ${i.page} is a category/page button but still links to product ${i.product_id}`
           if (i.type === 'product_missing_link_or_price') return `"${i.button}" on page ${i.page} is a product button with no linked product or fixed price`
           if (i.type === 'missing_product') return `"${i.button}" on page ${i.page} links to missing product ${i.product_id}`
           if (i.type === 'open_button_fixed_product') return `"${i.button}" on page ${i.page} is open-price but its linked product is fixed-price`
@@ -7732,8 +7744,13 @@
     }
 
     function kbImageFit (btn) {
-      if (!btn?.image) return ''
+      if (!kbImageSrc(btn)) return ''
       return btn.alpha_range === 'image:contain' ? 'contain' : 'cover'
+    }
+
+    function kbImageSrc (btn) {
+      if (!btn || btn.alpha_range === 'image:none') return ''
+      return btn.image || btn.product_image_url || ''
     }
 
     function kbImageScale (btn) {
@@ -7748,6 +7765,7 @@
     function kbCellClass (btn, selected = false) {
       const imgFit = kbImageFit(btn)
       const isMerch = ['product', 'fixed_price', 'open_price', 'section', 'page_link', 'weighed_open'].includes(btn.type)
+      const imgSrc = kbImageSrc(btn)
       let keyClass = ''
       if (btn.type === 'num_display') keyClass = 'num-display-cell'
       else if (['digit','clear','qtyx','codeenter'].includes(btn.type)) keyClass = `digit-btn${btn.type === 'clear' || btn.type === 'codeenter' ? ' num-action' : ''}${btn.type === 'qtyx' ? ' num-action num-orange' : ''}`
@@ -7760,7 +7778,7 @@
         'pos-grid-btn',
         keyClass,
         selected ? 'selected' : '',
-        btn.image ? `has-img img-${imgFit}` : '',
+        imgSrc ? `has-img img-${imgFit}` : '',
         isMerch ? 'cat-key' : '',
         kbIsOpenPrice(btn) ? 'open-price-key' : ''
       ].filter(Boolean).join(' ')
@@ -7779,7 +7797,9 @@
     }
 
     function kbDisplayLabel (btn) {
-      let label = labelFromDb(btn.label)
+      let label = (['product', 'fixed_price', 'open_price', 'weighed_open'].includes(btn.type) && btn.product_name)
+        ? btn.product_name
+        : labelFromDb(btn.label)
       if (kbIsOpenPrice(btn)) label = label.replace(/\n\$[\d.]+.*$/i, '')
       return label
     }
@@ -7805,7 +7825,8 @@
       const previewGrid = panel.querySelector('#kbPreviewGrid')
       previewGrid.innerHTML = pageButtons.map(b => {
         const r = b.grid_row || 0, c = b.grid_col || 0, cs = b.col_span || 1, rs = b.row_span || 1
-        const imgHtml = b.image ? `<img src="${esc(b.image)}" alt="" style="--kb-img-scale:${kbImageScale(b) / 100}">` : ''
+        const imgSrc = kbImageSrc(b)
+        const imgHtml = imgSrc ? `<img src="${esc(imgSrc)}" alt="" style="--kb-img-scale:${kbImageScale(b) / 100}">` : ''
         return `<div class="${kbCellClass(b)}" style="grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs};background:${esc(b.bg_color || '#1f2937')};color:${esc(b.color || '#fff')}">${imgHtml}<span>${esc(kbDisplayLabel(b)).replace(/\n/g, '<br>')}</span>${kbButtonBadges(b)}</div>`
       }).join('')
       panel.querySelector('#kbPreviewClose').addEventListener('click', () => overlay.remove())
@@ -7850,7 +7871,8 @@
               const tgtName = getPageInfo(parseInt(btn.parent_id)).name || `Page ${btn.parent_id}`
               extra += `<div class="kb-cell-price" style="font-size:8px;opacity:.7">&rarr; ${esc(tgtName)}</div>`
             }
-            const imgHtml = btn.image ? `<img src="${esc(btn.image)}" alt="" style="--kb-img-scale:${kbImageScale(btn) / 100}">` : ''
+            const imgSrc = kbImageSrc(btn)
+            const imgHtml = imgSrc ? `<img src="${esc(imgSrc)}" alt="" style="--kb-img-scale:${kbImageScale(btn) / 100}">` : ''
             html += `<div class="${kbCellClass(btn, btn.id === selectedBtnId)}" data-id="${esc(btn.id)}" data-row="${r}" data-col="${c}" draggable="true"
               style="background:${esc(btn.bg_color)};color:${esc(btn.color)};grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs}">
               ${imgHtml}
@@ -7875,7 +7897,7 @@
     }
 
     function typeLabel (type) {
-      const map = { open_price:'$?', fixed_price:'$', section:'cat', nav:'nav', void:'void',
+      const map = { product:'prod', open_price:'$?', fixed_price:'$', weighed_open:'kg?', section:'cat', nav:'nav', void:'void',
         'return':'ret', hold:'hold', nosale:'$=0', supervisor:'sup', lock:'lock',
         reprint:'rpt', pricecheck:'chk', errcorrect:'err', recall:'rcl', pctdiscount:'%',
         pctone:'%1', movedrawer:'drw', ubereats:'ube', viewor:'...', digit:'#',
@@ -7911,6 +7933,8 @@
           $('#kbType').value = 'product'
           $('#kbPrice').value = kbSelectedProduct.price
           $('#kbProductPrice').value = kbSelectedProduct.price
+          $('#kbProductUnit').value = kbSelectedProduct.unit || 'each'
+          $('#kbOpenPrice').checked = !!kbSelectedProduct.open_price
           $('#kbProductId').value = kbSelectedProduct.id
           const unitTag = kbSelectedProduct.unit === 'kg' ? ' /kg' : kbSelectedProduct.unit === '100g' ? ' /100g' : ''
           showLinkedProduct(`${kbSelectedProduct.name}${unitTag}`, kbSelectedProduct.plu || '')
@@ -8271,6 +8295,8 @@
       $('#kbProductPrice').value = 0
       $('#kbProductPlu').value = ''
       $('#kbProductPlu').placeholder = 'Enter PLU'
+      $('#kbProductUnit').value = 'each'
+      $('#kbOpenPrice').checked = false
     }
 
     async function kbGetProductByRef (ref) {
@@ -8285,6 +8311,7 @@
       $('#kbType').value = 'product'
       $('#kbOpenPrice').checked = false
       $('#kbPrice').value = 0
+      $('#kbProductUnit').value = 'each'
       $('#kbCatFilter').value = ''
       $('#kbAlphaRange').value = ''
       $('#kbColor').value = '#ffffff'
@@ -8312,12 +8339,15 @@
 
     function openEditPanel (btn) {
       $('#kbEditId').value = btn.id
-      $('#kbLabel').value = labelFromDb(btn.label)
-      // Map legacy types to unified product type
-      const editType = (btn.type === 'open_price' || btn.type === 'fixed_price') ? 'product' : btn.type
+      $('#kbLabel').value = btn.product_name || labelFromDb(btn.label)
+      // Linked sellable keys are database products; standalone fixed/open keys keep their own type.
+      const editType = (btn.product_id || btn.matched_product_id) && ['product', 'open_price', 'fixed_price', 'weighed_open'].includes(btn.type)
+        ? 'product'
+        : btn.type
       $('#kbType').value = editType
-      $('#kbOpenPrice').checked = false
+      $('#kbOpenPrice').checked = Number(btn.product_open_price || 0) === 1
       $('#kbPrice').value = btn.price || 0
+      $('#kbProductUnit').value = btn.product_unit || 'each'
       $('#kbCatFilter').value = btn.category_filter || ''
       $('#kbAlphaRange').value = btn.alpha_range || ''
       $('#kbColor').value = btn.color || '#ffffff'
@@ -8334,26 +8364,30 @@
       updateImageRemoveButton()
       // Product picker state
       clearProductPicker()
-      const linkedProductRef = btn.product_id || (editType === 'product' && btn.category_filter) || null
+      const linkedProductRef = btn.product_id || btn.matched_product_id || (editType === 'product' && btn.category_filter) || null
       $('#kbProductPrice').value = 0
       if (linkedProductRef) {
         window.pos.getProductById(linkedProductRef).then(async p => p || await window.pos.getProductByBarcode(linkedProductRef)).then(p => {
           if (p) {
             $('#kbProductId').value = p.id
+            $('#kbLabel').value = p.name || $('#kbLabel').value
             const unitTag = p.unit === 'kg' ? ' /kg' : p.unit === '100g' ? ' /100g' : ''
             showLinkedProduct(`${p.name}${unitTag}`, p.plu || p.barcode || btn.product_plu || btn.category_filter || '')
-            const dbPrice = p.active_price ?? p.price ?? btn.price ?? 0
+            const dbPrice = p.price ?? btn.price ?? 0
             $('#kbProductPrice').value = dbPrice
             $('#kbPrice').value = dbPrice
-            if (p.open_price) $('#kbOpenPrice').checked = true
+            $('#kbProductUnit').value = p.unit || 'each'
+            $('#kbOpenPrice').checked = !!p.open_price
+            updateLivePreview()
           } else {
-            $('#kbProductId').value = btn.product_id || ''
+            $('#kbProductId').value = btn.product_id || btn.matched_product_id || ''
             $('#kbProductPlu').value = btn.product_plu || btn.category_filter || ''
+            $('#kbProductUnit').value = btn.product_unit || 'each'
           }
         }).catch(() => {})
       }
       $('#kbDeleteBtn').style.display = 'inline-block'
-      const cleanLabel = labelFromDb(btn.label).split('\n')[0]
+      const cleanLabel = (btn.product_name || labelFromDb(btn.label)).split('\n')[0]
       $('#kbEditTitle').textContent = `Edit: ${cleanLabel}`
       $('#kbCellInfo').textContent = `Row ${btn.grid_row}, Col ${btn.grid_col} — ${btn.col_span||1}×${btn.row_span||1} — Page ${btn.page||1}`
       $('#kbEditPanel').classList.add('active')
@@ -8379,8 +8413,10 @@
       const image = $('#kbImageData').value || ''
       let val = $('#kbLabel').value || 'Button'
       const type = $('#kbType').value
-      const price = parseFloat($('#kbPrice').value || $('#kbProductPrice').value || '0') || 0
-      const isOpen = type === 'product' && $('#kbOpenPrice').checked
+      const price = type === 'product'
+        ? (parseFloat($('#kbProductPrice').value || '0') || 0)
+        : (parseFloat($('#kbPrice').value || '0') || 0)
+      const isOpen = (type === 'product' && $('#kbOpenPrice').checked) || type === 'open_price'
       if (isOpen) val = val.replace(/\n\$[\d.]+.*$/i, '')
       const previewBtn = {
         label: val,
@@ -8393,7 +8429,8 @@
         color: $('#kbColor').value,
         bg_color: $('#kbBgColor').value,
         product_plu: $('#kbProductPlu').value.trim(),
-        product_open_price: isOpen ? 1 : 0
+        product_open_price: isOpen ? 1 : 0,
+        product_unit: $('#kbProductUnit').value || 'each'
       }
       preview.className = `kb-live ${kbCellClass(previewBtn).replace('kb-cell', '').replace('selected', '')}`.replace(/\s+/g, ' ').trim()
       preview.style.background = $('#kbBgColor').value
@@ -8412,6 +8449,7 @@
     ;['kbLabel', 'kbBgColor', 'kbColor', 'kbPrice', 'kbProductPrice', 'kbProductPlu'].forEach(id => {
       $(`#${id}`).addEventListener('input', updateLivePreview)
     })
+    $('#kbProductUnit').addEventListener('change', updateLivePreview)
     $('#kbOpenPrice').addEventListener('change', updateLivePreview)
     $('#kbImageScale').addEventListener('input', () => {
       $('#kbImageScaleValue').textContent = `${$('#kbImageScale').value}%`
@@ -8438,13 +8476,14 @@
     function updateTypeFields () {
       const type = $('#kbType').value
       const isProduct = type === 'product'
-      const supportsImageFit = isProduct || type === 'page_link' || type === 'section'
+      const isStandaloneSellable = ['fixed_price', 'open_price', 'weighed_open'].includes(type)
+      const supportsImageFit = isProduct || isStandaloneSellable || type === 'page_link' || type === 'section'
       $('#kbPageLinkRow').style.display = type === 'page_link' ? 'flex' : 'none'
       $('#kbProductRow').style.display = isProduct ? 'block' : 'none'
       $('#kbCatRow').style.display = (type === 'section' || type === 'nav') ? 'flex' : 'none'
       $('#kbImageZoomRow').style.display = supportsImageFit ? 'flex' : 'none'
       // Hide standalone price when product row has its own price field
-      $('#kbPriceField').style.display = isProduct ? 'none' : ''
+      $('#kbPriceField').style.display = (isProduct || type === 'open_price' || type === 'page_link' || type === 'section') ? 'none' : ''
       if (type === 'page_link') {
         const sel = $('#kbTargetPage')
         sel.innerHTML = allPages.map(p => {
@@ -8455,7 +8494,7 @@
     $('#kbType').addEventListener('change', () => {
       if (!$('#kbEditId').value) {
         const type = $('#kbType').value
-        $('#kbImageZoom').checked = ['product', 'page_link', 'section'].includes(type)
+        $('#kbImageZoom').checked = ['product', 'fixed_price', 'open_price', 'weighed_open', 'page_link', 'section'].includes(type)
       }
       updateTypeFields(); updateLivePreview()
     })
@@ -8468,8 +8507,8 @@
       if (q.length < 2) { results.style.display = 'none'; return }
       const prods = await window.pos.searchProducts(q)
       if (!prods.length) { results.innerHTML = '<div style="padding:8px;color:var(--text-dim);font-size:11px">No products found</div>'; results.style.display = 'block'; return }
-      results.innerHTML = prods.slice(0, 20).map(p => `<div class="kb-prod-pick" data-id="${esc(p.id)}" data-name="${esc(p.name)}" data-price="${p.active_price || p.price || 0}" data-unit="${esc(p.unit || 'each')}" data-plu="${esc(p.plu || '')}" style="padding:6px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <span>${p.plu ? `<span style="color:var(--text-dim);font-size:10px">${esc(p.plu)}</span> ` : ''}${esc(p.name)}</span><span style="color:#4ade80;font-weight:600;font-size:11px">${p.unit === 'kg' ? '$' + (p.active_price||p.price||0).toFixed(2) + '/kg' : p.unit === '100g' ? '$' + (p.active_price||p.price||0).toFixed(2) + '/100g' : '$' + (p.active_price||p.price||0).toFixed(2)}</span>
+      results.innerHTML = prods.slice(0, 20).map(p => `<div class="kb-prod-pick" data-id="${esc(p.id)}" data-name="${esc(p.name)}" data-price="${p.price ?? 0}" data-unit="${esc(p.unit || 'each')}" data-plu="${esc(p.plu || p.barcode || '')}" data-open="${p.open_price ? '1' : '0'}" style="padding:6px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <span>${p.plu ? `<span style="color:var(--text-dim);font-size:10px">${esc(p.plu)}</span> ` : ''}${esc(p.name)}</span><span style="color:#4ade80;font-weight:600;font-size:11px">${p.open_price ? 'O/P' : (p.unit === 'kg' ? '$' + ((p.active_price ?? p.price ?? 0) || 0).toFixed(2) + '/kg' : p.unit === '100g' ? '$' + ((p.active_price ?? p.price ?? 0) || 0).toFixed(2) + '/100g' : '$' + ((p.active_price ?? p.price ?? 0) || 0).toFixed(2))}</span>
       </div>`).join('')
       results.style.display = 'block'
     }, 250))
@@ -8484,9 +8523,11 @@
       $('#kbProductResults').style.display = 'none'
       const unitTag = unit === 'kg' ? ' /kg' : unit === '100g' ? ' /100g' : ''
       showLinkedProduct(`${name}${unitTag}`, item.dataset.plu || '')
-      if (!$('#kbLabel').value.trim()) $('#kbLabel').value = name
+      $('#kbLabel').value = name
       $('#kbProductPrice').value = price
       $('#kbPrice').value = price
+      $('#kbProductUnit').value = unit || 'each'
+      $('#kbOpenPrice').checked = item.dataset.open === '1'
       updateLivePreview()
     })
 
@@ -8504,6 +8545,8 @@
     $('#kbProductClear').addEventListener('click', () => {
       clearProductPicker()
       $('#kbPrice').value = 0
+      updateTypeFields()
+      updateLivePreview()
     })
 
     $('#kbCloseEdit').addEventListener('click', closeEditPanel)
@@ -8577,29 +8620,38 @@
         }
       }
 
-      let btnType = $('#kbType').value
+      const btnType = $('#kbType').value
+      const isDatabaseProduct = btnType === 'product'
       const isOpenPrice = $('#kbOpenPrice').checked
       const linkedProduct = $('#kbProductId').value || null
       const productPlu = $('#kbProductPlu').value.trim()
       const productPrice = parseFloat($('#kbProductPrice').value || '0') || 0
-      if (btnType === 'product' && !linkedProduct) {
+      const productUnit = $('#kbProductUnit').value || 'each'
+      const productName = rawLabel.replace(/\s*\n\s*/g, ' ').trim()
+      if (isDatabaseProduct && !linkedProduct) {
         showToast('Product buttons must be linked to a database product so price/open-price changes are saved', 'error'); return
       }
-      if (btnType === 'product' && !productPlu) {
+      if (isDatabaseProduct && !productPlu) {
         showToast('PLU is required for product keys', 'error'); $('#kbProductPlu').focus(); return
+      }
+      if (btnType === 'fixed_price' && (parseFloat($('#kbPrice').value) || 0) <= 0) {
+        showToast('Fixed price keys need a price', 'error'); $('#kbPrice').focus(); return
       }
       if ((btnType === 'section' || btnType === 'page_link') && (parseFloat($('#kbPrice').value) || 0) > 0) {
         $('#kbPrice').value = 0
       }
-      const catFilter = btnType === 'product' ? productPlu : ($('#kbCatFilter').value.trim() || null)
-      const imageFitTypes = new Set(['product', 'page_link', 'section'])
+      const catFilter = isDatabaseProduct ? productPlu : ($('#kbCatFilter').value.trim() || null)
+      const imageFitTypes = new Set(['product', 'fixed_price', 'open_price', 'weighed_open', 'page_link', 'section'])
       const imageFitMode = $('#kbImageZoom').checked ? 'image:cover' : 'image:contain'
       const imageRemoved = !($('#kbImageData').value || '').trim() && $('#kbImageData').dataset.removed === '1'
+      const keyPrice = (isDatabaseProduct || btnType === 'page_link' || btnType === 'section' || btnType === 'open_price')
+        ? 0
+        : (parseFloat($('#kbPrice').value) || 0)
       const btn = {
         id: editId || undefined,
-        label,
+        label: isDatabaseProduct ? labelToDb(productName) : label,
         type: btnType,
-        price: btnType === 'product' || btnType === 'page_link' || btnType === 'section' ? 0 : (parseFloat($('#kbPrice').value) || 0),
+        price: keyPrice,
         category_filter: catFilter,
         alpha_range: imageRemoved ? 'image:none' : ((btnType === 'nav') ? ($('#kbAlphaRange').value.trim() || null) : (imageFitTypes.has(btnType) ? imageFitMode : null)),
         color: $('#kbColor').value,
@@ -8613,23 +8665,37 @@
         image: $('#kbImageData').value || null,
         image_scale: parseFloat($('#kbImageScale').value || '100') || 100,
         parent_id: btnType === 'page_link' ? ($('#kbTargetPage').value || null) : null,
-        product_id: linkedProduct,
+        product_id: isDatabaseProduct ? linkedProduct : null,
         active: true
       }
       pushUndo()
-      if (btnType === 'product') {
+      if (isDatabaseProduct) {
         const p = await window.pos.getProductById(linkedProduct)
         if (!p) {
           showToast('Linked product was not found in the database', 'error'); return
         }
-        p.open_price = isOpenPrice
-        p.price = isOpenPrice ? 0 : productPrice
-        p.active_price = p.price
-        p.plu = productPlu
-        p.barcode = productPlu
-        const productResult = await window.pos.upsertProduct(p)
-        if (productResult?.error) {
-          showToast(productResult.error, 'error'); return
+        const nextOpenPrice = isOpenPrice ? 1 : 0
+        const nextPrice = nextOpenPrice ? 0 : productPrice
+        const productChanged =
+          (p.name || '') !== productName ||
+          String(p.plu || p.barcode || '') !== productPlu ||
+          Number(p.open_price || 0) !== nextOpenPrice ||
+          Math.abs(Number(p.price || 0) - nextPrice) > 0.001 ||
+          (p.unit || 'each') !== productUnit
+        if (productChanged) {
+          const productResult = await window.pos.upsertProduct({
+            ...p,
+            name: productName,
+            open_price: !!nextOpenPrice,
+            price: nextPrice,
+            active_price: nextPrice,
+            plu: productPlu,
+            barcode: productPlu,
+            unit: productUnit
+          })
+          if (productResult?.error) {
+            showToast(productResult.error, 'error'); return
+          }
         }
       }
       const buttonResult = await window.pos.upsertButton(btn)

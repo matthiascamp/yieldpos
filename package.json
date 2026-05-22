@@ -15,7 +15,9 @@
     "build": "electron-builder --win && node scripts/copy-external-images.js && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launchers.ps1",
     "build:portable": "electron-builder --win portable && node scripts/copy-external-images.js && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launchers.ps1",
     "build:installer": "electron-builder --win nsis && node scripts/copy-external-images.js && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launchers.ps1",
-    "build:launchers": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launchers.ps1"
+    "build:launchers": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launchers.ps1",
+    "package:flat": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-flat-package.ps1",
+    "build:flat": "npm run build:portable && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-flat-package.ps1"
   },
   "dependencies": {
     "node-hid": "^3.1.0",

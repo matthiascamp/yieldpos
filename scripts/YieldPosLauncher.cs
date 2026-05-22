@@ -19,7 +19,7 @@ internal static class YieldPosLauncher
             if (string.IsNullOrEmpty(portableExe))
             {
                 MessageBox.Show(
-                    "Cannot find " + PortableExeName + ".\n\nKeep the YieldPOS package folder in Downloads, or keep YieldPOS Admin.exe, YieldPOS Register.exe, and " + PortableExeName + " in the same folder.",
+                    "Cannot find " + PortableExeName + ".\n\nKeep the YieldPOS package folder on the Desktop or in Downloads, or keep YieldPOS Admin.exe, YieldPOS Register.exe, and " + PortableExeName + " in the same folder.",
                     "YieldPOS launcher",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
@@ -52,7 +52,7 @@ internal static class YieldPosLauncher
         string local = Path.Combine(launcherDir, PortableExeName);
         if (File.Exists(local)) return local;
 
-        foreach (string candidate in GetDownloadsCandidates())
+        foreach (string candidate in GetPortableExeCandidates(launcherDir))
         {
             if (File.Exists(candidate)) return candidate;
         }
@@ -60,16 +60,40 @@ internal static class YieldPosLauncher
         return null;
     }
 
-    private static string[] GetDownloadsCandidates()
+    private static string[] GetPortableExeCandidates(string launcherDir)
     {
-        string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (string.IsNullOrEmpty(userProfile)) return new string[0];
-
-        string downloads = Path.Combine(userProfile, "Downloads");
-        if (!Directory.Exists(downloads)) return new string[0];
-
         var results = new System.Collections.Generic.List<string>();
-        AddIfExists(results, Path.Combine(downloads, PortableExeName));
+        foreach (string root in GetSearchRoots(launcherDir))
+        {
+            AddCandidatesFromRoot(results, root);
+        }
+        return results.ToArray();
+    }
+
+    private static string[] GetSearchRoots(string launcherDir)
+    {
+        var roots = new System.Collections.Generic.List<string>();
+
+        AddDirectoryIfExists(roots, launcherDir);
+
+        string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        AddDirectoryIfExists(roots, desktop);
+
+        string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrEmpty(userProfile))
+        {
+            AddDirectoryIfExists(roots, Path.Combine(userProfile, "Desktop"));
+            AddDirectoryIfExists(roots, Path.Combine(userProfile, "OneDrive", "Desktop"));
+            AddDirectoryIfExists(roots, Path.Combine(userProfile, "Downloads"));
+        }
+
+        return roots.ToArray();
+    }
+
+    private static void AddCandidatesFromRoot(System.Collections.Generic.List<string> results, string root)
+    {
+        AddIfExists(results, Path.Combine(root, PortableExeName));
+        AddIfExists(results, Path.Combine(root, "dist2", PortableExeName));
 
         string[] preferredFolders = {
             "YieldPOS-App-Package-Final",
@@ -80,13 +104,14 @@ internal static class YieldPosLauncher
 
         foreach (string folder in preferredFolders)
         {
-            AddIfExists(results, Path.Combine(downloads, folder, PortableExeName));
+            AddIfExists(results, Path.Combine(root, folder, PortableExeName));
+            AddIfExists(results, Path.Combine(root, folder, "dist2", PortableExeName));
         }
 
         try
         {
             var dirs = new System.Collections.Generic.List<DirectoryInfo>();
-            foreach (DirectoryInfo dir in new DirectoryInfo(downloads).GetDirectories("YieldPOS*"))
+            foreach (DirectoryInfo dir in new DirectoryInfo(root).GetDirectories("YieldPOS*"))
             {
                 dirs.Add(dir);
             }
@@ -99,8 +124,17 @@ internal static class YieldPosLauncher
             }
         }
         catch {}
+    }
 
-        return results.ToArray();
+    private static void AddDirectoryIfExists(System.Collections.Generic.List<string> results, string path)
+    {
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return;
+        string fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        foreach (string existing in results)
+        {
+            if (string.Equals(existing, fullPath, StringComparison.OrdinalIgnoreCase)) return;
+        }
+        results.Add(fullPath);
     }
 
     private static void AddIfExists(System.Collections.Generic.List<string> results, string path)
