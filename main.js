@@ -4621,16 +4621,21 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   // â”€â”€ Keyboard Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const KEYBOARD_PRODUCT_JOIN = `
-      LEFT JOIN products p ON (
-        (kb.product_id IS NOT NULL AND kb.product_id != '' AND p.id = kb.product_id)
-        OR (
-          (kb.product_id IS NULL OR kb.product_id = '')
-          AND kb.type IN ('product', 'fixed_price', 'open_price', 'weighed_open')
-          AND kb.category_filter IS NOT NULL AND kb.category_filter != ''
-          AND p.active = 1
-          AND (p.id = kb.category_filter OR p.plu = kb.category_filter OR p.barcode = kb.category_filter)
-        )
+      LEFT JOIN products linked_p ON linked_p.id = kb.product_id
+      LEFT JOIN products ref_p ON (
+        kb.type IN ('product', 'fixed_price', 'open_price', 'weighed_open')
+        AND kb.category_filter IS NOT NULL AND kb.category_filter != ''
+        AND ref_p.active = 1
+        AND (ref_p.id = kb.category_filter OR ref_p.plu = kb.category_filter OR ref_p.barcode = kb.category_filter)
       )
+      LEFT JOIN products p ON p.id = CASE
+        WHEN ref_p.id IS NOT NULL
+          AND (linked_p.id IS NULL
+            OR linked_p.id LIKE 'p-open-%'
+            OR (COALESCE(linked_p.plu, '') = '' AND COALESCE(linked_p.barcode, '') = ''))
+          THEN ref_p.id
+        ELSE linked_p.id
+      END
       LEFT JOIN categories pc ON pc.id = p.category_id
       LEFT JOIN specials s ON s.product_id = p.id AND s.active = 1
         AND (s.start_date IS NULL OR s.start_date <= date('now'))
@@ -4925,21 +4930,25 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
   ipcMain.handle('db:keyboard:validate', () => {
     const buttons = dbAll(`SELECT kb.*,
-        p.id AS linked_product_id,
+        linked_p.id AS linked_product_id,
         mp.id AS matched_product_id,
         mp.open_price AS product_open_price
       FROM keyboard_buttons kb
-      LEFT JOIN products p ON p.id = kb.product_id
-      LEFT JOIN products mp ON (
-        (kb.product_id IS NOT NULL AND kb.product_id != '' AND mp.id = kb.product_id)
-        OR (
-          (kb.product_id IS NULL OR kb.product_id = '')
-          AND kb.type IN ('product', 'fixed_price', 'open_price', 'weighed_open')
-          AND kb.category_filter IS NOT NULL AND kb.category_filter != ''
-          AND mp.active = 1
-          AND (mp.id = kb.category_filter OR mp.plu = kb.category_filter OR mp.barcode = kb.category_filter)
-        )
+      LEFT JOIN products linked_p ON linked_p.id = kb.product_id
+      LEFT JOIN products ref_p ON (
+        kb.type IN ('product', 'fixed_price', 'open_price', 'weighed_open')
+        AND kb.category_filter IS NOT NULL AND kb.category_filter != ''
+        AND ref_p.active = 1
+        AND (ref_p.id = kb.category_filter OR ref_p.plu = kb.category_filter OR ref_p.barcode = kb.category_filter)
       )
+      LEFT JOIN products mp ON mp.id = CASE
+        WHEN ref_p.id IS NOT NULL
+          AND (linked_p.id IS NULL
+            OR linked_p.id LIKE 'p-open-%'
+            OR (COALESCE(linked_p.plu, '') = '' AND COALESCE(linked_p.barcode, '') = ''))
+          THEN ref_p.id
+        ELSE linked_p.id
+      END
       WHERE kb.active = 1
       ORDER BY kb.page, kb.sort_order`)
     const issues = []

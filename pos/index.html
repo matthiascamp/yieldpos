@@ -1751,7 +1751,7 @@ function renderPosGrid () {
 }
 
 function posButtonProductId (btn) {
-  return btn.product_id || btn.matched_product_id || ''
+  return btn.matched_product_id || btn.product_id || ''
 }
 
 function posButtonLabel (btn) {
@@ -2676,7 +2676,8 @@ function showPriceChangeModalForProduct (product) {
   priceChangeBuf = currentPrice > 0 ? String(Math.round(currentPrice * 100)) : ''
   updatePriceChangeDisplay()
   $('#priceChangeTitle').textContent = product.name || 'Change Product'
-  $('#priceChangeSub').textContent = `PLU ${product.plu || product.barcode || product.id} - currently ${Number(product.open_price || 0) === 1 ? 'open price' : money(currentPrice)}`
+  const productCode = product.plu || product.barcode || (!/^p-open-/i.test(product.id || '') ? product.id : '')
+  $('#priceChangeSub').textContent = `${productCode ? `PLU ${productCode}` : 'No PLU'} - currently ${Number(product.open_price || 0) === 1 ? 'open price' : money(currentPrice)}`
   $('#priceChangeProductOptions').style.display = ''
   $('#priceChangeUnit').value = product.unit || 'each'
   $('#priceChangeOpenPrice').checked = Number(product.open_price || 0) === 1

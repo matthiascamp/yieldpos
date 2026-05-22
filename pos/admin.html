@@ -8341,7 +8341,8 @@
       $('#kbEditId').value = btn.id
       $('#kbLabel').value = btn.product_name || labelFromDb(btn.label)
       // Linked sellable keys are database products; standalone fixed/open keys keep their own type.
-      const editType = (btn.product_id || btn.matched_product_id) && ['product', 'open_price', 'fixed_price', 'weighed_open'].includes(btn.type)
+      const effectiveProductId = btn.matched_product_id || btn.product_id || ''
+      const editType = effectiveProductId && ['product', 'open_price', 'fixed_price', 'weighed_open'].includes(btn.type)
         ? 'product'
         : btn.type
       $('#kbType').value = editType
@@ -8364,7 +8365,7 @@
       updateImageRemoveButton()
       // Product picker state
       clearProductPicker()
-      const linkedProductRef = btn.product_id || btn.matched_product_id || (editType === 'product' && btn.category_filter) || null
+      const linkedProductRef = effectiveProductId || (editType === 'product' && btn.category_filter) || null
       $('#kbProductPrice').value = 0
       if (linkedProductRef) {
         window.pos.getProductById(linkedProductRef).then(async p => p || await window.pos.getProductByBarcode(linkedProductRef)).then(p => {
@@ -8380,7 +8381,7 @@
             $('#kbOpenPrice').checked = !!p.open_price
             updateLivePreview()
           } else {
-            $('#kbProductId').value = btn.product_id || btn.matched_product_id || ''
+            $('#kbProductId').value = effectiveProductId
             $('#kbProductPlu').value = btn.product_plu || btn.category_filter || ''
             $('#kbProductUnit').value = btn.product_unit || 'each'
           }
