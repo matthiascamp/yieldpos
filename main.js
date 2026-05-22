@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, shell, protocol } = require('electron')
+const { app, BrowserWindow, ipcMain, globalShortcut, shell, protocol, Tray, Menu, nativeImage } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { fileURLToPath } = require('url')
@@ -14,11 +14,18 @@ let saveTimer = null
 let dailyBackupTimer = null
 let hardwareCleanup = null  // set by setupIPC, called on shutdown
 let appShuttingDown = false
+let tray = null
+let trayHintShown = false
+let modeSignalPath = null
+let lanStartupBlock = null
+let lanServerConflictTimer = null
+let lanServerConflictInProgress = false
 
 const runtimeAppMode = (process.argv.includes('--admin') || process.argv.includes('admin')) ? 'admin' : 'register'
 const isRegisterApp = runtimeAppMode === 'register'
 const SOFTWARE_NAME = 'YieldPOS Client'
 const DEFAULT_STORE_NAME = 'YieldPOS'
+const APP_ICON_PATH = path.join(__dirname, 'pos', 'YieldPOS.png')
 app.setName(SOFTWARE_NAME)
 if (process.platform === 'win32') app.setAppUserModelId('com.yieldpos.client')
 const USER_DATA_DIR = app.getPath('userData')
@@ -274,6 +281,7 @@ function acquireModeProcessLock (mode) {
   const lockDir = path.join(USER_DATA_DIR, 'locks')
   fs.mkdirSync(lockDir, { recursive: true })
   modeLockPath = path.join(lockDir, `${mode}.lock`)
+  modeSignalPath = path.join(lockDir, `${mode}.show`)
 
   const writeLock = () => {
     modeLockFd = fs.openSync(modeLockPath, 'wx')
@@ -296,6 +304,13 @@ function acquireModeProcessLock (mode) {
     const existing = JSON.parse(fs.readFileSync(modeLockPath, 'utf8'))
     if (isProcessAlive(existing.pid)) {
       appLog('warn', 'startup', `Another ${mode} process is already running`, existing)
+      try {
+        fs.writeFileSync(modeSignalPath, JSON.stringify({
+          pid: process.pid,
+          mode,
+          at: new Date().toISOString()
+        }))
+      } catch (_) {}
       return false
     }
     fs.unlinkSync(modeLockPath)
@@ -845,6 +860,7 @@ async function initDatabase() {
 
   // Link keyboard buttons to products by matching names (best image match)
   relinkKeyboardProducts()
+  normalizeKeyboardProductRefs()
 
   // Rebrand: update default store details to YieldPOS. Existing custom store names/logos are left alone.
   try {
@@ -2757,7 +2773,164 @@ function relinkKeyboardProducts() {
   } catch (e) { console.error('relinkKeyboardProducts error:', e.message) }
 }
 
+function normalizeKeyboardProductRefs() {
+  if (!db) return 0
+  let changed = 0
+  const run = (sql, params = []) => {
+    db.run(sql, params)
+    try { changed += db.getRowsModified() || 0 } catch (_) {}
+  }
+
+  try {
+    // Control/category/navigation keys never carry product pricing state.
+    run(`UPDATE keyboard_buttons
+      SET product_id = NULL,
+          price = 0,
+          updated_at = datetime('now')
+      WHERE active = 1
+        AND type IN ('section', 'page_link', 'back_home', 'nav', 'cart_display', 'num_display',
+          'digit', 'clear', 'qtyx', 'codeenter', 'pay_cash', 'pay_card', 'park', 'subtotal',
+          'void', 'return', 'hold', 'nosale', 'supervisor', 'lock', 'reprint', 'pricecheck',
+          'errcorrect', 'recall', 'pctdiscount', 'pctone', 'movedrawer', 'ubereats', 'viewor',
+          'endofday', 'discount', 'product_lookup', 'item_search', 'management', 'price_change')
+        AND (product_id IS NOT NULL OR ABS(COALESCE(price, 0)) > 0.001)`)
+
+    const sellableButtons = dbAll(`SELECT id, type, price, category_filter, product_id
+      FROM keyboard_buttons
+      WHERE active = 1
+        AND type IN ('product', 'fixed_price', 'open_price', 'weighed_open')`)
+    for (const btn of sellableButtons) {
+      const ref = String(btn.category_filter || '').trim()
+      let product = ref
+        ? dbGet(`SELECT id, plu, barcode
+          FROM products
+          WHERE active = 1
+            AND (id = ?1 OR plu = ?1 OR barcode = ?1)
+          ORDER BY CASE WHEN plu = ?1 THEN 0 WHEN barcode = ?1 THEN 1 WHEN id = ?1 THEN 2 ELSE 9 END
+          LIMIT 1`, [ref])
+        : null
+      if (!product && btn.product_id) {
+        product = dbGet("SELECT id, plu, barcode FROM products WHERE active = 1 AND id = ?1", [btn.product_id])
+      }
+      if (!product) {
+        const safeButtonId = String(btn.id || '').replace(/[^a-zA-Z0-9_-]/g, '-')
+        const generatedRefs = [
+          btn.product_id,
+          ref,
+          ref && String(ref).startsWith('p-open-') ? String(ref).replace(/^p-open-/, 'p-kb-') : '',
+          btn.product_id && String(btn.product_id).startsWith('p-open-') ? String(btn.product_id).replace(/^p-open-/, 'p-kb-') : '',
+          safeButtonId ? `p-kb-${safeButtonId}` : '',
+          safeButtonId ? `p-open-${safeButtonId}` : ''
+        ].filter(Boolean)
+        for (const candidate of [...new Set(generatedRefs)]) {
+          product = dbGet("SELECT id, plu, barcode FROM products WHERE active = 1 AND id = ?1", [candidate])
+          if (product) break
+        }
+      }
+
+      if (product) {
+        const code = String(product.plu || product.barcode || ref || product.id || '').trim()
+        if (btn.product_id !== product.id || btn.type !== 'product' || Math.abs(Number(btn.price || 0)) > 0.001 || (code && ref !== code)) {
+          db.run(`UPDATE keyboard_buttons
+            SET product_id = ?2,
+                type = 'product',
+                price = 0,
+                category_filter = COALESCE(NULLIF(?3, ''), category_filter),
+                updated_at = datetime('now')
+            WHERE id = ?1`, [btn.id, product.id, code])
+          changed++
+        }
+      } else if (btn.type === 'product' && Math.abs(Number(btn.price || 0)) > 0.001) {
+        db.run("UPDATE keyboard_buttons SET price = 0, updated_at = datetime('now') WHERE id = ?1", [btn.id])
+        changed++
+      }
+    }
+
+    if (changed) appLog('info', 'database', `Normalised ${changed} keyboard product references to DB-backed pricing`)
+  } catch (e) {
+    appLog('error', 'database', 'Keyboard product reference normalisation failed', e.message)
+  }
+  return changed
+}
+
 const isDevMode = process.argv.includes('--dev')
+
+function updateTrayMenu () {
+  if (!tray) return
+  const modeLabel = isRegisterApp ? 'Register' : 'Admin'
+  const windowReady = !!(mainWindow && !mainWindow.isDestroyed())
+  const windowVisible = windowReady && mainWindow.isVisible()
+  tray.setToolTip(`${SOFTWARE_NAME} - ${modeLabel}`)
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: `Open ${modeLabel}`, enabled: windowReady, click: showMainWindowFromTray },
+    { label: 'Hide to tray', enabled: windowVisible, click: () => hideMainWindowToTray('tray-menu') },
+    { type: 'separator' },
+    { label: 'Quit YieldPOS', click: quitApplication }
+  ]))
+}
+
+function ensureTray () {
+  if (tray) return tray
+  const icon = nativeImage.createFromPath(APP_ICON_PATH)
+  tray = new Tray(icon.isEmpty() ? APP_ICON_PATH : icon.resize({ width: 16, height: 16 }))
+  tray.on('click', showMainWindowFromTray)
+  tray.on('double-click', showMainWindowFromTray)
+  updateTrayMenu()
+  return tray
+}
+
+function showMainWindowFromTray () {
+  if (appShuttingDown) return
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    updateTrayMenu()
+    return
+  }
+  mainWindow.setSkipTaskbar(false)
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  if (customerWindow && !customerWindow.isDestroyed()) customerWindow.show()
+  mainWindow.focus()
+  updateTrayMenu()
+}
+
+function hideMainWindowToTray (reason = 'close') {
+  if (appShuttingDown || !mainWindow || mainWindow.isDestroyed()) return
+  ensureTray()
+  try { if (mainWindow.isKiosk()) mainWindow.setKiosk(false) } catch (_) {}
+  try { if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false) } catch (_) {}
+  if (customerWindow && !customerWindow.isDestroyed()) customerWindow.hide()
+  mainWindow.setSkipTaskbar(true)
+  mainWindow.hide()
+  appLog('info', 'app', `Main window hidden to tray (${reason})`)
+  updateTrayMenu()
+  if (!trayHintShown && process.platform === 'win32') {
+    trayHintShown = true
+    try {
+      tray.displayBalloon({
+        iconType: 'info',
+        title: 'YieldPOS is still running',
+        content: 'Use the tray icon to reopen it or quit.'
+      })
+    } catch (_) {}
+  }
+}
+
+function quitApplication () {
+  appShuttingDown = true
+  app.quit()
+  setTimeout(() => app.exit(0), 1500)
+}
+
+function startModeSignalWatcher () {
+  if (!modeSignalPath) return
+  try { fs.closeSync(fs.openSync(modeSignalPath, 'a')) } catch (_) {}
+  try {
+    fs.watchFile(modeSignalPath, { interval: 500 }, (cur, prev) => {
+      if (appShuttingDown || cur.mtimeMs === prev.mtimeMs) return
+      showMainWindowFromTray()
+    })
+  } catch (_) {}
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -2766,7 +2939,7 @@ function createWindow() {
     title: isRegisterApp ? 'YieldPOS Client - Register' : 'YieldPOS Client - Admin',
     show: false,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'pos', 'YieldPOS.png'),
+    icon: APP_ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -2820,6 +2993,20 @@ function createWindow() {
   }
   mainWindow.on('enter-full-screen', sendFullscreenState)
   mainWindow.on('leave-full-screen', sendFullscreenState)
+  mainWindow.on('show', updateTrayMenu)
+  mainWindow.on('hide', updateTrayMenu)
+
+  mainWindow.on('minimize', (event) => {
+    if (appShuttingDown) return
+    event.preventDefault()
+    hideMainWindowToTray('minimize')
+  })
+
+  mainWindow.on('close', (event) => {
+    if (appShuttingDown) return
+    event.preventDefault()
+    hideMainWindowToTray('close')
+  })
 
   // Close customer display when main window closes
   mainWindow.on('closed', () => {
@@ -2867,9 +3054,185 @@ function createCustomerWindow () {
   })
 }
 
+function normalizeLanIp (ip) {
+  return String(ip || '').replace(/^::ffff:/, '').trim()
+}
+
+function getLocalLanIps () {
+  const ips = new Set(['127.0.0.1', 'localhost'])
+  try {
+    const os = require('os')
+    const nets = os.networkInterfaces()
+    for (const addrs of Object.values(nets)) {
+      for (const addr of addrs || []) {
+        const isIPv4 = addr.family === 'IPv4' || addr.family === 4
+        if (isIPv4) ips.add(normalizeLanIp(addr.address))
+      }
+    }
+  } catch (_) {}
+  return ips
+}
+
+async function findExistingLanServer (lanPort) {
+  const port = Number.parseInt(lanPort, 10) || 5555
+  const localIps = getLocalLanIps()
+  for (const ip of localIps) {
+    const result = await lanSync.testConnection(ip, port)
+    if (result?.ok) return { ...result, ip: normalizeLanIp(result.ip || ip), port: result.port || port, local: true }
+  }
+
+  const discovered = await lanSync.discoverServer(3500, port)
+  if (!discovered?.ip) return null
+  const ip = normalizeLanIp(discovered.ip)
+  return { ...discovered, ip, port: discovered.port || port, local: localIps.has(ip) }
+}
+
+async function findRemoteLanServer (lanPort) {
+  const port = Number.parseInt(lanPort, 10) || 5555
+  const localIps = getLocalLanIps()
+  const discovered = await lanSync.discoverServer(2500, port, { ignoreIps: [...localIps] })
+  if (!discovered?.ip) return null
+  const ip = normalizeLanIp(discovered.ip)
+  if (localIps.has(ip)) return null
+  return { ...discovered, ip, port: discovered.port || port, local: false }
+}
+
+function shouldYieldToRemoteServer (remote) {
+  const local = lanSync.getStatus()
+  const localStarted = Date.parse(local.serverStartedAt || '')
+  const remoteStarted = Date.parse(remote?.serverStartedAt || '')
+  if (!Number.isFinite(remoteStarted)) return true
+  if (!Number.isFinite(localStarted)) return true
+  if (remoteStarted < localStarted - 1000) return true
+  if (remoteStarted > localStarted + 1000) return false
+  return String(remote.serverId || remote.ip || '') < String(local.serverId || local.serverIp || '')
+}
+
+function clearLanServerConflictMonitor () {
+  if (lanServerConflictTimer) clearInterval(lanServerConflictTimer)
+  lanServerConflictTimer = null
+  lanServerConflictInProgress = false
+}
+
+function startLanServerConflictMonitor (lanPort) {
+  clearLanServerConflictMonitor()
+  const port = Number.parseInt(lanPort, 10) || 5555
+  lanServerConflictTimer = setInterval(async () => {
+    if (lanServerConflictInProgress || appShuttingDown || isRegisterApp) return
+    if (lanSync.getStatus().mode !== 'server') return
+    lanServerConflictInProgress = true
+    try {
+      const remote = await findRemoteLanServer(port)
+      if (remote && shouldYieldToRemoteServer(remote)) {
+        const error = `Another YieldPOS server is already running at ${remote.ip}:${remote.port || port}. This Admin server stopped to keep one server on the network.`
+        lanStartupBlock = { error, existingServer: { ...remote, port: remote.port || port } }
+        appLog('warn', 'lan-sync', error)
+        lanSync.stopAll()
+        notifyDataChanged('lan-server-conflict')
+      } else if (remote) {
+        appLog('warn', 'lan-sync', `Detected competing YieldPOS server at ${remote.ip}:${remote.port || port}; this server remains primary`)
+      }
+    } catch (e) {
+      appLog('warn', 'lan-sync', `LAN server conflict check failed: ${e.message || String(e)}`)
+    } finally {
+      lanServerConflictInProgress = false
+    }
+  }, 15000)
+}
+
 async function startLanServerIfUnique(lanPort) {
-  lanSync.startServer(lanPort, { dbAll, dbGet, dbRun, saveDB, uuid })
+  lanStartupBlock = null
+  clearLanServerConflictMonitor()
+  const port = Number.parseInt(lanPort, 10) || 5555
+  const existing = await findExistingLanServer(port)
+  if (existing) {
+    const ip = normalizeLanIp(existing.ip)
+    const error = `Another YieldPOS server is already running at ${ip}:${existing.port || port}. Only one Admin server can run on this network.`
+    lanStartupBlock = { error, existingServer: { ...existing, ip, port: existing.port || port } }
+    appLog('warn', 'lan-sync', error)
+    return { ok: false, error, existing: lanStartupBlock.existingServer }
+  }
+  lanSync.startServer(port, { dbAll, dbGet, dbRun, saveDB, uuid })
+  startLanServerConflictMonitor(port)
   return { ok: true }
+}
+
+function normalizeLanMode (mode) {
+  return ['server', 'client', 'off'].includes(mode) ? mode : 'off'
+}
+
+function getConfiguredLanMode () {
+  return normalizeLanMode(dbGet("SELECT value FROM settings WHERE key = 'lan_mode'")?.value)
+}
+
+function getRuntimeLanMode (configuredMode = getConfiguredLanMode()) {
+  const mode = normalizeLanMode(configuredMode)
+  if (!isRegisterApp) return 'server'
+  return mode === 'server' ? 'client' : mode
+}
+
+function coerceLanModeForThisApp (requestedMode) {
+  const mode = normalizeLanMode(requestedMode)
+  if (!isRegisterApp) return 'server'
+  return mode === 'server' ? 'client' : mode
+}
+
+function getRuntimeSettingsSnapshot () {
+  const rows = dbAll("SELECT key, value FROM settings")
+  const settings = Object.fromEntries(rows.map(r => [r.key, r.value]))
+  settings.configured_lan_mode = settings.lan_mode || 'off'
+  settings.lan_mode = getRuntimeLanMode(settings.lan_mode)
+  settings.lan_role_locked = isRegisterApp ? 'register-client-only' : 'admin-server-host'
+  return settings
+}
+
+async function startLanForRuntime () {
+  const configuredMode = getConfiguredLanMode()
+  const lanMode = getRuntimeLanMode(configuredMode)
+  const lanPort = Number.parseInt(dbGet("SELECT value FROM settings WHERE key = 'lan_port'")?.value || '5555', 10) || 5555
+  if (lanMode === 'server') {
+    if (!isRegisterApp && configuredMode !== 'server') {
+      dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('lan_mode', 'server')")
+      dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('lan_port', ?1)", [String(lanPort)])
+      saveDBSync()
+    }
+    return await startLanServerIfUnique(lanPort)
+  }
+  lanStartupBlock = null
+  clearLanServerConflictMonitor()
+  if (lanMode === 'client') {
+    const serverIp = dbGet("SELECT value FROM settings WHERE key = 'lan_server_ip'")?.value || null
+    const secret = dbGet("SELECT value FROM settings WHERE key = 'lan_secret'")?.value
+    lanSync.startClient(serverIp, lanPort, secret, { dbAll, dbGet, dbRun, saveDB, uuid })
+    return { ok: true }
+  }
+  return { ok: true }
+}
+
+function getLanStatusForRuntime () {
+  const status = lanSync.getStatus()
+  const configuredMode = getConfiguredLanMode()
+  const runtimeMode = getRuntimeLanMode(configuredMode)
+  if (lanStartupBlock && runtimeMode === 'server' && status.mode === 'off') {
+    return {
+      ...status,
+      mode: 'server',
+      connected: false,
+      error: lanStartupBlock.error,
+      existingServer: lanStartupBlock.existingServer,
+      configuredMode,
+      runtimeMode,
+      runtimeAppMode,
+      roleLocked: isRegisterApp ? 'register-client-only' : 'admin-server-host'
+    }
+  }
+  return {
+    ...status,
+    configuredMode,
+    runtimeMode,
+    runtimeAppMode,
+    roleLocked: isRegisterApp ? 'register-client-only' : 'admin-server-host'
+  }
 }
 
 // Process lock is per mode: one register and one admin can run at the same time,
@@ -2878,6 +3241,8 @@ const gotTheLock = gotModeLock
 app.whenReady().then(async () => {
   if (!gotTheLock) return
   registerExternalImageProtocol()
+  ensureTray()
+  startModeSignalWatcher()
 
   // Force-quit PTPOS + GUARDIAN so they release the OPOS scanner / COM ports.
   // They run elevated and respawn, so the durable fix is the SYSTEM "KillPTPOS"
@@ -2904,7 +3269,7 @@ app.whenReady().then(async () => {
     center: true, skipTaskbar: false,
     transparent: true,
     backgroundColor: '#00000000',
-    icon: path.join(__dirname, 'pos', 'YieldPOS.png'),
+    icon: APP_ICON_PATH,
     webPreferences: { nodeIntegration: true, contextIsolation: false }
   })
   try { splashWindow.setAlwaysOnTop(true, 'floating') } catch (_) {}
@@ -2974,19 +3339,11 @@ app.whenReady().then(async () => {
 
     splashSend('splash:status', 'Configuring network...', 40)
     try {
-      const lanMode = dbGet("SELECT value FROM settings WHERE key = 'lan_mode'")?.value
-      const lanPort = parseInt(dbGet("SELECT value FROM settings WHERE key = 'lan_port'")?.value || '5555')
-      if (lanMode === 'server') {
-        const started = await startLanServerIfUnique(lanPort)
-        if (started.ok) appLog('info', 'lan-sync', 'Auto-started LAN server on port ' + lanPort)
-      } else if (lanMode === 'client') {
-        const serverIp = dbGet("SELECT value FROM settings WHERE key = 'lan_server_ip'")?.value
-        const secret = dbGet("SELECT value FROM settings WHERE key = 'lan_secret'")?.value
-        if (serverIp) {
-          lanSync.startClient(serverIp, lanPort, secret, { dbAll, dbGet, dbRun, saveDB, uuid })
-          appLog('info', 'lan-sync', `Auto-connected to server at ${serverIp}:${lanPort}`)
-        }
-      }
+      const started = await startLanForRuntime()
+      const status = getLanStatusForRuntime()
+      if (status.mode === 'server' && started.ok) appLog('info', 'lan-sync', 'Auto-started LAN server on port ' + status.port)
+      else if (status.mode === 'server' && !started.ok) appLog('warn', 'lan-sync', started.error || 'LAN server blocked')
+      else if (status.mode === 'client') appLog('info', 'lan-sync', `Auto-started LAN client for server ${status.serverIp || 'auto-discovery'}:${status.port}`)
     } catch (e) { appLog('error', 'lan-sync', 'LAN sync startup error', e.message) }
 
     lanSync.onDataChanged(() => {
@@ -2996,7 +3353,7 @@ app.whenReady().then(async () => {
     })
 
     try {
-      const currentLanMode = dbGet("SELECT value FROM settings WHERE key = 'lan_mode'")?.value
+      const currentLanMode = getRuntimeLanMode()
       if (currentLanMode !== 'client') {
         const supaUrl = dbGet("SELECT value FROM settings WHERE key = 'supabase_url'")?.value
         const supaKey = dbGet("SELECT value FROM settings WHERE key = 'supabase_anon_key'")?.value
@@ -3017,6 +3374,7 @@ app.whenReady().then(async () => {
 
     splashSend('splash:status', 'Preparing interface...', 85)
     createWindow()
+    ensureTray()
 
     // Wait for the page to finish loading
     if (mainWindow.webContents.isLoading()) {
@@ -3062,8 +3420,13 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   appShuttingDown = true
+  clearLanServerConflictMonitor()
+  try { if (modeSignalPath) fs.unwatchFile(modeSignalPath) } catch (_) {}
   try { fs.unwatchFile(DB_PATH) } catch (_) {}
+  try { if (tray) tray.destroy() } catch (_) {}
+  tray = null
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+  normalizeKeyboardProductRefs()
   saveDBSync()
 })
 
@@ -3110,7 +3473,7 @@ function setupIPC() {
   })
 
   ipcMain.handle('window:quit', () => {
-    app.quit()
+    quitApplication()
   })
 
   ipcMain.handle('window:printHTML', async (_e, html, title) => {
@@ -3164,31 +3527,23 @@ function setupIPC() {
     const https = require('https')
     const os = require('os')
     const appDir = __dirname
-    const launchDir = app.isPackaged ? path.dirname(process.execPath) : appDir
-    const isYieldposMainDir = dir => String(path.basename(dir || '')).toLowerCase() === 'yieldpos-main'
-    let updateRoot = launchDir
-    let nestedInstallToRemove = ''
-    if (app.isPackaged && isYieldposMainDir(launchDir) && isYieldposMainDir(path.dirname(launchDir))) {
-      updateRoot = path.dirname(launchDir)
-      nestedInstallToRemove = launchDir
-    }
-    const relaunchExePath = () => {
-      if (!nestedInstallToRemove) return process.execPath
-      return path.join(updateRoot, path.basename(process.execPath))
-    }
+    const updateRoot = app.isPackaged ? path.dirname(process.execPath) : appDir
     const looksLikeAppRoot = dir => !!dir && fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'main.js'))
     const resolveZipSourceRoot = tmpDir => {
-      let extracted = path.join(tmpDir, 'yieldpos-main')
-      if (!looksLikeAppRoot(extracted)) {
-        const dirs = fs.readdirSync(tmpDir, { withFileTypes: true })
-          .filter(entry => entry.isDirectory())
-          .map(entry => path.join(tmpDir, entry.name))
-        extracted = dirs.find(looksLikeAppRoot) || dirs[0] || extracted
+      const skip = new Set(['node_modules', '.git', 'dist', 'dist2', 'backups'])
+      const queue = [{ dir: tmpDir, depth: 0 }]
+      while (queue.length) {
+        const { dir, depth } = queue.shift()
+        if (looksLikeAppRoot(dir)) return dir
+        if (depth >= 3) continue
+        let entries = []
+        try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch (_) {}
+        for (const entry of entries) {
+          if (!entry.isDirectory() || skip.has(entry.name)) continue
+          queue.push({ dir: path.join(dir, entry.name), depth: depth + 1 })
+        }
       }
-      while (looksLikeAppRoot(path.join(extracted, 'yieldpos-main'))) {
-        extracted = path.join(extracted, 'yieldpos-main')
-      }
-      return extracted
+      return tmpDir
     }
     const { spawn } = require('child_process')
     const psQuote = value => `'${String(value).replace(/'/g, "''")}'`
@@ -3362,7 +3717,6 @@ param(
   [string]$ExePath,
   [string]$ArgsJson,
   [string]$TempRoot,
-  [string]$RemoveAfterCopy,
   [string]$LogPath
 )
 $ErrorActionPreference = 'Stop'
@@ -3398,19 +3752,6 @@ try {
   Log "Copy failed: $($_.Exception.Message)"
   throw
 }
-if ($RemoveAfterCopy) {
-  try {
-    $dstFull = [System.IO.Path]::GetFullPath($Destination).TrimEnd('\\', '/')
-    $removeFull = [System.IO.Path]::GetFullPath($RemoveAfterCopy).TrimEnd('\\', '/')
-    if ($removeFull.StartsWith($dstFull + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase) -and
-        (Test-Path -LiteralPath $removeFull)) {
-      Log "Removing nested old folder $removeFull"
-      Remove-Item -LiteralPath $removeFull -Recurse -Force
-    }
-  } catch {
-    Log "Nested folder cleanup skipped: $($_.Exception.Message)"
-  }
-}
 try { Remove-Item -LiteralPath $TempRoot -Recurse -Force } catch {}
 $args = @()
 if ($ArgsJson) { $args = [string[]]($ArgsJson | ConvertFrom-Json) }
@@ -3420,7 +3761,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       fs.writeFileSync(updaterScript, script, 'utf-8')
       const child = spawn('powershell.exe', [
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', updaterScript,
-        extracted, updateRoot, String(process.pid), relaunchExePath(), JSON.stringify(relaunchArgs), tmpDir, nestedInstallToRemove, logPath
+        extracted, updateRoot, String(process.pid), process.execPath, JSON.stringify(relaunchArgs), tmpDir, logPath
       ], { detached: true, stdio: 'ignore', windowsHide: true })
       child.unref()
 
@@ -3505,7 +3846,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       const extracted = resolveZipSourceRoot(tmpDir)
       if (!looksLikeAppRoot(extracted)) return { error: 'Download succeeded but extraction failed - folder not found' }
 
-      const skipDirs = new Set(['node_modules', '.git', 'yieldpos', 'yieldpos-main'])
+      const skipDirs = new Set(['node_modules', '.git', 'yieldpos'])
       const skipFiles = new Set(['package-lock.json'])
       const copyRecursive = (src, dest) => {
         const entries = fs.readdirSync(src, { withFileTypes: true })
@@ -3641,7 +3982,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     return { ...appHealth, database: !!db, mode: runtimeAppMode, isRegisterApp, counts, hardware }
   })
 
-  ipcMain.handle('app:getMode', () => ({ mode: runtimeAppMode, isRegisterApp }))
+  ipcMain.handle('app:getMode', () => ({ mode: runtimeAppMode, isRegisterApp, lanRole: isRegisterApp ? 'client' : 'server' }))
 
   ipcMain.handle('app:version', () => {
     try {
@@ -3815,6 +4156,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     if (isOpenPrice) {
       dbRun("UPDATE specials SET active = 0, updated_at = datetime('now') WHERE product_id = ?1 AND active = 1", [id])
     }
+    normalizeKeyboardProductRefs()
 
     queueSync('products', id, product.id ? 'update' : 'insert')
     lanSync.bumpVersion()
@@ -3861,6 +4203,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     if (count) lanSync.bumpVersion()
     // Re-link keyboard buttons to products after bulk import (images may have arrived)
     relinkKeyboardProducts()
+    normalizeKeyboardProductRefs()
     return count
   })
 
@@ -4463,16 +4806,17 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ï¿½ï¿½â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ï¿½ï¿½â”€â”€â”€â”€â”€
 
   ipcMain.handle('db:settings:get', (_e, key) => {
+    if (key === 'lan_mode') return getRuntimeLanMode()
     const row = dbGet("SELECT value FROM settings WHERE key = ?1", [key])
     return row?.value ?? null
   })
 
   ipcMain.handle('db:settings:getAll', () => {
-    const rows = dbAll("SELECT key, value FROM settings")
-    return Object.fromEntries(rows.map(r => [r.key, r.value]))
+    return getRuntimeSettingsSnapshot()
   })
 
   ipcMain.handle('db:settings:set', (_e, key, value) => {
+    if (key === 'lan_mode') value = coerceLanModeForThisApp(value)
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)", [key, value])
     const skipSync = ['supabase_last_pull', 'keyboard_page_sizes', 'keyboard_page_names', 'layout_v3_shifted', 'nav_buttons_fixed']
     if (!skipSync.includes(key)) {
@@ -4495,6 +4839,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     let count = 0
     for (const s of settings) {
       if (!s.key) continue
+      if (s.key === 'lan_mode') s.value = coerceLanModeForThisApp(s.value)
       dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)", [s.key, s.value ?? null])
       count++
     }
@@ -4677,11 +5022,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         AND (ref_p.id = kb.category_filter OR ref_p.plu = kb.category_filter OR ref_p.barcode = kb.category_filter)
       )
       LEFT JOIN products p ON p.id = CASE
-        WHEN ref_p.id IS NOT NULL
-          AND (linked_p.id IS NULL
-            OR linked_p.id LIKE 'p-open-%'
-            OR (COALESCE(linked_p.plu, '') = '' AND COALESCE(linked_p.barcode, '') = ''))
-          THEN ref_p.id
+        WHEN ref_p.id IS NOT NULL THEN ref_p.id
         ELSE linked_p.id
       END
       LEFT JOIN categories pc ON pc.id = p.category_id
@@ -4800,6 +5141,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     // Product price/open-price state is saved through db:products:upsert.
     // Keyboard buttons only store layout, label, style, and product linkage.
+    normalizeKeyboardProductRefs()
     queueSync('keyboard_buttons', id, btn.id ? 'update' : 'insert')
     saveDBSync()
     lanSync.bumpVersion()
@@ -4860,6 +5202,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       count++
     }
     if (count) dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
+    if (count) normalizeKeyboardProductRefs()
     saveDBSync()
     if (count) lanSync.bumpVersion()
     return count
@@ -4884,6 +5227,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
          newPage, btn.grid_row, btn.grid_col, btn.col_span, btn.row_span, btn.product_id || null])
     }
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
+    normalizeKeyboardProductRefs()
     saveDBSync()
     return { count: buttons.length, newPage }
   })
@@ -4959,6 +5303,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       }
     }
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
+    normalizeKeyboardProductRefs()
     saveDBSync()
     return { count, skipped, productsRestored }
   })
@@ -4976,6 +5321,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       }
     }
     dbRun("DELETE FROM settings WHERE key = 'keyboard_user_customized'")
+    normalizeKeyboardProductRefs()
     saveDBSync()
     return { count }
   })
@@ -4994,11 +5340,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         AND (ref_p.id = kb.category_filter OR ref_p.plu = kb.category_filter OR ref_p.barcode = kb.category_filter)
       )
       LEFT JOIN products mp ON mp.id = CASE
-        WHEN ref_p.id IS NOT NULL
-          AND (linked_p.id IS NULL
-            OR linked_p.id LIKE 'p-open-%'
-            OR (COALESCE(linked_p.plu, '') = '' AND COALESCE(linked_p.barcode, '') = ''))
-          THEN ref_p.id
+        WHEN ref_p.id IS NOT NULL THEN ref_p.id
         ELSE linked_p.id
       END
       WHERE kb.active = 1
@@ -6554,6 +6896,44 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       if (raw === 'gift_card') return 'Payment Gift Card'
       return `Payment ${raw.charAt(0).toUpperCase()}${raw.slice(1)}`
     }
+    const receiptItemUnit = item => {
+      const direct = String(item?.unit || '').trim().toLowerCase()
+      if (direct) return direct
+      if (item?.product_id) {
+        try {
+          const row = dbGet("SELECT unit FROM products WHERE id = ?1", [item.product_id])
+          if (row?.unit) return String(row.unit).trim().toLowerCase()
+        } catch (_) {}
+      }
+      const name = String(item?.name || '')
+      if (/\/kg|\bkg\b/i.test(name)) return 'kg'
+      if (/\/100g|\b100g\b/i.test(name)) return '100g'
+      return 'each'
+    }
+    const formatReceiptNumber = (value, decimals = 2) => {
+      const n = Number(value || 0)
+      if (!Number.isFinite(n)) return '0'
+      return n.toFixed(decimals).replace(/\.?0+$/, '')
+    }
+    const formatReceiptQty = item => {
+      const qty = Number(item?.qty || 0)
+      const unit = receiptItemUnit(item)
+      if (unit === 'kg') return `${formatReceiptNumber(qty, 3)} kg`
+      if (unit === '100g') return `${formatReceiptNumber(qty, 2)} x 100g`
+      if (unit && unit !== 'each') return `${formatReceiptNumber(qty, 2)} ${unit}`
+      return formatReceiptNumber(qty, 2)
+    }
+    const receiptUnitPriceSuffix = item => {
+      const unit = receiptItemUnit(item)
+      if (unit === 'kg') return '/kg'
+      if (unit === '100g') return '/100g'
+      return ''
+    }
+    const receiptItemCount = items => (items || []).reduce((sum, item) => {
+      const qty = Math.abs(Number(item?.qty || 0))
+      if (!qty) return sum
+      return sum + (receiptItemUnit(item) === 'each' ? qty : 1)
+    }, 0)
     const emitBarcode = value => {
       const barcodeStr = String(value || '').replace(/-/g, '')
       if (!barcodeStr) return
@@ -6612,7 +6992,9 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       const nameStr = (prefix + item.name).substring(0, 32)
       const priceStr = `$${item.line_total.toFixed(2)}`
       text(lr(nameStr, priceStr))
-      if (item.qty !== 1) text(`    ${item.qty} x $${item.unit_price.toFixed(2)}`)
+      if (item.qty !== 1 || receiptItemUnit(item) !== 'each') {
+        text(`    ${formatReceiptQty(item)} x $${item.unit_price.toFixed(2)}${receiptUnitPriceSuffix(item)}`)
+      }
       if (hasDiscount) text(`    Discount: -$${item.discount.toFixed(2)}`)
     }
     text('')
@@ -6626,9 +7008,10 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       text(lr(discLabel, `-$${receiptData.discount.toFixed(2)}`))
     }
 
-    const itemCount = (receiptData.items || []).reduce((s, it) => s + Math.abs(it.qty), 0)
+    const itemCount = receiptItemCount(receiptData.items)
+    const itemCountText = formatReceiptNumber(itemCount, 2)
     cmd(ESCPOS.BOLD_ON)
-    text(lr(`Total (${itemCount} Item${itemCount !== 1 ? 's' : ''})`, `$${receiptData.total.toFixed(2)}`))
+    text(lr(`Total (${itemCountText} Item${itemCount !== 1 ? 's' : ''})`, `$${receiptData.total.toFixed(2)}`))
     cmd(ESCPOS.BOLD_OFF)
 
     // Payment methods
@@ -8030,7 +8413,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
   // â”€â”€ LAN Sync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  ipcMain.handle('lan:getStatus', () => lanSync.getStatus())
+  ipcMain.handle('lan:getStatus', () => getLanStatusForRuntime())
   ipcMain.handle('lan:getPeers', () => lanSync.getPeers())
   ipcMain.handle('lan:sessionAction', (_e, action, staffId, staffName, registerId) => lanSync.sessionAction(action, staffId, staffName, registerId))
 
@@ -8039,27 +8422,20 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   ipcMain.handle('lan:pushToRegisters', async () => {
     saveDBSync()
     const result = await lanSync.forceSync()
-    const status = lanSync.getStatus()
+    const status = getLanStatusForRuntime()
     if (result.ok !== false) notifyDataChanged('manual-sync')
     return { pushed: result.ok !== false, clients: (status.clients || []).length, ...result }
   })
 
   ipcMain.handle('lan:restart', async () => {
     lanSync.stopAll()
-    const lanMode = dbGet("SELECT value FROM settings WHERE key = 'lan_mode'")?.value
-    const lanPort = parseInt(dbGet("SELECT value FROM settings WHERE key = 'lan_port'")?.value || '5555')
+    const lanMode = getRuntimeLanMode()
+    const started = await startLanForRuntime()
     if (lanMode === 'server') {
-      const started = await startLanServerIfUnique(lanPort)
-      if (!started.ok) return { ...lanSync.getStatus(), error: started.error, existingServer: started.existing }
+      if (!started.ok) return { ...getLanStatusForRuntime(), error: started.error, existingServer: started.existing }
       await new Promise(resolve => setTimeout(resolve, 500))
-    } else if (lanMode === 'client') {
-      const serverIp = dbGet("SELECT value FROM settings WHERE key = 'lan_server_ip'")?.value
-      const secret = dbGet("SELECT value FROM settings WHERE key = 'lan_secret'")?.value
-      if (serverIp) {
-        lanSync.startClient(serverIp, lanPort, secret, { dbAll, dbGet, dbRun, saveDB, uuid })
-      }
     }
-    return lanSync.getStatus()
+    return getLanStatusForRuntime()
   })
 
   ipcMain.handle('lan:discover', async () => {

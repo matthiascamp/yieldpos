@@ -5694,16 +5694,20 @@
       lines.push({ text: '' })
 
       const sampleItems = [
-        { name: 'Coffee Large', price: 5.50, qty: 2, gst: true, disc: false },
-        { name: 'Bananas Cavendish', price: 3.33, qty: 1.2, gst: false, disc: false },
-        { name: 'Carrots Bag 1kg', price: 3.00, qty: 1, gst: false, disc: true, discAmt: 1.00, lineTotal: 2.00 },
+        { name: 'Coffee Large', price: 5.50, qty: 2, unit: 'each', gst: true, disc: false },
+        { name: 'Bananas Cavendish', price: 3.33, qty: 1.2, unit: 'kg', gst: false, disc: false },
+        { name: 'Carrots Bag 1kg', price: 3.00, qty: 1, unit: 'each', gst: false, disc: true, discAmt: 1.00, lineTotal: 2.00 },
       ]
 
       for (const it of sampleItems) {
         const prefix = it.disc ? 'D ' : it.gst ? '* ' : '  '
         const lineTotal = it.lineTotal ?? (it.qty * it.price)
         lines.push({ text: lr((prefix + it.name).substring(0, 32), '$' + lineTotal.toFixed(2)), locked: true })
-        if (it.qty !== 1) lines.push({ text: '    ' + it.qty + ' x $' + it.price.toFixed(2), locked: true })
+        if (it.qty !== 1 || it.unit !== 'each') {
+          const q = it.unit === 'kg' ? it.qty.toFixed(3).replace(/\.?0+$/, '') + ' kg' : String(it.qty)
+          const suffix = it.unit === 'kg' ? '/kg' : ''
+          lines.push({ text: '    ' + q + ' x $' + it.price.toFixed(2) + suffix, locked: true })
+        }
         if (it.disc) lines.push({ text: '    Discount: -$' + it.discAmt.toFixed(2), locked: true })
       }
       lines.push({ text: '' })
@@ -6307,9 +6311,25 @@
       }
       const serverBtn = $('#lanBecomeServer')
       if (serverBtn) {
-        serverBtn.disabled = false
-        serverBtn.style.opacity = '1'
-        serverBtn.title = 'Use this PC as the single LAN server'
+        serverBtn.disabled = appModeInfo.isRegisterApp
+        serverBtn.style.opacity = appModeInfo.isRegisterApp ? '.45' : '1'
+        serverBtn.title = appModeInfo.isRegisterApp
+          ? 'Registers cannot host LAN sync. Open Admin on the server PC.'
+          : 'Admin hosts the single LAN server'
+      }
+      const clientBtn = $('#lanBecomeClient')
+      if (clientBtn) {
+        clientBtn.disabled = !appModeInfo.isRegisterApp
+        clientBtn.style.opacity = appModeInfo.isRegisterApp ? '1' : '.45'
+        clientBtn.title = appModeInfo.isRegisterApp
+          ? 'Connect this register to the Admin server'
+          : 'Admin is the LAN server. Registers connect as clients.'
+      }
+      if ($('#lanResetBtn')) {
+        $('#lanResetBtn').style.display = appModeInfo.isRegisterApp ? '' : 'none'
+      }
+      if ($('#lanResetClientBtn')) {
+        $('#lanResetClientBtn').style.display = appModeInfo.isRegisterApp ? '' : 'none'
       }
 
       updateLanPanel(mode)
@@ -6320,9 +6340,12 @@
         $('#lanLocalIp').value = status.serverIp || status.localIp || s.lan_server_ip || ''
         $('#lanPort').value = s.lan_port || '5555'
         const clients = status.clients?.length || 0
+        const existingServerMsg = status.existingServer?.ip
+          ? ` Existing server: ${esc(status.existingServer.ip)}:${esc(status.existingServer.port || status.port || '5555')}`
+          : ''
         $('#lanServerStatus').innerHTML = status.connected
-          ? `<span style="color:#4fbd77;">${clients} register(s) connected</span>`
-          : `<span style="color:${status.error ? '#a44' : 'var(--text-dim)'};">${status.error ? esc(status.error) : 'Waiting for registers...'}</span>`
+          ? `<span style="color:#4fbd77;">Server running - ${clients} register(s) connected</span>`
+          : `<span style="color:${status.error ? '#a44' : 'var(--text-dim)'};">${status.error ? esc(status.error) + existingServerMsg : 'Waiting for registers...'}</span>`
       } else if (mode === 'client') {
         $('#lanServerIp').value = s.lan_server_ip || ''
         $('#lanClientPort').value = s.lan_port || '5555'
@@ -6390,11 +6413,15 @@
         icon.textContent = '🖥'
         icon.style.borderColor = 'var(--green)'
         icon.style.background = 'rgba(79,189,119,0.1)'
-        title.textContent = appModeInfo.isRegisterApp ? 'Main Server (Register Host)' : 'Main Server (Admin Host)'
+        title.textContent = 'Main Server (Admin Host)'
         title.style.color = 'var(--green)'
-        desc.textContent = status?.connected
-          ? `This PC hosts the database. ${status.clients?.length || 0} client register(s) connected.`
-          : 'This PC is configured as the main server. Start the server to allow clients to connect.'
+        if (status?.existingServer?.ip) {
+          desc.textContent = `Another Admin server is already running at ${status.existingServer.ip}:${status.existingServer.port || status.port || '5555'}. This PC will not start a second server.`
+        } else {
+          desc.textContent = status?.connected
+            ? `This PC hosts the database. ${status.clients?.length || 0} client register(s) connected.`
+            : 'Admin is configured as the main server. Start Admin to allow registers to connect.'
+        }
         banner.style.borderColor = 'rgba(79,189,119,0.3)'
         diagramSection.style.display = ''
         renderLanDiagram('server', { ...status, serverIp: status?.serverIp || status?.localIp })
@@ -6402,7 +6429,7 @@
         icon.textContent = '💻'
         icon.style.borderColor = 'var(--blue)'
         icon.style.background = 'rgba(59,130,246,0.1)'
-        title.textContent = appModeInfo.isRegisterApp ? 'Client Register' : 'Admin Client'
+        title.textContent = appModeInfo.isRegisterApp ? 'Client Register' : 'Admin Server'
         title.style.color = 'var(--blue)'
         desc.textContent = status?.connected
           ? `Connected to server at ${status.serverIp || 'unknown'}. Data syncs automatically.`
@@ -6417,8 +6444,8 @@
         title.textContent = 'Not Configured'
         title.style.color = 'var(--text)'
         desc.textContent = appModeInfo.isRegisterApp
-          ? 'LAN sync is currently off. This register can be the single server or connect as a client.'
-          : 'LAN sync is currently off. Admin can be the single server or connect as a client.'
+          ? 'LAN sync is currently off. This register can connect to the Admin server as a client.'
+          : 'Admin hosts the LAN server. Registers connect to Admin as clients.'
         banner.style.borderColor = 'var(--border)'
         renderLanDiagram('server', { clients: [], serverIp: 'Not configured', port: '5555' })
       }
@@ -6598,6 +6625,10 @@
 
     // "This is the SERVER" button
     $('#lanBecomeServer').addEventListener('click', async () => {
+      if (appModeInfo.isRegisterApp) {
+        showToast('Registers cannot host LAN sync. Open Admin on the server PC.', 'error')
+        return
+      }
       await window.pos.setSetting('lan_mode', 'server')
       await window.pos.setSetting('lan_port', '5555')
       const status = await window.pos.restartLan()
@@ -6615,6 +6646,10 @@
 
     // "This is a REGISTER" button — auto-discover server
     $('#lanBecomeClient').addEventListener('click', async () => {
+      if (!appModeInfo.isRegisterApp) {
+        showToast('Admin is the LAN server. Open Register to connect as a client.', 'info')
+        return
+      }
       $('#lanSetupButtons').style.display = 'none'
       $('#lanDiscovering').style.display = ''
       $('#lanDiscoverFallback').style.display = 'none'
@@ -9966,6 +10001,7 @@
       if (backTop) backTop.style.display = 'inline-flex'
     }
 
+    let dataChangedReloadTimer = null
     window.pos.onDataChanged((info) => {
       refreshBranding().catch(() => {})
       const syncEl = $('#adminSyncStatus')
@@ -9974,13 +10010,17 @@
         syncEl.textContent = `Updated ${time}`
         syncEl.title = info?.source ? `Last data update: ${info.source}` : 'Last data update'
       }
-      const active = $('.sidebar a.active')?.dataset.tab
-      if (active === 'dashboard') loadDashboard()
-      else if (active === 'products') loadProducts()
-      else if (active === 'staff') loadStaff()
-      else if (active === 'deals') loadDeals()
-      else if (active === 'keyboard') loadKeyboard()
-      else if (active === 'labels') initLabelsTab()
+      clearTimeout(dataChangedReloadTimer)
+      dataChangedReloadTimer = setTimeout(() => {
+        const active = $('.sidebar a.active')?.dataset.tab
+        if (active === 'dashboard') loadDashboard()
+        else if (active === 'products') {
+          if (!$('#productEditPanel')?.classList.contains('modal-open')) loadProducts()
+        } else if (active === 'staff') loadStaff()
+        else if (active === 'deals') loadDeals()
+        else if (active === 'keyboard') loadKeyboard()
+        else if (active === 'labels') initLabelsTab()
+      }, 700)
     })
 
   </script>

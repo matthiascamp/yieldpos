@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const defaultOut = path.join(path.dirname(ROOT), `YieldPOS-App-Package-${timestamp()}`);
+const defaultOut = path.join(path.dirname(ROOT), 'YieldPOS');
 const OUT = path.resolve(process.argv[2] || defaultOut);
 
 const ROOT_FILES = [
@@ -82,12 +82,6 @@ function copyDir(src, dest) {
 
 function shouldSkip(name) {
   return ['.git', 'node_modules', 'dist', 'dist2', '__pycache__'].includes(name);
-}
-
-function timestamp() {
-  const d = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
 
 main();

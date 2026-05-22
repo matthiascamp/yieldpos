@@ -19,7 +19,7 @@ internal static class YieldPosLauncher
             if (string.IsNullOrEmpty(portableExe))
             {
                 MessageBox.Show(
-                    "Cannot find " + PortableExeName + ".\n\nKeep the YieldPOS package folder on the Desktop or in Downloads, or keep YieldPOS Admin.exe, YieldPOS Register.exe, and " + PortableExeName + " in the same folder.",
+                    "Cannot find " + PortableExeName + ".\n\nPut the YieldPOS folder on the Desktop or in Downloads, with this launcher beside it. The launcher also works if it is in the same folder as " + PortableExeName + ".",
                     "YieldPOS launcher",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
@@ -96,19 +96,14 @@ internal static class YieldPosLauncher
         AddIfExists(results, Path.Combine(root, "dist2", PortableExeName));
 
         string[] preferredFolders = {
-            "YieldPOS-App-Package-Final",
-            "YieldPOS-App-Package",
             "YieldPOS",
-            "yieldpos",
-            "yieldpos-main"
+            "yieldpos"
         };
 
         foreach (string folder in preferredFolders)
         {
             AddIfExists(results, Path.Combine(root, folder, PortableExeName));
             AddIfExists(results, Path.Combine(root, folder, "dist2", PortableExeName));
-            AddIfExists(results, Path.Combine(root, folder, folder, PortableExeName));
-            AddIfExists(results, Path.Combine(root, folder, folder, "dist2", PortableExeName));
         }
 
         try

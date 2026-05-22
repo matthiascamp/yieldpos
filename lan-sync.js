@@ -32,6 +32,9 @@ let state = {
   port: 5555,
   secret: null,
   error: null,
+  serverId: null,
+  serverStartedAt: null,
+  hostname: os.hostname(),
   clients: [],        // server tracks connected client IPs
   activeSessions: {}  // server tracks active staff: { staffId: { registerId, staffName, loginTime } }
 }
@@ -52,7 +55,7 @@ function bumpVersion () {
 async function forceSync () {
   if (state.mode === 'server') {
     bumpVersion()
-    return { ok: true, mode: state.mode, clients: state.clients.length }
+    return { ok: isServerListening(), mode: state.mode, clients: state.clients.length, error: state.error }
   }
   if (state.mode === 'client') {
     await doSyncCycle()
@@ -86,32 +89,57 @@ const DELETABLE_TABLES = new Set([
 ])
 
 function applyDeletedRecords (records, opts = {}) {
-  if (!Array.isArray(records) || !db) return
+  if (!Array.isArray(records) || !db) return 0
   if (opts.replace) db.dbRun("DELETE FROM deleted_records")
 
+  let changed = 0
   for (const r of records) {
     const table = r?.table_name
     const recordId = r?.record_id
     if (!table || recordId == null || !DELETABLE_TABLES.has(table)) continue
+    const id = String(recordId)
+    const alreadyRecorded = !opts.replace && !!db.dbGet(
+      "SELECT 1 FROM deleted_records WHERE table_name = ?1 AND record_id = ?2",
+      [table, id]
+    )
+    let targetExists = false
+    try {
+      if (table === 'keyboard_pages') {
+        targetExists = !!db.dbGet("SELECT 1 FROM keyboard_pages WHERE page = ?1", [id]) ||
+          !!db.dbGet("SELECT 1 FROM keyboard_buttons WHERE page = ?1 OR (type = 'page_link' AND parent_id = ?1)", [id])
+      } else if (table === 'deal_products') {
+        const [dealId, productId] = id.split(':')
+        targetExists = !!(dealId && productId && db.dbGet("SELECT 1 FROM deal_products WHERE deal_id = ?1 AND product_id = ?2", [dealId, productId]))
+      } else if (table === 'deals') {
+        targetExists = !!db.dbGet("SELECT 1 FROM deals WHERE id = ?1", [id]) ||
+          !!db.dbGet("SELECT 1 FROM deal_products WHERE deal_id = ?1", [id])
+      } else if (table === 'keyboard_buttons') {
+        targetExists = !!db.dbGet("SELECT 1 FROM keyboard_buttons WHERE id = ?1 OR parent_id = ?1", [id])
+      } else {
+        targetExists = !!db.dbGet(`SELECT 1 FROM ${table} WHERE id = ?1`, [id])
+      }
+    } catch (_) {}
 
     db.dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES (?1, ?2)",
-             [table, String(recordId)])
+             [table, id])
 
     if (table === 'keyboard_pages') {
-      db.dbRun("DELETE FROM keyboard_pages WHERE page = ?1", [String(recordId)])
-      db.dbRun("DELETE FROM keyboard_buttons WHERE page = ?1", [String(recordId)])
-      db.dbRun("UPDATE keyboard_buttons SET active = 0 WHERE type = 'page_link' AND parent_id = ?1", [String(recordId)])
+      db.dbRun("DELETE FROM keyboard_pages WHERE page = ?1", [id])
+      db.dbRun("DELETE FROM keyboard_buttons WHERE page = ?1", [id])
+      db.dbRun("UPDATE keyboard_buttons SET active = 0 WHERE type = 'page_link' AND parent_id = ?1", [id])
     } else if (table === 'deal_products') {
-      const [dealId, productId] = String(recordId).split(':')
+      const [dealId, productId] = id.split(':')
       if (dealId && productId) {
         db.dbRun("DELETE FROM deal_products WHERE deal_id = ?1 AND product_id = ?2", [dealId, productId])
       }
     } else {
-      db.dbRun(`DELETE FROM ${table} WHERE id = ?1`, [String(recordId)])
-      if (table === 'deals') db.dbRun("DELETE FROM deal_products WHERE deal_id = ?1", [String(recordId)])
-      if (table === 'keyboard_buttons') db.dbRun("DELETE FROM keyboard_buttons WHERE parent_id = ?1", [String(recordId)])
+      db.dbRun(`DELETE FROM ${table} WHERE id = ?1`, [id])
+      if (table === 'deals') db.dbRun("DELETE FROM deal_products WHERE deal_id = ?1", [id])
+      if (table === 'keyboard_buttons') db.dbRun("DELETE FROM keyboard_buttons WHERE parent_id = ?1", [id])
     }
+    if (!alreadyRecorded || targetExists) changed++
   }
+  return changed
 }
 
 const MASTER_TABLE_COLUMNS = {
@@ -156,11 +184,17 @@ function getStatus () {
     return age < 5 * 60 * 1000
   })
   const localIp = getLocalIp()
+  const connected = state.mode === 'server' ? isServerListening() && !state.error : state.connected
   return {
     ...state,
+    connected,
     localIp,
     serverIp: state.serverIp || (state.mode === 'server' ? localIp : state.serverIp)
   }
+}
+
+function isServerListening () {
+  return !!(server && server.listening && state.mode === 'server')
 }
 
 // ─── HTTP Helpers ────────────────────────────────────────────────────────────
@@ -252,6 +286,11 @@ function startServer (port, dbHelpers) {
   state.mode = 'server'
   state.port = port
   state.serverIp = getLocalIp()
+  state.connected = false
+  state.error = null
+  state.serverId = `${os.hostname()}-${process.pid}-${Date.now()}`
+  state.serverStartedAt = new Date().toISOString()
+  state.hostname = os.hostname()
 
   // Generate secret if not set
   let secretRow = db.dbGet("SELECT value FROM settings WHERE key = 'lan_secret'")
@@ -304,6 +343,10 @@ function startServer (port, dbHelpers) {
     state.connected = false
   })
 
+  server.on('close', () => {
+    if (state.mode === 'server') state.connected = false
+  })
+
   server.listen(port, '0.0.0.0', () => {
     state.serverIp = getLocalIp()
     db?.dbRun?.("INSERT OR REPLACE INTO settings (key, value) VALUES ('lan_server_ip', ?1)", [state.serverIp])
@@ -323,7 +366,17 @@ async function handleRoute (req, res, url, path, registerId = 'unknown') {
   if (req.method === 'GET') {
     switch (path) {
       case '/api/heartbeat':
-        return jsonReply(res, { ok: true, time: new Date().toISOString(), ip: getLocalIp(), port: state.port, version: dataVersion, secret: state.secret })
+        return jsonReply(res, {
+          ok: true,
+          time: new Date().toISOString(),
+          ip: getLocalIp(),
+          port: state.port,
+          version: dataVersion,
+          secret: state.secret,
+          serverId: state.serverId,
+          serverStartedAt: state.serverStartedAt,
+          hostname: state.hostname
+        })
 
       case '/api/peers': {
         const regRow = db.dbGet("SELECT value FROM settings WHERE key = 'register_id'")
@@ -512,11 +565,13 @@ async function handleRoute (req, res, url, path, registerId = 'unknown') {
 
       case '/api/deleted': {
         const records = Array.isArray(body) ? body : body.records || []
-        applyDeletedRecords(records)
-        db.saveDB()
-        bumpVersion()
-        if (_dataChangedCallback) _dataChangedCallback()
-        return jsonReply(res, { ok: true, count: records.length })
+        const applied = applyDeletedRecords(records)
+        if (applied > 0) {
+          db.saveDB()
+          bumpVersion()
+          if (_dataChangedCallback) _dataChangedCallback()
+        }
+        return jsonReply(res, { ok: true, count: applied, received: records.length })
       }
 
       case '/api/master-data': {
@@ -559,7 +614,10 @@ function startUdpBroadcast (port) {
         port,
         register_id: regRow?.value || 'LANE01',
         secret: state.secret,
-        version: dataVersion
+        version: dataVersion,
+        serverId: state.serverId,
+        serverStartedAt: state.serverStartedAt,
+        hostname: state.hostname
       })
       const buf = Buffer.from(msg)
 
@@ -573,7 +631,10 @@ function startUdpBroadcast (port) {
             port,
             register_id: regRow?.value || 'LANE01',
             secret: state.secret,
-            version: dataVersion
+            version: dataVersion,
+            serverId: state.serverId,
+            serverStartedAt: state.serverStartedAt,
+            hostname: state.hostname
           })
           const freshBuf = Buffer.from(freshMsg)
           state.serverIp = currentIp
@@ -599,7 +660,10 @@ function broadcastServerNow () {
       port: state.port,
       register_id: regRow?.value || 'LANE01',
       secret: state.secret,
-      version: dataVersion
+      version: dataVersion,
+      serverId: state.serverId,
+      serverStartedAt: state.serverStartedAt,
+      hostname: state.hostname
     })
     const buf = Buffer.from(msg)
     udpSocket.send(buf, 0, buf.length, UDP_PORT, '255.255.255.255')
@@ -632,9 +696,11 @@ function startClient (serverIp, port, secret, dbHelpers) {
   if (clientWatchTimer) { clearTimeout(clientWatchTimer); clientWatchTimer = null }
   clientWatchActive = false
   state.mode = 'client'
-  state.serverIp = serverIp
+  state.serverIp = serverIp || null
   state.port = port
   state.secret = secret
+  state.connected = false
+  state.error = state.serverIp ? null : 'Waiting for server discovery'
 
   // Initial full sync with retry
   attemptInitialSync()
@@ -1106,6 +1172,7 @@ function getRegisterId () {
 
 function httpGet (path, timeoutMs) {
   return new Promise((resolve, reject) => {
+    if (!state.serverIp) return reject(new Error('Waiting for server discovery'))
     const opts = {
       hostname: state.serverIp,
       port: state.port,
@@ -1133,6 +1200,7 @@ function httpGet (path, timeoutMs) {
 
 function httpPost (path, body) {
   return new Promise((resolve, reject) => {
+    if (!state.serverIp) return reject(new Error('Waiting for server discovery'))
     const data = JSON.stringify(body)
     const opts = {
       hostname: state.serverIp,
@@ -1239,6 +1307,7 @@ async function getPeers () {
 }
 
 async function testConnection (ip, port) {
+  if (!ip) return { ok: false, error: 'No server IP configured' }
   try {
     const result = await new Promise((resolve, reject) => {
       const opts = {
@@ -1252,7 +1321,11 @@ async function testConnection (ip, port) {
         const chunks = []
         res.on('data', c => chunks.push(c))
         res.on('end', () => {
-          try { resolve(JSON.parse(Buffer.concat(chunks).toString())) }
+          try {
+            const data = JSON.parse(Buffer.concat(chunks).toString())
+            if (res.statusCode === 200 && data.ok) resolve(data)
+            else reject(new Error(data.error || `HTTP ${res.statusCode}`))
+          }
           catch (e) { reject(e) }
         })
       })
@@ -1268,9 +1341,14 @@ async function testConnection (ip, port) {
 
 // ─── Auto-Discovery ─────────────────────────────────────────────────────
 
-function discoverServer (timeoutMs = 8000) {
+function normalizeIp (ip) {
+  return String(ip || '').replace(/^::ffff:/, '').trim()
+}
+
+function discoverServer (timeoutMs = 8000, port = 5555, opts = {}) {
   return new Promise((resolve) => {
     let resolved = false
+    const ignoreIps = new Set((opts.ignoreIps || []).map(normalizeIp))
     const done = (result) => {
       if (resolved) return
       resolved = true
@@ -1290,6 +1368,7 @@ function discoverServer (timeoutMs = 8000) {
         try {
           const data = JSON.parse(msg.toString())
           if (data.service === 'crisp-pos' && data.ip && data.port) {
+            if (ignoreIps.has(normalizeIp(data.ip))) return
             done(data)
           }
         } catch (_) {}
@@ -1298,13 +1377,13 @@ function discoverServer (timeoutMs = 8000) {
     } catch (_) {}
 
     // Method 2: Active network scan (probes all IPs on local subnet)
-    scanSubnet(5555).then(result => {
+    scanSubnet(port || 5555, ignoreIps).then(result => {
       if (result) done(result)
     }).catch(() => {})
   })
 }
 
-function scanSubnet (port) {
+function scanSubnet (port, ignoreIps = new Set()) {
   return new Promise((resolve) => {
     const localIp = getLocalIp()
     const parts = localIp.split('.')
@@ -1316,7 +1395,7 @@ function scanSubnet (port) {
 
     for (let i = 1; i <= 254; i++) {
       const ip = `${subnet}.${i}`
-      if (ip === localIp) continue
+      if (ignoreIps.has(normalizeIp(ip))) continue
 
       pending++
       const req = http.request({
@@ -1332,7 +1411,15 @@ function scanSubnet (port) {
             const data = JSON.parse(Buffer.concat(chunks).toString())
             if (data.ok && res.statusCode === 200) {
               found = true
-              resolve({ service: 'crisp-pos', ip, port, secret: data.secret || null })
+              resolve({
+                service: 'crisp-pos',
+                ip,
+                port: data.port || port,
+                secret: data.secret || null,
+                serverId: data.serverId || null,
+                serverStartedAt: data.serverStartedAt || null,
+                hostname: data.hostname || null
+              })
             }
           } catch (_) {}
           if (pending <= 0 && !found) resolve(null)
@@ -1342,6 +1429,7 @@ function scanSubnet (port) {
       req.on('timeout', () => { req.destroy(); pending--; if (pending <= 0 && !found) resolve(null) })
       req.end()
     }
+    if (pending === 0) resolve(null)
   })
 }
 
@@ -1683,5 +1771,7 @@ function stopAll () {
   state.connected = false
   state.mode = 'off'
   state.error = null
+  state.serverId = null
+  state.serverStartedAt = null
   state.clients = []
 }
