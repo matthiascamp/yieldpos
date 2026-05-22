@@ -2856,8 +2856,8 @@ function normalizeKeyboardProductRefs() {
 const isDevMode = process.argv.includes('--dev')
 
 function updateTrayMenu () {
-  if (!tray) return
-  const modeLabel = isRegisterApp ? 'Register' : 'Admin'
+  if (isRegisterApp || !tray) return
+  const modeLabel = 'Admin'
   const windowReady = !!(mainWindow && !mainWindow.isDestroyed())
   const windowVisible = windowReady && mainWindow.isVisible()
   tray.setToolTip(`${SOFTWARE_NAME} - ${modeLabel}`)
@@ -2870,6 +2870,7 @@ function updateTrayMenu () {
 }
 
 function ensureTray () {
+  if (isRegisterApp) return null
   if (tray) return tray
   const icon = nativeImage.createFromPath(APP_ICON_PATH)
   tray = new Tray(icon.isEmpty() ? APP_ICON_PATH : icon.resize({ width: 16, height: 16 }))
@@ -2894,6 +2895,7 @@ function showMainWindowFromTray () {
 }
 
 function hideMainWindowToTray (reason = 'close') {
+  if (isRegisterApp) return
   if (appShuttingDown || !mainWindow || mainWindow.isDestroyed()) return
   ensureTray()
   try { if (mainWindow.isKiosk()) mainWindow.setKiosk(false) } catch (_) {}
@@ -2996,17 +2998,19 @@ function createWindow() {
   mainWindow.on('show', updateTrayMenu)
   mainWindow.on('hide', updateTrayMenu)
 
-  mainWindow.on('minimize', (event) => {
-    if (appShuttingDown) return
-    event.preventDefault()
-    hideMainWindowToTray('minimize')
-  })
+  if (!isRegisterApp) {
+    mainWindow.on('minimize', (event) => {
+      if (appShuttingDown) return
+      event.preventDefault()
+      hideMainWindowToTray('minimize')
+    })
 
-  mainWindow.on('close', (event) => {
-    if (appShuttingDown) return
-    event.preventDefault()
-    hideMainWindowToTray('close')
-  })
+    mainWindow.on('close', (event) => {
+      if (appShuttingDown) return
+      event.preventDefault()
+      hideMainWindowToTray('close')
+    })
+  }
 
   // Close customer display when main window closes
   mainWindow.on('closed', () => {
@@ -3241,7 +3245,7 @@ const gotTheLock = gotModeLock
 app.whenReady().then(async () => {
   if (!gotTheLock) return
   registerExternalImageProtocol()
-  ensureTray()
+  if (!isRegisterApp) ensureTray()
   startModeSignalWatcher()
 
   // Force-quit PTPOS + GUARDIAN so they release the OPOS scanner / COM ports.
@@ -3374,7 +3378,7 @@ app.whenReady().then(async () => {
 
     splashSend('splash:status', 'Preparing interface...', 85)
     createWindow()
-    ensureTray()
+    if (!isRegisterApp) ensureTray()
 
     // Wait for the page to finish loading
     if (mainWindow.webContents.isLoading()) {
