@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YieldPOS Client - Customer Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden}
+body{font-family:'Inter',system-ui,sans-serif;background:linear-gradient(160deg,#0f1a14 0%,#1a1d27 40%,#1a2218 100%);color:#f5f0e8;display:flex;flex-direction:column;user-select:none;-webkit-font-smoothing:antialiased}
+
+.header{padding:1.5vh 2.5vw;display:flex;align-items:center;gap:1.2vw;border-bottom:1px solid rgba(79,189,119,.15);background:rgba(0,0,0,.25);flex-shrink:0}
+.brand-circle-img{width:5.5vh;height:5.5vh;border-radius:50%;object-fit:cover;box-shadow:0 2px 12px rgba(79,189,119,.2)}
+.store-name{font-family:'Inter',system-ui,sans-serif;font-weight:900;font-size:2.8vmin;color:#4fe37a;letter-spacing:-.04em}
+.store-sub{font-size:1.6vmin;color:rgba(245,240,232,.5);margin-top:.3vh;letter-spacing:.5px;text-transform:uppercase}
+
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;min-height:0}
+
+/* ═══ Idle / Deals Screen ═══════════════════════════════════════════════════ */
+.idle-screen{flex:1;display:flex;flex-direction:column;padding:2.5vh 3vw;overflow:hidden;animation:fadeIn .6s ease;min-height:0}
+.deals-header{text-align:center;margin-bottom:2vh;flex-shrink:0}
+.deals-title{font-family:'Playfair Display',serif;font-size:5.5vmin;font-weight:800;color:#f5f0e8;margin-bottom:.5vh}
+.deals-subtitle{font-size:2vmin;color:rgba(245,240,232,.5);letter-spacing:.5px;text-transform:uppercase}
+
+.deals-grid{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(30vw,320px),1fr));gap:1.8vmin;align-content:center;overflow-y:auto;padding-bottom:1vh}
+
+.deal-card{background:linear-gradient(145deg,rgba(27,67,50,.45),rgba(27,67,50,.12));border:1px solid rgba(79,189,119,.2);border-radius:1.5vmin;padding:2vmin 2.5vmin;display:flex;flex-direction:column;gap:1.2vmin;position:relative;overflow:hidden}
+.deal-card::before{content:'';position:absolute;top:0;left:0;right:0;height:.5vmin;background:linear-gradient(90deg,#4fbd77,#f59e0b);border-radius:1.5vmin 1.5vmin 0 0;opacity:.6}
+.deal-card-top{display:flex;align-items:center;gap:1.5vmin}
+.deal-emoji{font-size:5.5vmin;line-height:1;flex-shrink:0}
+.deal-info{flex:1;min-width:0}
+.deal-name{font-weight:700;font-size:2.8vmin;color:#f5f0e8;margin-bottom:.5vmin}
+.deal-badge{display:inline-block;padding:.4vmin 1vmin;border-radius:.6vmin;font-size:1.4vmin;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.badge-special{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+.badge-today{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3)}
+.badge-fresh{background:rgba(79,189,119,.15);color:#6ee7b7;border:1px solid rgba(79,189,119,.3)}
+.badge-popular{background:rgba(139,92,246,.15);color:#c4b5fd;border:1px solid rgba(139,92,246,.3)}
+.deal-pricing{display:flex;align-items:baseline;gap:1.2vmin;margin-top:.5vmin}
+.deal-special-price{font-size:4vmin;font-weight:800;color:#4fbd77}
+.deal-special-text{font-size:3vmin;font-weight:700;color:#f59e0b}
+.deal-normal-price{font-size:2.2vmin;color:rgba(245,240,232,.4);text-decoration:line-through}
+.deal-unit{font-size:1.8vmin;color:rgba(245,240,232,.5);font-weight:500}
+
+.idle-footer{display:flex;align-items:center;justify-content:space-between;padding-top:1.5vh;border-top:1px solid rgba(79,189,119,.1);margin-top:auto;flex-shrink:0}
+.idle-footer-left{display:flex;align-items:center;gap:1vw}
+.idle-footer-logo{width:4.5vh;height:4.5vh;border-radius:50%;object-fit:cover}
+.idle-footer-text{font-size:1.8vmin;color:rgba(245,240,232,.5)}
+.powered-by{font-size:1.35vmin;color:rgba(79,227,122,.72);font-weight:800;letter-spacing:.02em;white-space:nowrap}
+
+/* ═══ Active Sale — Split Layout ═══════════════════════════════════════════ */
+.sale-view{flex:1;display:none;flex-direction:row;overflow:hidden;animation:fadeIn .3s ease;min-height:0}
+
+.sale-left{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.items-header{padding:1.5vh 2.5vw;font-size:2.2vmin;color:rgba(245,240,232,.5);text-transform:uppercase;letter-spacing:.5px;font-weight:700;border-bottom:1px solid rgba(79,189,119,.08);flex-shrink:0}
+.items-list{flex:1;overflow-y:auto;padding:1.5vh 2vw;min-height:0}
+.item-row{display:flex;align-items:center;padding:2vh 2.5vw;margin-bottom:1vh;border-radius:1.2vmin;background:rgba(27,67,50,.12);border:1px solid rgba(79,189,119,.06);gap:1.5vw;transition:all .2s}
+.item-row:last-child{margin-bottom:0}
+.item-row.item-new{animation:slideIn .3s ease}
+.item-emoji{font-size:4vmin;width:5vmin;text-align:center;line-height:1;flex-shrink:0}
+.item-qty{background:rgba(79,189,119,.15);color:#6ee7b7;font-size:3vmin;font-weight:700;padding:1vmin 1.5vmin;border-radius:.8vmin;min-width:5vmin;text-align:center}
+.item-details{flex:1;min-width:0}
+.item-name{font-weight:600;font-size:3.2vmin;color:#f5f0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-unit-price{font-size:2vmin;color:rgba(245,240,232,.4);margin-top:.3vh}
+.item-price{font-weight:800;font-size:3.5vmin;color:#4fbd77;min-width:12vw;text-align:right}
+
+.totals-bar{padding:2.5vh 2.5vw;background:rgba(0,0,0,.4);border-top:3px solid rgba(79,189,119,.4);flex-shrink:0}
+.total-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:1vh;font-size:2.5vmin;color:rgba(245,240,232,.5)}
+.total-row:last-child{margin-bottom:0}
+.total-row.grand{font-size:4.5vmin;font-weight:800;color:#f5f0e8;margin-top:1.5vh;padding-top:1.5vh;border-top:2px solid rgba(79,189,119,.25)}
+.total-row.grand .total-amount{color:#4fbd77;font-family:'Playfair Display',serif;font-size:7vmin}
+
+/* Right sidebar — mini deals */
+.sale-right{width:22vw;max-width:360px;flex-shrink:0;display:flex;flex-direction:column;background:rgba(0,0,0,.15);border-left:1px solid rgba(79,189,119,.1);overflow:hidden}
+.sidebar-header{padding:1.8vh 1.5vw;text-align:center;border-bottom:1px solid rgba(79,189,119,.08);flex-shrink:0}
+.sidebar-title{font-family:'Playfair Display',serif;font-size:2.5vmin;font-weight:700;color:#f5f0e8}
+.sidebar-sub{font-size:1.4vmin;color:rgba(245,240,232,.4);margin-top:.3vh;text-transform:uppercase;letter-spacing:.3px}
+.sidebar-deals{flex:1;overflow-y:auto;padding:1.2vh 1.2vw;display:flex;flex-direction:column;gap:1vmin;min-height:0}
+
+.mini-deal{background:rgba(27,67,50,.25);border:1px solid rgba(79,189,119,.12);border-radius:1vmin;padding:1.5vmin 1.8vmin;display:flex;align-items:center;gap:1.2vmin}
+.mini-deal-emoji{font-size:3.5vmin;flex-shrink:0}
+.mini-deal-info{flex:1;min-width:0}
+.mini-deal-name{font-weight:600;font-size:1.8vmin;color:#f5f0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-deal-price{font-size:2.2vmin;font-weight:700;color:#4fbd77;margin-top:.2vmin}
+.mini-deal-unit{font-size:1.4vmin;color:rgba(245,240,232,.4);font-weight:400}
+.mini-deal-badge{font-size:1.2vmin;font-weight:700;text-transform:uppercase;color:#fcd34d;letter-spacing:.3px;margin-top:.3vmin}
+
+.sidebar-footer{padding:1.5vh 1.5vw;border-top:1px solid rgba(79,189,119,.08);text-align:center;flex-shrink:0}
+.sidebar-footer-text{font-size:1.4vmin;color:rgba(245,240,232,.3);line-height:1.5}
+
+/* ═══ Sale Complete ════════════════════════════════════════════════════════ */
+.sale-complete{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vmin;padding:4vh 4vw}
+.sale-complete.active{display:flex}
+.check-circle{width:14vmin;height:14vmin;border-radius:50%;background:#15803d;display:flex;align-items:center;justify-content:center;animation:popIn .4s ease;box-shadow:0 4px 30px rgba(21,128,61,.26)}
+.check-circle svg{width:7vmin;height:7vmin;stroke:#fff;stroke-width:3;fill:none}
+.thank-you{font-family:'Playfair Display',serif;font-size:6vmin;font-weight:700;color:#f5f0e8;animation:fadeIn .6s ease}
+.thank-store{font-size:2.5vmin;color:rgba(245,240,232,.5);margin-top:-.5vmin}
+.change-display{font-size:5vmin;color:#4fbd77;font-weight:700;margin-top:1vmin}
+.total-paid{font-size:3vmin;color:rgba(245,240,232,.5)}
+.goodbye{font-size:2vmin;color:rgba(245,240,232,.35);margin-top:1.5vmin}
+
+/* ═══ Responsive breakpoints ═════════════════════════════════════════════ */
+@media (max-width:800px) {
+  .sale-right{display:none}
+  .deals-grid{grid-template-columns:1fr}
+}
+@media (max-width:600px) {
+  .deals-grid{grid-template-columns:1fr}
+  .deal-emoji{font-size:8vmin}
+  .deal-name{font-size:4vmin}
+  .deal-special-price{font-size:6vmin}
+  .item-name{font-size:4.5vmin}
+  .item-price{font-size:5vmin}
+  .total-row.grand .total-amount{font-size:10vmin}
+}
+@media (max-height:500px) {
+  .header{padding:.8vh 2vw}
+  .brand-circle-img{width:4vh;height:4vh}
+  .deals-header{margin-bottom:1vh}
+  .idle-footer{padding-top:.8vh}
+  .sale-complete{gap:1.5vmin;padding:2vh 2vw}
+}
+/* Portrait orientation (tall screen) — stack deals vertically */
+@media (orientation:portrait) {
+  .deals-grid{grid-template-columns:1fr;align-content:start}
+  .sale-right{display:none}
+  .item-name{font-size:4vmin}
+  .item-price{font-size:5vmin}
+  .total-row.grand .total-amount{font-size:9vmin}
+}
+
+@keyframes popIn{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+/* Refined customer display */
+body{background:
+  radial-gradient(circle at 12% 8%,rgba(79,189,119,.18),transparent 30%),
+  radial-gradient(circle at 86% 16%,rgba(245,158,11,.10),transparent 26%),
+  linear-gradient(145deg,#07120d 0%,#12171d 48%,#10170f 100%)}
+.header{padding:1.4vh 2vw;background:rgba(5,12,8,.72);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08);box-shadow:0 10px 30px rgba(0,0,0,.22)}
+.brand-circle-img{width:5.8vh;height:5.8vh;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 8px 24px rgba(0,0,0,.25)}
+.store-name{font-size:3vmin;letter-spacing:-.03em}
+.store-sub{font-size:1.35vmin;color:rgba(245,240,232,.58)}
+.header-status{margin-left:auto;text-align:right}
+.header-datetime{font-size:2vmin;color:#dff7e7;font-weight:800;letter-spacing:-.03em;white-space:nowrap}
+.idle-screen{padding:2vh 2.6vw 1.6vh;gap:1.4vh}
+.idle-hero{display:flex;align-items:center;justify-content:center;gap:1.1vw;min-height:10vh}
+.idle-hero-logo{width:6.8vh;height:6.8vh;border-radius:50%;object-fit:cover;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 12px 30px rgba(0,0,0,.28)}
+.deals-title{font-size:4.8vmin;letter-spacing:-.055em;line-height:.95;text-align:left}
+.deals-subtitle{text-align:left;color:rgba(245,240,232,.56);font-weight:800}
+.deals-grid{align-content:start;grid-template-columns:repeat(5,minmax(0,1fr));gap:.85vmin}
+.deal-card{min-height:13.5vh;border-radius:.8vmin;padding:1.15vmin;background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.09);box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.deal-card::before{height:.35vmin;background:linear-gradient(90deg,#66d58d,#f6c453)}
+.deal-card-top{align-items:flex-start;gap:1vmin}
+.deal-emoji{font-size:4.2vmin;filter:drop-shadow(0 6px 14px rgba(0,0,0,.2))}
+.deal-name{font-size:1.75vmin;line-height:1.08;letter-spacing:-.03em}
+.deal-badge{border-radius:999px;font-size:.85vmin;background:rgba(102,213,141,.14);color:#a7f3c1;border:1px solid rgba(102,213,141,.22)}
+.deal-pricing{margin-top:auto}
+.deal-special-price,.deal-special-text{font-size:2.65vmin;color:#86efac;letter-spacing:-.05em}
+.idle-footer{padding-top:1.2vh;border-top:1px solid rgba(255,255,255,.07)}
+.idle-footer-logo{box-shadow:0 0 0 1px rgba(255,255,255,.10)}
+.idle-footer-text{color:rgba(245,240,232,.58);font-weight:600}
+.powered-by{color:rgba(79,227,122,.75)}
+.sale-view{background:linear-gradient(90deg,rgba(255,255,255,.025),transparent)}
+.sale-left{background:rgba(255,255,255,.02)}
+.items-header{display:flex;align-items:center;justify-content:space-between;padding:1.25vh 1.7vw;color:#f5f0e8;border-bottom:1px solid rgba(255,255,255,.07);font-size:1.75vmin;letter-spacing:.04em}
+.items-header span:last-child{color:#8ee6aa;font-size:1.45vmin;text-transform:none;letter-spacing:0}
+.items-list{padding:1.1vh 1.25vw 1.4vh}
+.item-row{padding:1vh 1.15vw;margin-bottom:.7vh;border-radius:.75vmin;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.075);box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.item-row.item-new{background:linear-gradient(90deg,rgba(79,189,119,.24),rgba(255,255,255,.075));border-color:rgba(134,239,172,.22)}
+.item-emoji{width:4vmin;font-size:3.1vmin}
+.item-qty{background:rgba(134,239,172,.14);color:#9ff3b9;border:1px solid rgba(134,239,172,.18);font-size:1.8vmin;min-width:4vmin;padding:.5vmin .75vmin}
+.item-name{font-size:2.25vmin;font-weight:800;letter-spacing:-.035em}
+.item-unit-price{font-size:1.3vmin;color:rgba(245,240,232,.48);font-weight:600}
+.item-price{font-size:2.45vmin;color:#95f0ae;letter-spacing:-.045em}
+.sale-right{width:29vw;max-width:none;background:rgba(4,9,7,.52);border-left:1px solid rgba(255,255,255,.08);box-shadow:-18px 0 45px rgba(0,0,0,.18)}
+.sidebar-header{padding:1.25vh 1.25vw;border-bottom:1px solid rgba(255,255,255,.07)}
+.sidebar-header-small{padding:.9vh 1.25vw}
+.sidebar-title{font-size:2vmin;letter-spacing:-.04em}
+.sidebar-sub{color:rgba(245,240,232,.46)}
+.latest-card{margin:.9vh 1vw;padding:1.05vmin;border-radius:.85vmin;background:linear-gradient(160deg,rgba(79,189,119,.18),rgba(255,255,255,.05));border:1px solid rgba(134,239,172,.18);box-shadow:0 9px 24px rgba(0,0,0,.18)}
+.latest-label{font-size:.95vmin;text-transform:uppercase;letter-spacing:.14em;color:rgba(245,240,232,.46);font-weight:900;margin-bottom:.65vmin}
+.latest-main{display:flex;align-items:center;gap:1vmin}
+.latest-emoji{font-size:4vmin;line-height:1}
+.latest-info{min-width:0;flex:1}
+.latest-name{font-size:1.75vmin;font-weight:900;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.latest-meta{font-size:1.1vmin;color:rgba(245,240,232,.52);margin-top:.25vmin}
+.latest-price{font-size:2.5vmin;color:#9ff3b9;font-weight:900;letter-spacing:-.05em;margin-top:.65vmin;text-align:right}
+.totals-bar{margin:0 1vw .9vh;padding:1.15vmin;background:rgba(0,0,0,.34);border:1px solid rgba(255,255,255,.08);border-radius:.85vmin;box-shadow:0 9px 24px rgba(0,0,0,.18)}
+.total-row{font-size:1.45vmin;color:rgba(245,240,232,.62);margin-bottom:.5vh}
+.total-row.grand{display:block;margin-top:.7vh;padding-top:.8vh;border-top:1px solid rgba(255,255,255,.10);font-size:1.35vmin;text-transform:uppercase;letter-spacing:.08em;color:rgba(245,240,232,.58)}
+.total-row.grand .total-amount{display:block;margin-top:.15vh;font-family:'Inter',system-ui,sans-serif;font-size:5.6vmin;line-height:.95;color:#9ff3b9;letter-spacing:-.08em}
+.sidebar-deals{padding:.8vh 1vw;gap:.55vmin}
+.mini-deal{border-radius:.7vmin;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.07);padding:.75vmin}
+.mini-deal-emoji{font-size:2.3vmin}
+.mini-deal-name{font-size:1.25vmin}
+.mini-deal-price{font-size:1.45vmin;color:#9ff3b9}
+.sidebar-footer{border-top:1px solid rgba(255,255,255,.07)}
+.sidebar-footer .powered-by{margin-top:.45vh;font-size:1.05vmin;color:rgba(79,227,122,.62)}
+.sale-complete{background:
+  radial-gradient(circle at 50% 40%,rgba(79,189,119,.22),transparent 35%),
+  rgba(4,9,7,.82)}
+.check-circle{box-shadow:0 0 0 1px rgba(255,255,255,.12),0 22px 60px rgba(79,189,119,.28)}
+.thank-you{font-size:7vmin;letter-spacing:-.05em}
+.total-paid{font-size:3.4vmin;color:#f5f0e8;font-weight:800}
+.change-display{font-size:5.5vmin;color:#9ff3b9;letter-spacing:-.05em}
+
+@media (max-width:1100px) {
+  .deals-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sale-right{width:34vw}
+}
+
+/* YieldPOS gourmet palette */
+:root{
+  --cream:#f7f0dc;
+  --cream-soft:#efe4c8;
+  --forest:#07150d;
+  --forest-2:#0d2216;
+  --forest-3:#142b1c;
+  --sage:#78916b;
+  --gold:#cda75f;
+  --gold-bright:#f0d89c;
+  --gold-soft:rgba(205,167,95,.46);
+}
+body{
+  color:var(--cream);
+  background:
+    radial-gradient(circle at 50% 28%, rgba(241,214,143,.20), transparent 24%),
+    radial-gradient(circle at 52% 28%, rgba(247,240,220,.10), transparent 16%),
+    radial-gradient(circle at 18% 10%, rgba(137,159,115,.13), transparent 30%),
+    linear-gradient(180deg,#102418 0%,#08150f 58%,#020604 100%);
+}
+.header{
+  background:rgba(7,21,13,.78);
+  border-bottom:1px solid rgba(205,167,95,.22);
+  box-shadow:0 10px 34px rgba(0,0,0,.26), inset 0 -1px 0 rgba(247,240,220,.04);
+}
+.brand-circle-img,.idle-hero-logo,.idle-footer-logo{
+  background:var(--forest);
+  box-shadow:
+    0 0 0 1px rgba(205,167,95,.30),
+    0 0 18px rgba(205,167,95,.24),
+    0 8px 26px rgba(0,0,0,.28);
+}
+.store-name{
+  font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  color:var(--cream);
+  letter-spacing:-.074em;
+  font-weight:700;
+}
+.store-sub,.deals-subtitle,.sidebar-sub,.latest-label,.items-header,.sidebar-footer-text,.idle-footer-text{
+  color:rgba(239,228,200,.62);
+}
+.header-datetime,.powered-by{
+  color:var(--gold);
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+.powered-by{
+  font-family:Inter,system-ui,sans-serif;
+  font-size:1.12vmin;
+  font-weight:800;
+}
+.deals-title,.sidebar-title,.thank-you{
+  font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  color:var(--cream);
+  letter-spacing:-.074em;
+  text-shadow:0 0 22px rgba(205,167,95,.18);
+}
+.deal-card,.item-row,.mini-deal,.latest-card,.totals-bar{
+  background:linear-gradient(160deg,rgba(247,240,220,.075),rgba(13,34,22,.32));
+  border-color:rgba(205,167,95,.20);
+  box-shadow:0 10px 28px rgba(0,0,0,.18), inset 0 1px 0 rgba(247,240,220,.055);
+}
+.deal-card::before{
+  background:linear-gradient(90deg,transparent,var(--gold),var(--gold-bright),transparent);
+  opacity:.74;
+}
+.deal-name,.item-name,.mini-deal-name,.latest-name,.total-paid{
+  color:var(--cream);
+}
+.deal-special-price,.deal-special-text,.item-price,.mini-deal-price,.latest-price,.change-display,.total-row.grand .total-amount{
+  color:var(--gold-bright);
+}
+.deal-unit,.item-unit-price,.mini-deal-unit,.latest-meta,.goodbye,.thank-store{
+  color:rgba(239,228,200,.58);
+}
+.badge-special,.badge-today,.badge-fresh,.badge-popular,.mini-deal-badge{
+  background:rgba(205,167,95,.14);
+  border-color:rgba(205,167,95,.28);
+  color:var(--gold-bright);
+}
+.item-qty{
+  background:rgba(120,145,107,.18);
+  border-color:rgba(120,145,107,.35);
+  color:var(--cream-soft);
+}
+.item-row.item-new{
+  background:linear-gradient(90deg,rgba(205,167,95,.18),rgba(247,240,220,.06));
+  border-color:rgba(205,167,95,.30);
+}
+.sale-right{
+  background:rgba(7,21,13,.66);
+  border-left-color:rgba(205,167,95,.20);
+}
+.sidebar-header,.items-header,.idle-footer,.sidebar-footer{
+  border-color:rgba(205,167,95,.18);
+}
+.check-circle{
+  background:linear-gradient(135deg,var(--gold-bright),var(--gold));
+  box-shadow:0 0 0 1px rgba(247,240,220,.28),0 0 46px rgba(205,167,95,.36);
+}
+.check-circle svg{stroke:var(--forest)}
+.sale-complete{
+  background:
+    radial-gradient(circle at 50% 40%,rgba(205,167,95,.24),transparent 35%),
+    rgba(7,21,13,.86);
+}
+
+/* YieldPOS customer display design pass */
+:root{
+  --bo-cream:#f7f0dc;
+  --bo-cream-soft:#efe4c8;
+  --bo-forest:#07150d;
+  --bo-forest-2:#0d2216;
+  --bo-forest-3:#142b1c;
+  --bo-sage:#78916b;
+  --bo-gold:#cda75f;
+  --bo-gold-bright:#f0d89c;
+  --bo-line:rgba(205,167,95,.18);
+  --bo-panel:rgba(247,240,220,.055);
+}
+body{
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  color:var(--bo-cream);
+  background:
+    radial-gradient(circle at 50% 22%,rgba(240,216,156,.14),transparent 28%),
+    radial-gradient(circle at 12% 8%,rgba(120,145,107,.12),transparent 24%),
+    linear-gradient(180deg,#102418 0%,#07150d 56%,#020604 100%);
+}
+.header{
+  min-height:8.4vh;
+  padding:1.15vh 2.4vw;
+  background:rgba(5,14,9,.82);
+  border-bottom:1px solid var(--bo-line);
+  box-shadow:none;
+}
+.brand-circle-img{
+  width:5.2vh;
+  height:5.2vh;
+  border-radius:14px;
+  box-shadow:0 0 0 1px rgba(205,167,95,.24);
+}
+.store-name{
+  font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  font-size:3.25vmin;
+  line-height:.9;
+  letter-spacing:-.064em;
+  font-weight:700;
+}
+.store-sub{
+  margin-top:.55vh;
+  font-size:1.18vmin;
+  letter-spacing:.16em;
+  color:rgba(239,228,200,.58);
+}
+.header-datetime{
+  font-size:1.42vmin;
+  letter-spacing:.11em;
+  color:var(--bo-gold-bright);
+  font-weight:700;
+}
+.content::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(90deg,rgba(247,240,220,.035),transparent 18%,transparent 82%,rgba(205,167,95,.04));
+}
+.idle-screen{
+  padding:2.2vh 3vw 1.8vh;
+  gap:1.6vh;
+}
+.idle-hero{
+  justify-content:flex-start;
+  min-height:9.5vh;
+  gap:1.35vw;
+}
+.idle-hero-logo{
+  width:7.4vh;
+  height:7.4vh;
+  border-radius:18px;
+  box-shadow:0 0 0 1px rgba(205,167,95,.22);
+}
+.deals-title{
+  font-size:5.35vmin;
+  line-height:.86;
+  letter-spacing:-.065em;
+  text-shadow:none;
+}
+.deals-subtitle{
+  margin-top:.7vh;
+  font-size:1.25vmin;
+  letter-spacing:.16em;
+  color:rgba(239,228,200,.60);
+}
+.deals-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:1.05vmin;
+  align-content:stretch;
+}
+.deal-card{
+  min-height:14vh;
+  border-radius:8px;
+  padding:1.25vmin;
+  background:linear-gradient(180deg,rgba(247,240,220,.07),rgba(13,34,22,.46));
+  border:1px solid rgba(205,167,95,.16);
+  box-shadow:none;
+}
+.deal-card::before{
+  height:2px;
+  opacity:.68;
+}
+.deal-emoji{
+  font-size:4.4vmin;
+  filter:none;
+}
+.deal-name{
+  font-size:1.78vmin;
+  font-weight:800;
+  letter-spacing:-.025em;
+}
+.deal-badge{
+  padding:.34vmin .78vmin;
+  border-radius:5px;
+  font-size:.78vmin;
+  letter-spacing:.12em;
+  color:var(--bo-gold-bright);
+}
+.deal-special-price,.deal-special-text{
+  color:var(--bo-gold-bright);
+  font-size:2.75vmin;
+}
+.idle-footer{
+  border-top:1px solid var(--bo-line);
+  padding-top:1.1vh;
+}
+.idle-footer-logo{display:none}
+.idle-footer-text{
+  font-size:1.32vmin;
+  color:rgba(239,228,200,.66);
+}
+.powered-by{
+  color:var(--bo-gold);
+  font-size:1.04vmin;
+  letter-spacing:.16em;
+}
+.sale-view{
+  background:transparent;
+  gap:0;
+}
+.sale-left{
+  background:rgba(247,240,220,.018);
+}
+.items-header{
+  min-height:6.5vh;
+  padding:1.25vh 2vw;
+  background:rgba(7,21,13,.38);
+  border-bottom:1px solid var(--bo-line);
+  font-size:1.28vmin;
+  letter-spacing:.15em;
+}
+.items-header span:last-child{
+  color:var(--bo-gold-bright);
+  font-size:1.18vmin;
+}
+.items-list{
+  padding:1.2vh 1.4vw;
+}
+.item-row{
+  min-height:8vh;
+  padding:1.05vh 1.25vw;
+  margin-bottom:.8vh;
+  border-radius:8px;
+  background:rgba(247,240,220,.055);
+  border:1px solid rgba(205,167,95,.13);
+  box-shadow:none;
+}
+.item-row.item-new{
+  background:linear-gradient(90deg,rgba(205,167,95,.16),rgba(247,240,220,.055));
+}
+.item-emoji{
+  width:4.3vmin;
+  font-size:3.5vmin;
+}
+.item-qty{
+  min-width:4.6vmin;
+  border-radius:6px;
+  background:rgba(120,145,107,.18);
+  border:1px solid rgba(120,145,107,.28);
+  color:var(--bo-cream-soft);
+}
+.item-name{
+  font-size:2.35vmin;
+}
+.item-unit-price{
+  color:rgba(239,228,200,.54);
+}
+.item-price{
+  color:var(--bo-gold-bright);
+  font-size:2.7vmin;
+}
+.sale-right{
+  width:30vw;
+  background:rgba(4,11,7,.64);
+  border-left:1px solid var(--bo-line);
+  box-shadow:none;
+}
+.sidebar-header{
+  padding:1.25vh 1.4vw;
+  border-bottom:1px solid var(--bo-line);
+}
+.sidebar-title{
+  font-size:2.35vmin;
+  line-height:.9;
+  text-shadow:none;
+}
+.sidebar-sub{
+  margin-top:.5vh;
+  letter-spacing:.13em;
+}
+.latest-card,.totals-bar,.mini-deal{
+  border-radius:8px;
+  background:rgba(247,240,220,.055);
+  border:1px solid rgba(205,167,95,.15);
+  box-shadow:none;
+}
+.latest-card{
+  margin:1vh 1.1vw;
+  padding:1.2vmin;
+}
+.latest-label{
+  color:rgba(239,228,200,.55);
+}
+.latest-price{
+  color:var(--bo-gold-bright);
+}
+.totals-bar{
+  margin:0 1.1vw 1vh;
+  padding:1.2vmin;
+}
+.total-row{
+  color:rgba(239,228,200,.62);
+}
+.total-row.grand{
+  color:rgba(239,228,200,.68);
+}
+.total-row.grand .total-amount{
+  color:var(--bo-gold-bright);
+  font-size:5.9vmin;
+  letter-spacing:-.065em;
+}
+.sidebar-deals{
+  padding:.85vh 1.1vw;
+}
+.sidebar-footer{
+  border-top:1px solid var(--bo-line);
+}
+.sale-complete{
+  background:
+    radial-gradient(circle at 50% 38%,rgba(205,167,95,.18),transparent 32%),
+    rgba(7,21,13,.90);
+}
+.check-circle{
+  width:11.5vmin;
+  height:11.5vmin;
+  box-shadow:0 0 0 1px rgba(247,240,220,.25);
+}
+.thank-you{
+  font-size:6.4vmin;
+  text-shadow:none;
+}
+.thank-store,.goodbye{
+  color:rgba(239,228,200,.62);
+}
+@media (max-width:1100px){
+  .deals-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (orientation:portrait){
+  .deals-grid{grid-template-columns:1fr}
+  .idle-hero{justify-content:center;text-align:center}
+}
+
+/* Reference-led redesign: customer display as clear order review */
+body{
+  background:
+    radial-gradient(circle at 82% 10%,rgba(205,167,95,.18),transparent 28%),
+    linear-gradient(180deg,#f7f0dc 0%,#efe4c8 100%);
+  color:#07150d;
+}
+.header{
+  min-height:7.4vh;
+  background:#07150d;
+  border-bottom:1px solid rgba(7,21,13,.18);
+  padding:1vh 2.2vw;
+}
+.brand-circle-img{
+  width:4.8vh;
+  height:4.8vh;
+  border-radius:10px;
+}
+.store-name{
+  font-family:Inter,ui-sans-serif,system-ui,sans-serif;
+  font-size:2.35vmin;
+  letter-spacing:-.035em;
+  font-weight:850;
+}
+.store-sub,.header-datetime{
+  font-size:1.15vmin;
+  letter-spacing:.12em;
+}
+.idle-screen{
+  padding:3vh 3.2vw 2vh;
+}
+.idle-hero{
+  align-items:flex-end;
+  min-height:auto;
+  margin-bottom:1.2vh;
+}
+.idle-hero-logo{display:none}
+.deals-title{
+  font-family:Inter,ui-sans-serif,system-ui,sans-serif;
+  font-size:4.1vmin;
+  letter-spacing:-.055em;
+  line-height:.95;
+  color:#07150d;
+}
+.deals-subtitle{
+  font-size:1.35vmin;
+  letter-spacing:.08em;
+  text-transform:none;
+  color:rgba(7,21,13,.58);
+}
+.deals-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:1.35vmin;
+}
+.deal-card{
+  min-height:16vh;
+  border-radius:10px;
+  background:#f7f0dc;
+  color:#07150d;
+  border:1px solid rgba(205,167,95,.26);
+  padding:1.5vmin;
+}
+.deal-card::before{display:none}
+.deal-name{
+  color:#07150d;
+  font-size:1.95vmin;
+}
+.deal-emoji{
+  font-size:4.8vmin;
+}
+.deal-badge{
+  background:rgba(120,145,107,.16);
+  border-color:rgba(120,145,107,.30);
+  color:#0d2216;
+}
+.deal-special-price,.deal-special-text{
+  color:#0d2216;
+  font-size:3.15vmin;
+}
+.deal-normal-price,.deal-unit{
+  color:rgba(7,21,13,.52);
+}
+.idle-footer{
+  border-top:1px solid rgba(7,21,13,.12);
+}
+.idle-footer-text{color:rgba(7,21,13,.58)}
+.powered-by{color:#0d2216}
+.sale-view{
+  padding:2vh 2vw;
+  gap:1.4vw;
+}
+.sale-left{
+  background:#fffaf0;
+  border-radius:12px;
+  border:1px solid rgba(7,21,13,.10);
+  color:#07150d;
+  overflow:hidden;
+}
+.items-header{
+  min-height:6.2vh;
+  background:#f0ead9;
+  border-bottom:1px solid rgba(7,21,13,.10);
+  color:#07150d;
+}
+.items-header span:last-child{
+  color:#657c5b;
+}
+.items-list{
+  padding:1.25vh 1.25vw;
+}
+.item-row{
+  min-height:7.4vh;
+  background:#fffaf0;
+  border:1px solid rgba(7,21,13,.08);
+  color:#07150d;
+  border-radius:8px;
+}
+.item-row.item-new{
+  background:#f0ead9;
+  border-color:rgba(205,167,95,.32);
+}
+.item-name{
+  color:#07150d;
+}
+.item-unit-price{
+  color:rgba(7,21,13,.52);
+}
+.item-qty{
+  background:#0d2216;
+  color:#f7f0dc;
+  border-color:#0d2216;
+}
+.item-price{
+  color:#07150d;
+}
+.sale-right{
+  width:31vw;
+  background:#07150d;
+  border:1px solid rgba(205,167,95,.22);
+  border-radius:12px;
+  overflow:hidden;
+}
+.sidebar-header{
+  background:#0d2216;
+}
+.sidebar-title{
+  font-family:Inter,ui-sans-serif,system-ui,sans-serif;
+  font-size:1.85vmin;
+  letter-spacing:-.035em;
+}
+.latest-card,.totals-bar,.mini-deal{
+  background:rgba(247,240,220,.07);
+  border-color:rgba(205,167,95,.18);
+}
+.total-row.grand .total-amount{
+  color:#f0d89c;
+  font-size:6.4vmin;
+}
+.mini-deal-name,.latest-name,.total-paid{color:#f7f0dc}
+.mini-deal-price,.latest-price{color:#f0d89c}
+.sale-complete{
+  background:
+    radial-gradient(circle at 50% 24%,rgba(120,145,107,.18),transparent 30%),
+    linear-gradient(180deg,#f7f0dc,#efe4c8);
+  color:#07150d;
+}
+.check-circle{
+  background:#07150d;
+}
+.check-circle svg{stroke:#f7f0dc}
+.thank-you{
+  font-family:Inter,ui-sans-serif,system-ui,sans-serif;
+  letter-spacing:-.055em;
+  color:#07150d;
+}
+.thank-store,.goodbye{color:rgba(7,21,13,.58)}
+
+/* Deal cards should read as compact specials, not oversized panels. */
+.deals-grid{
+  align-content:start;
+  align-items:start;
+  grid-auto-rows:auto;
+  overflow-y:auto;
+}
+.deal-card{
+  min-height:0;
+  height:auto;
+  padding:1.05vmin 1.15vmin;
+  gap:.75vmin;
+}
+.deal-card-top{
+  gap:.85vmin;
+}
+.deal-emoji{
+  font-size:3.8vmin;
+}
+.deal-name{
+  font-size:1.7vmin;
+  line-height:1.12;
+}
+.deal-pricing{
+  margin-top:.3vmin;
+}
+.deal-special-price,.deal-special-text{
+  font-size:2.55vmin;
+}
+.deal-normal-price{
+  font-size:1.65vmin;
+}
+.deal-unit{
+  font-size:1.35vmin;
+}
+
+.brand-circle-img.company-logo,
+.idle-hero-logo.company-logo,
+.idle-footer-logo.company-logo{
+  background:transparent;
+  object-fit:contain;
+  border-radius:0;
+  box-shadow:none;
+}
+
+.idle-footer-text{
+  font-size:1.6vmin;
+  line-height:1.35;
+  font-weight:700;
+}
+.sidebar-footer-text{
+  font-size:1.25vmin;
+  line-height:1.45;
+  font-weight:650;
+}
+.powered-by,
+.sidebar-footer .powered-by{
+  font-size:1.22vmin;
+  line-height:1.3;
+  font-weight:850;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img src="YieldPOS.png" alt="YieldPOS" class="brand-circle-img company-logo">
+  <div>
+    <div class="store-name" id="storeName">YieldPOS</div>
+    <div class="store-sub" id="storeSub">Fresh Fruit & Veg</div>
+  </div>
+  <div class="header-status">
+    <div class="header-datetime" id="customerClock"></div>
+  </div>
+</div>
+
+<div class="content">
+  <!-- Idle screen with Today's Deals -->
+  <div class="idle-screen" id="idleScreen">
+    <div class="idle-hero">
+      <img src="YieldPOS.png" alt="" class="idle-hero-logo company-logo">
+      <div>
+        <div class="deals-title">Fresh picks today</div>
+        <div class="deals-subtitle">Specials, staples, and seasonal favourites</div>
+      </div>
+    </div>
+    <div class="deals-grid" id="dealsGrid"></div>
+    <div class="idle-footer">
+      <div class="idle-footer-left">
+        <img src="YieldPOS.png" alt="YieldPOS" class="idle-footer-logo company-logo">
+        <div>
+          <div class="idle-footer-text" id="storeAddress">1164 Cavendish Rd, Mt Gravatt East QLD 4122</div>
+          <div class="idle-footer-text" id="storeHours">Open 6am - 7pm every day</div>
+        </div>
+      </div>
+      <div class="powered-by">Powered by YieldPOS</div>
+    </div>
+  </div>
+
+  <!-- Active sale view — split: items left, deals right -->
+  <div class="sale-view" id="saleView">
+    <div class="sale-left">
+      <div class="items-header">
+        <span>Your items</span>
+        <span id="itemsHeaderCount">0 items</span>
+      </div>
+      <div class="items-list" id="itemsList"></div>
+    </div>
+    <div class="sale-right">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Current sale</div>
+        <div class="sidebar-sub">Thanks for shopping with us</div>
+      </div>
+      <div class="latest-card" id="latestCard">
+        <div class="latest-label">Just added</div>
+        <div class="latest-main">
+          <div class="latest-emoji" id="latestEmoji">🧺</div>
+          <div class="latest-info">
+            <div class="latest-name" id="latestName">Waiting for first item</div>
+            <div class="latest-meta" id="latestMeta">Items will appear here as they are scanned</div>
+          </div>
+        </div>
+        <div class="latest-price" id="latestPrice"></div>
+      </div>
+      <div class="totals-bar">
+        <div class="total-row"><span>Items</span><span id="cdItemCount">0</span></div>
+        <div class="total-row"><span>GST included</span><span id="cdTax">$0.00</span></div>
+        <div class="total-row grand"><span>Total due</span><span class="total-amount" id="cdTotal">$0.00</span></div>
+      </div>
+      <div class="sidebar-header sidebar-header-small">
+        <div class="sidebar-title">Today's picks</div>
+      </div>
+      <div class="sidebar-deals" id="sidebarDeals"></div>
+      <div class="sidebar-footer">
+        <div class="sidebar-footer-text" id="activeStoreAddress">1164 Cavendish Rd, Mt Gravatt East QLD 4122</div>
+        <div class="sidebar-footer-text" id="activeStoreHours">Open 6am - 7pm every day</div>
+        <div class="powered-by">Powered by YieldPOS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sale complete -->
+  <div class="sale-complete" id="saleComplete">
+    <div class="check-circle"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div class="thank-you">Thank You!</div>
+    <div class="thank-store">Thank you for shopping at Crisp on Creek</div>
+    <div class="total-paid" id="cdTotalPaid"></div>
+    <div class="change-display" id="cdChange"></div>
+    <div class="goodbye">Have a wonderful day</div>
+  </div>
+</div>
+
+<script>
+  const { ipcRenderer } = require('electron')
+
+  function money(n) { return '$' + (n || 0).toFixed(2) }
+  function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+  function itemQtyText(item) {
+    const qty = Math.abs(Number(item.qty || 0))
+    if ((item.unit || 'each') === 'kg') return `${qty.toFixed(3)} kg`
+    if ((item.unit || 'each') === '100g') return `${qty.toFixed(2)} x 100g`
+    return `${qty || 1}x`
+  }
+  function itemUnitMeta(item) {
+    if (!item.unit_price) return ''
+    const unit = item.unit === 'kg' ? '/kg' : item.unit === '100g' ? '/100g' : 'each'
+    return `${money(item.unit_price)} ${unit}`
+  }
+  function updateClock() {
+    const el = document.getElementById('customerClock')
+    if (!el) return
+    el.textContent = new Date().toLocaleString('en-AU', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  function emojiForProduct(name) {
+    const n = String(name || '').toLowerCase()
+    const checks = [
+      [/banana|plantain/, '🍌'],
+      [/apple|pink lady|granny|fuji|gala|delicious|jazz|braeburn|golden/, '🍎'],
+      [/orange|mandarin|tangello|clementine|navel|valencia/, '🍊'],
+      [/lemon/, '🍋'],
+      [/lime/, '🟢'],
+      [/grape|raisin/, '🍇'],
+      [/melon|watermelon|rockmelon|honeydew/, '🍉'],
+      [/mango/, '🥭'],
+      [/pineapple/, '🍍'],
+      [/kiwi/, '🥝'],
+      [/peach|nectarine|apricot/, '🍑'],
+      [/pear|nashi/, '🍐'],
+      [/cherry|cherries/, '🍒'],
+      [/strawberr|berr|blueberr|raspberr|blackberr/, '🍓'],
+      [/coconut/, '🥥'],
+      [/avocado/, '🥑'],
+      [/tomato/, '🍅'],
+      [/chilli|chili|capsicum|pepper/, '🌶️'],
+      [/carrot|parsnip/, '🥕'],
+      [/corn/, '🌽'],
+      [/potato|spud|kipfler|desiree|brushed|washed/, '🥔'],
+      [/mushroom/, '🍄'],
+      [/onion|garlic|shallot|leek/, '🧅'],
+      [/broccoli|broccolini/, '🥦'],
+      [/lettuce|kale|spinach|rocket|herb|cabbage|wombok|asian vege|celery/, '🥬'],
+      [/eggplant|aubergine/, '🍆'],
+      [/cucumber|zucchini|gourd|choko/, '🥒'],
+      [/pumpkin|squash/, '🎃'],
+      [/beans|peas|snow pea|sugar snap/, '🫛'],
+      [/nut|almond|cashew|walnut|pistachio|peanut/, '🥜'],
+      [/bread|croissant|baguette|loaf|roll/, '🥐'],
+      [/cheese|dairy|milk|yoghurt/, '🧀'],
+      [/coffee/, '☕'],
+      [/flower|rose|bouquet/, '💐'],
+      [/meat|beef|lamb|chicken|pork/, '🥩'],
+      [/gas|bottle/, '⛽'],
+      [/bag/, '🛍️']
+    ]
+    const found = checks.find(([re]) => re.test(n))
+    return found ? found[1] : '🧺'
+  }
+
+  // ═══ Deals Data & Helpers ═══════════════════════════════════════════════════
+  let cachedDeals = []
+
+  async function loadDealsFromDB () {
+    try {
+      cachedDeals = []
+      const specials = await ipcRenderer.invoke('db:specials:getAll')
+      const activeSpecials = (specials || []).filter(s => s.active)
+      for (const s of activeSpecials) {
+        cachedDeals.push({
+          id: s.id,
+          name: s.product_name,
+          normalPrice: s.product_price,
+          specialPrice: s.special_price,
+          unit: '',
+          emoji: emojiForProduct(s.product_name),
+          badge: 'special',
+          isSpecial: true,
+          displayPriority: cachedDeals.length + 1,
+        })
+      }
+      const deals = await ipcRenderer.invoke('db:deals:getActive')
+      for (const d of (deals || [])) {
+        const cfg = typeof d.config === 'string' ? JSON.parse(d.config) : d.config
+        let text = d.name
+        if (d.type === 'multi_buy' && cfg) text = `${cfg.qty} for $${cfg.price}`
+        cachedDeals.push({ id: d.id, name: d.name, specialText: text, emoji: emojiForProduct(d.name), badge: 'special', isSpecial: true, displayPriority: cachedDeals.length + 1 })
+      }
+    } catch (e) { console.warn('Failed to load deals from DB:', e) }
+  }
+
+  function getActiveDeals() {
+    return cachedDeals.slice(0, 5)
+  }
+
+  function formatPrice(price) { return '$' + Number(price).toFixed(2) }
+
+  function getBadgeClass(badge) {
+    return { special: 'badge-special', today: 'badge-today', fresh: 'badge-fresh', popular: 'badge-popular' }[badge] || 'badge-fresh'
+  }
+  function getBadgeLabel(badge) {
+    return { special: 'SPECIAL', today: 'TODAY ONLY', fresh: 'FRESH PICK', popular: 'POPULAR' }[badge] || ''
+  }
+
+  function normaliseLogoFit(value) {
+    return value === 'cover' ? 'cover' : 'contain'
+  }
+
+  function normaliseLogoScale(value) {
+    const n = parseFloat(value)
+    if (!Number.isFinite(n)) return 1
+    return Math.min(1.4, Math.max(0.5, n))
+  }
+
+  function normaliseLogoSource(src) {
+    if (!src) return 'YieldPOS.png'
+    const isOldGeneratedLogo = src.startsWith('data:image/png;base64,') && src.length > 300000
+    return isOldGeneratedLogo ? 'YieldPOS.png' : src
+  }
+
+  function applyCompanyLogoStyle(fit, scale) {
+    const safeFit = normaliseLogoFit(fit)
+    const safeScale = normaliseLogoScale(scale)
+    document.querySelectorAll('.company-logo').forEach(img => {
+      img.style.objectFit = safeFit
+      img.style.transform = `scale(${safeScale})`
+      img.style.transformOrigin = 'center'
+    })
+  }
+
+  async function refreshBranding() {
+    const [storeName, storeAddress, storeHours, companyLogo, companyLogoFit, companyLogoScale] = await Promise.all([
+      ipcRenderer.invoke('db:settings:get', 'store_name'),
+      ipcRenderer.invoke('db:settings:get', 'store_address'),
+      ipcRenderer.invoke('db:settings:get', 'store_hours'),
+      ipcRenderer.invoke('db:settings:get', 'company_logo'),
+      ipcRenderer.invoke('db:settings:get', 'company_logo_fit'),
+      ipcRenderer.invoke('db:settings:get', 'company_logo_scale')
+    ])
+    const name = storeName || 'YieldPOS'
+    document.title = 'YieldPOS Client - Customer Display'
+    document.getElementById('storeName').textContent = name
+    document.querySelector('.thank-store').textContent = `Thank you for shopping at ${name}`
+    const address = storeAddress || '1164 Cavendish Rd, Mt Gravatt East QLD 4122'
+    if (storeAddress) document.getElementById('storeAddress').textContent = address
+    const activeAddress = document.getElementById('activeStoreAddress')
+    if (activeAddress) activeAddress.textContent = address
+    const hours = storeHours || ''
+    document.getElementById('storeHours').textContent = hours
+    const activeHours = document.getElementById('activeStoreHours')
+    if (activeHours) activeHours.textContent = hours
+    const logoSrc = normaliseLogoSource(companyLogo)
+    document.querySelectorAll('.company-logo').forEach(img => {
+      img.src = logoSrc
+      img.alt = name
+    })
+    applyCompanyLogoStyle(companyLogoFit, companyLogoScale)
+  }
+
+  // ═══ Render Functions ═══════════════════════════════════════════════════════
+
+  function renderDeals() {
+    const deals = getActiveDeals()
+    if (!deals.length) {
+      document.getElementById('dealsGrid').innerHTML = `
+        <div class="deal-card" style="grid-column:1/-1;align-items:center;justify-content:center;text-align:center;min-height:20vh">
+          <div class="deal-emoji">🧺</div>
+          <div class="deal-name">Welcome in</div>
+          <div class="deal-unit">Your items will appear here when the sale starts.</div>
+        </div>`
+      return
+    }
+    document.getElementById('dealsGrid').innerHTML = deals.map(deal => `
+      <div class="deal-card">
+        <div class="deal-card-top">
+          <div class="deal-emoji">${emojiForProduct(deal.name)}</div>
+          <div class="deal-info">
+            <div class="deal-name">${esc(deal.name)}</div>
+            ${deal.badge ? `<span class="deal-badge ${getBadgeClass(deal.badge)}">${getBadgeLabel(deal.badge)}</span>` : ''}
+          </div>
+        </div>
+        <div class="deal-pricing">
+          ${deal.specialPrice ? `<span class="deal-special-price">${formatPrice(deal.specialPrice)}</span>` : ''}
+          ${deal.specialText && !deal.specialPrice ? `<span class="deal-special-text">${esc(deal.specialText)}</span>` : ''}
+          ${deal.normalPrice && deal.specialPrice ? `<span class="deal-normal-price">${formatPrice(deal.normalPrice)}</span>` : ''}
+          ${deal.unit ? `<span class="deal-unit">${esc(deal.unit)}</span>` : ''}
+        </div>
+      </div>
+    `).join('')
+  }
+
+  function renderSidebarDeals() {
+    const deals = getActiveDeals()
+    if (!deals.length) {
+      document.getElementById('sidebarDeals').innerHTML = '<div class="mini-deal"><div class="mini-deal-emoji">🧺</div><div class="mini-deal-info"><div class="mini-deal-name">Fresh picks updating</div><div class="mini-deal-price">Ask staff for todays specials</div></div></div>'
+      return
+    }
+    document.getElementById('sidebarDeals').innerHTML = deals.map(deal => `
+      <div class="mini-deal">
+        <div class="mini-deal-emoji">${emojiForProduct(deal.name)}</div>
+        <div class="mini-deal-info">
+          <div class="mini-deal-name">${esc(deal.name)}</div>
+          <div class="mini-deal-price">
+            ${deal.specialPrice ? formatPrice(deal.specialPrice) : ''}${deal.specialText && !deal.specialPrice ? esc(deal.specialText) : ''}
+            <span class="mini-deal-unit">${deal.unit ? esc(deal.unit) : ''}</span>
+          </div>
+          ${deal.badge ? `<div class="mini-deal-badge">${getBadgeLabel(deal.badge)}</div>` : ''}
+        </div>
+      </div>
+    `).join('')
+  }
+
+  refreshBranding().catch(() => {})
+  updateClock()
+  setInterval(updateClock, 15000)
+
+  // Load real deals from DB, then render
+  loadDealsFromDB().then(() => { renderDeals(); renderSidebarDeals() })
+  // Refresh deals every 5 minutes
+  setInterval(() => { loadDealsFromDB().then(() => { renderDeals(); renderSidebarDeals() }) }, 300000)
+
+  // ═══ IPC Listeners ══════════════════════════════════════════════════════════
+
+  ipcRenderer.on('customer:update', (_e, data) => {
+    const { items, total, tax, count, storeName } = data
+
+    if (storeName) document.getElementById('storeName').textContent = storeName
+    if (data.storeAddress) {
+      document.getElementById('storeAddress').textContent = data.storeAddress
+      const activeAddress = document.getElementById('activeStoreAddress')
+      if (activeAddress) activeAddress.textContent = data.storeAddress
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'storeHours')) {
+      const hours = data.storeHours || ''
+      document.getElementById('storeHours').textContent = hours
+      const activeHours = document.getElementById('activeStoreHours')
+      if (activeHours) activeHours.textContent = hours
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(data, 'items')) return
+
+    if (!items || items.length === 0) {
+      document.getElementById('idleScreen').style.display = 'flex'
+      document.getElementById('saleView').style.display = 'none'
+      document.getElementById('saleComplete').style.display = 'none'
+      return
+    }
+
+    document.getElementById('idleScreen').style.display = 'none'
+    document.getElementById('saleView').style.display = 'flex'
+    document.getElementById('saleComplete').style.display = 'none'
+
+    document.getElementById('itemsList').innerHTML = items.map((item, i) =>
+      `<div class="item-row${i === items.length - 1 ? ' item-new' : ''}">
+        <span class="item-emoji">${emojiForProduct(item.name)}</span>
+        <span class="item-qty">${esc(itemQtyText(item))}</span>
+        <div class="item-details">
+          <div class="item-name">${esc(item.name)}</div>
+          ${item.unit_price ? `<div class="item-unit-price">${esc(itemUnitMeta(item))}</div>` : ''}
+        </div>
+        <span class="item-price">${money(item.line_total)}</span>
+      </div>`
+    ).join('')
+
+    const itemLineCount = items.length
+    document.getElementById('cdItemCount').textContent = itemLineCount
+    document.getElementById('itemsHeaderCount').textContent = `${itemLineCount} item${itemLineCount === 1 ? '' : 's'}`
+    document.getElementById('cdTax').textContent = money(tax)
+    document.getElementById('cdTotal').textContent = money(total)
+    const latest = items[items.length - 1]
+    if (latest) {
+      document.getElementById('latestEmoji').textContent = emojiForProduct(latest.name)
+      document.getElementById('latestName').textContent = latest.name || 'Item'
+      document.getElementById('latestMeta').textContent = itemUnitMeta(latest) || itemQtyText(latest)
+      document.getElementById('latestPrice').textContent = money(latest.line_total)
+    }
+
+    const list = document.getElementById('itemsList')
+    list.scrollTop = list.scrollHeight
+  })
+
+  ipcRenderer.on('customer:saleComplete', (_e, data) => {
+    document.getElementById('idleScreen').style.display = 'none'
+    document.getElementById('saleView').style.display = 'none'
+    document.getElementById('saleComplete').style.display = 'flex'
+    document.getElementById('saleComplete').classList.add('active')
+
+    const changeEl = document.getElementById('cdChange')
+    const totalPaidEl = document.getElementById('cdTotalPaid')
+
+    if (data.total) {
+      totalPaidEl.textContent = `Total: ${money(data.total)}`
+    } else {
+      totalPaidEl.textContent = ''
+    }
+
+    if (data.change > 0) {
+      changeEl.textContent = `Change: ${money(data.change)}`
+    } else {
+      changeEl.textContent = ''
+    }
+
+    // Return to idle after 5 seconds
+    setTimeout(() => {
+      document.getElementById('saleComplete').style.display = 'none'
+      document.getElementById('saleComplete').classList.remove('active')
+      document.getElementById('idleScreen').style.display = 'flex'
+      renderDeals()
+    }, 5000)
+  })
+
+  ipcRenderer.on('lan:data-changed', () => {
+    refreshBranding().catch(() => {})
+    renderDeals()
+    renderSidebarDeals()
+  })
+</script>
+</body>
+</html>

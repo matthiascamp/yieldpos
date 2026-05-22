@@ -1,0 +1,22 @@
+node_modules/
+dist/
+dist2/
+release/
+out/
+
+.env
+.env.*
+!.env.example
+
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+!YieldPOS-Client-*.exe
+!YieldPOS-Client-Setup-*.exe
+!YieldPOS Admin.exe
+!YieldPOS Register.exe
+
+db/crisp-pos.before-*.sqlite
+supabase/.temp/

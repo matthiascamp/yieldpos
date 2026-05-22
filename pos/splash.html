@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>YieldPOS Client</title>
+  <style>
+    :root {
+      --bound-cream: #f7f0dc;
+      --bound-cream-soft: #efe4c8;
+      --bound-forest: #07150d;
+      --bound-forest-2: #0d2216;
+      --bound-forest-3: #142b1c;
+      --bound-sage: #78916b;
+      --bound-gold: #cda75f;
+      --bound-gold-bright: #f0d89c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      user-select: none;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      background: transparent;
+    }
+
+    .close-btn {
+      position: fixed;
+      top: 10px;
+      right: 12px;
+      z-index: 80;
+      background: none;
+      border: none;
+      color: rgba(247, 240, 220, 0.22);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 5px 9px;
+      border-radius: 6px;
+      line-height: 1;
+    }
+    .close-btn:hover { color: rgba(247, 240, 220, 0.78); background: rgba(247, 240, 220, 0.06); }
+
+    .bound-splash-root {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      opacity: 1;
+      transition: opacity 300ms cubic-bezier(.16, 1, .3, 1);
+    }
+
+    .bound-splash-flash {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      opacity: 0;
+      background: #fff8df;
+      will-change: opacity;
+    }
+
+    .phase-flash .bound-splash-flash {
+      animation: boundFlashBang 180ms ease-out forwards;
+    }
+
+    .phase-flash .bound-splash-card,
+    .phase-exit .bound-splash-card {
+      opacity: 0;
+      transform: scale(0.992);
+      transition: opacity 130ms ease, transform 300ms cubic-bezier(.16, 1, .3, 1);
+    }
+
+    .phase-exit .bound-splash-flash {
+      opacity: .34;
+      animation: none;
+    }
+
+    .phase-exit {
+      opacity: 0;
+    }
+
+    .bound-splash-card {
+      position: relative;
+      z-index: 3;
+      width: 100vw;
+      height: 100vh;
+      aspect-ratio: auto;
+      overflow: hidden;
+      isolation: isolate;
+      border-radius: 0;
+      background:
+        radial-gradient(circle at 50% 28%, rgba(241, 214, 143, 0.20), transparent 24%),
+        radial-gradient(circle at 52% 28%, rgba(247, 240, 220, 0.10), transparent 16%),
+        radial-gradient(circle at 18% 10%, rgba(137, 159, 115, 0.13), transparent 30%),
+        linear-gradient(180deg, #102418 0%, #08150f 58%, #020604 100%);
+      box-shadow: none;
+      transition:
+        width 1150ms cubic-bezier(.76, 0, .18, 1),
+        height 1150ms cubic-bezier(.76, 0, .18, 1),
+        border-radius 1150ms cubic-bezier(.76, 0, .18, 1),
+        transform 1150ms cubic-bezier(.76, 0, .18, 1),
+        opacity 650ms ease;
+    }
+
+    .bound-splash-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      opacity: 0.17;
+      mix-blend-mode: soft-light;
+      background-image:
+        radial-gradient(circle, rgba(255,255,255,0.22) 0 0.8px, transparent 0.8px),
+        radial-gradient(circle, rgba(255,255,255,0.14) 0 0.7px, transparent 0.7px);
+      background-size: 31px 31px, 47px 47px;
+    }
+
+    .bound-splash-card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 38%, transparent 34%, rgba(0, 0, 0, 0.04) 64%, rgba(0, 0, 0, 0.22) 100%),
+        linear-gradient(180deg, rgba(255,255,255,0.02), transparent 18%, rgba(0,0,0,0.12));
+    }
+
+    .bound-brand-block {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 13.2%;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      animation: boundBrandIn 900ms cubic-bezier(.16, 1, .3, 1) both;
+      transition: opacity 520ms ease, transform 980ms cubic-bezier(.76, 0, .18, 1);
+    }
+
+    .bound-mark-wrap {
+      position: relative;
+      width: 45%;
+      max-width: 326px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      margin-bottom: 5.5%;
+      animation: boundFloatMark 4.8s ease-in-out infinite;
+    }
+
+    .bound-mark-ring {
+      position: absolute;
+      inset: -9%;
+      border-radius: 999px;
+      border: 1px solid rgba(205, 167, 95, 0.34);
+      box-shadow:
+        0 0 60px rgba(205, 167, 95, 0.22),
+        inset 0 0 50px rgba(247, 240, 220, 0.035);
+      opacity: 0.88;
+      animation: boundRingBreathe 3.2s ease-in-out infinite;
+    }
+
+    .bound-mark-glow {
+      position: absolute;
+      width: 84%;
+      aspect-ratio: 1;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(240, 216, 156, 0.36), rgba(205, 167, 95, 0.15) 38%, transparent 68%);
+      filter: blur(24px);
+      opacity: 0.78;
+      animation: boundGlowBreathe 3.4s ease-in-out infinite;
+    }
+
+    .bound-roo-svg {
+      position: relative;
+      z-index: 2;
+      width: 78%;
+      overflow: visible;
+      transform: translateY(1%);
+    }
+
+    .bound-roo-svg path {
+      fill: var(--bound-cream);
+      filter:
+        drop-shadow(0 0 6px rgba(247, 240, 220, 0.42))
+        drop-shadow(0 0 22px rgba(205, 167, 95, 0.36));
+    }
+
+    .phase-shine .bound-roo-svg path,
+    .phase-flash .bound-roo-svg path {
+      animation: boundKangarooFinalShine 1200ms cubic-bezier(.16, 1, .3, 1) forwards;
+    }
+
+    .phase-shine .bound-mark-glow,
+    .phase-flash .bound-mark-glow {
+      animation: boundFinalHaloBurst 1200ms cubic-bezier(.16, 1, .3, 1) forwards;
+    }
+
+    .phase-shine .bound-mark-ring,
+    .phase-flash .bound-mark-ring {
+      animation: boundFinalRingBurst 1200ms cubic-bezier(.16, 1, .3, 1) forwards;
+    }
+
+    .bound-wordmark {
+      margin: 0;
+      font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+      font-size: clamp(56px, 10.4vw, 112px);
+      font-weight: 400;
+      line-height: 0.84;
+      letter-spacing: -0.035em;
+      text-transform: none;
+      color: var(--bound-cream);
+      text-shadow:
+        0 0 20px rgba(247, 240, 220, 0.11),
+        0 18px 54px rgba(0, 0, 0, 0.48);
+    }
+
+    .bound-wordmark em {
+      font-style: normal;
+      color: var(--bound-sage);
+      text-shadow:
+        0 0 20px rgba(120, 145, 107, 0.18),
+        0 18px 54px rgba(0, 0, 0, 0.48);
+    }
+
+    .bound-credit {
+      margin-top: 10px;
+      font-size: clamp(11px, 1.4vw, 14px);
+      letter-spacing: 0.08em;
+      color: var(--bound-gold);
+      opacity: 0.92;
+    }
+
+    .bound-loading-wrap {
+      margin-top: clamp(22px, 3vw, 30px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .bound-loading-bar {
+      position: relative;
+      width: clamp(150px, 28vw, 230px);
+      height: 2px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(205, 167, 95, 0.20);
+      box-shadow:
+        0 0 0 1px rgba(205, 167, 95, 0.18),
+        0 0 18px rgba(205, 167, 95, 0.14);
+    }
+
+    .bound-loading-progress {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(205, 167, 95, 0.18), var(--bound-gold), var(--bound-gold-bright));
+      box-shadow: 0 0 18px rgba(240, 216, 156, 0.34);
+      transition: width 120ms linear;
+    }
+
+    .bound-loading-glint {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 35%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, transparent, rgba(247, 240, 220, 0.96), transparent);
+      animation: boundLoadingSweep 1.65s cubic-bezier(.58, .02, .32, .98) infinite;
+    }
+
+    .bound-loading-text {
+      min-height: 18px;
+      font-size: clamp(10px, 1.22vw, 13px);
+      letter-spacing: 0.08em;
+      color: rgba(240, 216, 156, 0.86);
+    }
+
+    .bound-landscape {
+      position: absolute;
+      left: -3%;
+      right: -3%;
+      bottom: -4.5%;
+      width: 106%;
+      height: 43%;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .bound-wave-scroller { will-change: transform; shape-rendering: geometricPrecision; }
+    .bound-ridge-fill-1 { fill: #132719; }
+    .bound-ridge-fill-2 { fill: #0a170f; opacity: 0.93; }
+    .bound-ridge-fill-3 { fill: #07110b; opacity: 0.96; }
+    .bound-ridge-line {
+      fill: none;
+      stroke: url(#boundGoldStroke);
+      stroke-width: 1.1;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.78;
+      vector-effect: non-scaling-stroke;
+      filter: drop-shadow(0 0 5px rgba(205, 167, 95, 0.28));
+    }
+    .bound-ridge-line-muted { opacity: 0.46; filter: drop-shadow(0 0 3px rgba(205, 167, 95, 0.18)); }
+    .bound-ridge-line-soft {
+      fill: none;
+      stroke: rgba(168, 184, 154, 0.16);
+      stroke-width: 0.75;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+    .bound-ridge-line-extra { opacity: 0.54; }
+    .bound-hill-shade { opacity: 0.16; mix-blend-mode: screen; }
+
+    .bound-wave-bob-top { animation: boundWaveBobTop 5.8s ease-in-out infinite; }
+    .bound-wave-bob-middle { animation: boundWaveBobMiddle 6.6s ease-in-out infinite; }
+    .bound-wave-bob-bottom { animation: boundWaveBobBottom 7.2s ease-in-out infinite; }
+
+    .error-box {
+      display: none;
+      position: absolute;
+      z-index: 20;
+      left: 50%;
+      bottom: 9%;
+      transform: translateX(-50%);
+      width: min(78%, 360px);
+      padding: 10px 16px;
+      background: rgba(239,68,68,0.09);
+      border: 1px solid rgba(239,68,68,0.24);
+      border-radius: 10px;
+      text-align: center;
+    }
+    .error-msg { font-size: 11px; color: #fca5a5; word-break: break-word; line-height: 1.4; }
+    .error-hint { font-size: 10px; color: rgba(247,240,220,0.34); margin-top: 6px; }
+    .version {
+      position: fixed;
+      bottom: 12px;
+      z-index: 60;
+      font-size: 10px;
+      color: rgba(247,240,220,0.18);
+      letter-spacing: 0.5px;
+    }
+
+    @keyframes boundBrandIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes boundFloatMark {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-13px) scale(1.03); }
+    }
+    @keyframes boundRingBreathe {
+      0%, 100% { transform: scale(0.965); opacity: 0.5; }
+      50% { transform: scale(1.045); opacity: 1; }
+    }
+    @keyframes boundGlowBreathe {
+      0%, 100% { opacity: 0.48; transform: scale(0.86); }
+      50% { opacity: 0.98; transform: scale(1.16); }
+    }
+    @keyframes boundLoadingSweep {
+      0% { transform: translateX(-140%); opacity: 0; }
+      15% { opacity: 1; }
+      78% { opacity: 1; }
+      100% { transform: translateX(330%); opacity: 0; }
+    }
+    @keyframes boundKangarooFinalShine {
+      0% {
+        fill: var(--bound-cream);
+        filter:
+          drop-shadow(0 0 6px rgba(247, 240, 220, 0.42))
+          drop-shadow(0 0 22px rgba(205, 167, 95, 0.36));
+      }
+      42% {
+        fill: #fff9df;
+        filter:
+          drop-shadow(0 0 18px rgba(255, 249, 223, 1))
+          drop-shadow(0 0 55px rgba(240, 216, 156, 0.90))
+          drop-shadow(0 0 95px rgba(205, 167, 95, 0.58));
+      }
+      100% {
+        fill: #fff6cf;
+        filter:
+          drop-shadow(0 0 12px rgba(255, 249, 223, 0.82))
+          drop-shadow(0 0 42px rgba(240, 216, 156, 0.58));
+      }
+    }
+    @keyframes boundFinalHaloBurst {
+      0% { opacity: 0.6; transform: scale(0.92); }
+      55% { opacity: 1; transform: scale(1.45); }
+      100% { opacity: 0.68; transform: scale(1.25); }
+    }
+    @keyframes boundFinalRingBurst {
+      0% { opacity: 0.68; transform: scale(1); }
+      55% { opacity: 1; transform: scale(1.16); }
+      100% { opacity: 0.45; transform: scale(1.35); }
+    }
+    @keyframes boundFlashBang {
+      0% { opacity: 0; }
+      35% { opacity: .96; }
+      100% { opacity: .82; }
+    }
+    @keyframes boundWaveBobTop {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    @keyframes boundWaveBobMiddle {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(7px); }
+    }
+    @keyframes boundWaveBobBottom {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(5px); }
+    }
+    @media (max-width: 640px) {
+      .bound-splash-card { border-radius: 0; }
+      .bound-brand-block { top: 14.5%; }
+      .bound-mark-wrap { width: 49%; }
+      .bound-loading-bar { width: clamp(140px, 36vw, 210px); }
+      .bound-landscape { height: 41%; bottom: -5%; }
+    }
+  </style>
+</head>
+<body>
+  <button class="close-btn" id="closeBtn" title="Close">&times;</button>
+  <main class="bound-splash-root phase-loading" id="splashRoot">
+    <div class="bound-splash-flash" aria-hidden="true"></div>
+    <section class="bound-splash-card" aria-label="YieldPOS splash screen">
+      <div class="bound-brand-block">
+        <div class="bound-mark-wrap">
+          <div class="bound-mark-glow"></div>
+          <div class="bound-mark-ring"></div>
+          <svg class="bound-roo-svg" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M255 250C236 180 181 126 98 104C96 165 134 225 209 256C233 266 244 281 244 306L238 395C236 424 246 442 256 442C266 442 276 424 274 395L268 306C268 281 279 266 303 256C378 225 416 165 414 104C331 126 276 180 257 250C257 253 256 253 255 250Z"></path>
+          </svg>
+        </div>
+
+        <h1 class="bound-wordmark">Yield<em>POS</em></h1>
+        <div class="bound-credit">By Matthias Campbell</div>
+
+        <div class="bound-loading-wrap">
+          <div class="bound-loading-bar" aria-label="Loading">
+            <div class="bound-loading-progress" id="progress"></div>
+            <div class="bound-loading-glint"></div>
+          </div>
+          <div class="bound-loading-text" id="status">Loading products...</div>
+        </div>
+      </div>
+
+      <svg class="bound-landscape" viewBox="0 0 900 540" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="boundGoldStroke" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#7d6638" stop-opacity="0.12"></stop>
+            <stop offset="0.28" stop-color="#f0d89c" stop-opacity="0.86"></stop>
+            <stop offset="0.56" stop-color="#cda75f" stop-opacity="0.74"></stop>
+            <stop offset="1" stop-color="#f0d89c" stop-opacity="0.78"></stop>
+          </linearGradient>
+          <linearGradient id="boundHillLight" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#f7f0dc" stop-opacity="0.28"></stop>
+            <stop offset="0.42" stop-color="#cda75f" stop-opacity="0.11"></stop>
+            <stop offset="1" stop-color="#000000" stop-opacity="0"></stop>
+          </linearGradient>
+        </defs>
+
+        <g class="bound-wave-bob-top">
+          <g class="bound-wave-scroller">
+            <animateTransform attributeName="transform" type="translate" from="-900 0" to="0 0" dur="14s" repeatCount="indefinite"></animateTransform>
+            <path class="bound-ridge-fill-1" d="M-900 228 C-750 148 -600 148 -450 228 C-300 308 -150 308 0 228 C150 148 300 148 450 228 C600 308 750 308 900 228 C1050 148 1200 148 1350 228 C1500 308 1650 308 1800 228 L1800 540 L-900 540 Z"></path>
+            <path class="bound-hill-shade" fill="url(#boundHillLight)" d="M-900 228 C-750 148 -600 148 -450 228 C-300 308 -150 308 0 228 C150 148 300 148 450 228 C600 308 750 308 900 228 C1050 148 1200 148 1350 228 C1500 308 1650 308 1800 228 L1800 292 C1570 350 1410 360 1250 292 C1040 204 820 260 600 292 C390 322 180 306 0 292 C-200 276 -440 324 -650 292 C-770 274 -840 250 -900 292 Z"></path>
+            <path class="bound-ridge-line" d="M-900 228 C-750 148 -600 148 -450 228 C-300 308 -150 308 0 228 C150 148 300 148 450 228 C600 308 750 308 900 228 C1050 148 1200 148 1350 228 C1500 308 1650 308 1800 228"></path>
+          </g>
+        </g>
+        <g class="bound-wave-bob-middle">
+          <g class="bound-wave-scroller">
+            <animateTransform attributeName="transform" type="translate" from="0 0" to="-900 0" dur="11s" repeatCount="indefinite"></animateTransform>
+            <path class="bound-ridge-fill-2" d="M-900 342 C-750 282 -600 282 -450 342 C-300 402 -150 402 0 342 C150 282 300 282 450 342 C600 402 750 402 900 342 C1050 282 1200 282 1350 342 C1500 402 1650 402 1800 342 L1800 540 L-900 540 Z"></path>
+            <path class="bound-ridge-line bound-ridge-line-muted" d="M-900 342 C-750 282 -600 282 -450 342 C-300 402 -150 402 0 342 C150 282 300 282 450 342 C600 402 750 402 900 342 C1050 282 1200 282 1350 342 C1500 402 1650 402 1800 342"></path>
+          </g>
+        </g>
+        <g class="bound-wave-bob-bottom">
+          <g class="bound-wave-scroller">
+            <animateTransform attributeName="transform" type="translate" from="-900 0" to="0 0" dur="17s" repeatCount="indefinite"></animateTransform>
+            <path class="bound-ridge-fill-3" d="M-900 438 C-750 390 -600 390 -450 438 C-300 486 -150 486 0 438 C150 390 300 390 450 438 C600 486 750 486 900 438 C1050 390 1200 390 1350 438 C1500 486 1650 486 1800 438 L1800 540 L-900 540 Z"></path>
+            <path class="bound-ridge-line-soft" d="M-900 438 C-750 390 -600 390 -450 438 C-300 486 -150 486 0 438 C150 390 300 390 450 438 C600 486 750 486 900 438 C1050 390 1200 390 1350 438 C1500 486 1650 486 1800 438"></path>
+            <path class="bound-ridge-line-soft bound-ridge-line-extra" d="M-900 390 C-750 350 -600 350 -450 390 C-300 430 -150 430 0 390 C150 350 300 350 450 390 C600 430 750 430 900 390 C1050 350 1200 350 1350 390 C1500 430 1650 430 1800 390"></path>
+          </g>
+        </g>
+      </svg>
+
+      <div class="error-box" id="errorBox">
+        <div class="error-msg" id="errorMsg"></div>
+        <div class="error-hint">The app will close in a few seconds. Check the logs for details.</div>
+      </div>
+    </section>
+  </main>
+  <div class="version" id="version"></div>
+
+  <script>
+    const { ipcRenderer } = require('electron')
+
+    const root = document.getElementById('splashRoot')
+    const progressBar = document.getElementById('progress')
+    const statusEl = document.getElementById('status')
+    const loadingSteps = [
+      'Loading products...',
+      'Syncing inventory...',
+      'Connecting register...',
+      'Preparing sales screen...',
+      'Launching YieldPOS...'
+    ]
+
+    let lastPct = 0
+    let stepIndex = 0
+    let completionStarted = false
+    const stepTimer = setInterval(() => {
+      stepIndex = Math.min(stepIndex + 1, loadingSteps.length - 1)
+      if (lastPct < 96) statusEl.textContent = loadingSteps[stepIndex]
+    }, 1040)
+
+    function setPhase (phase) {
+      root.className = 'bound-splash-root phase-' + phase
+    }
+
+    function completeSplash () {
+      if (completionStarted) return
+      completionStarted = true
+      clearInterval(stepTimer)
+      statusEl.textContent = 'Ready'
+      progressBar.style.width = '100%'
+      setPhase('shine')
+      setTimeout(() => setPhase('flash'), 260)
+      setTimeout(() => ipcRenderer.send('splash:handoff'), 340)
+      setTimeout(() => setPhase('exit'), 360)
+      setTimeout(() => ipcRenderer.send('splash:complete'), 460)
+    }
+
+    ipcRenderer.on('splash:status', (_e, msg, pct) => {
+      if (pct != null) {
+        lastPct = Math.max(lastPct, pct)
+        progressBar.style.width = Math.min(lastPct, 100) + '%'
+      }
+      if (lastPct >= 98 || /ready/i.test(String(msg || ''))) {
+        completeSplash()
+      } else if (msg && lastPct < 96) {
+        statusEl.textContent = msg.replace(/\.\.\.$/, '...')
+      }
+    })
+
+    ipcRenderer.on('splash:version', (_e, v) => {
+      document.getElementById('version').textContent = 'v' + v
+    })
+
+    ipcRenderer.on('splash:error', (_e, msg) => {
+      clearInterval(stepTimer)
+      statusEl.textContent = 'Error'
+      statusEl.style.color = '#fca5a5'
+      progressBar.style.width = '100%'
+      progressBar.style.background = 'linear-gradient(90deg, #ef4444, #f87171)'
+      document.getElementById('errorBox').style.display = 'block'
+      document.getElementById('errorMsg').textContent = msg
+    })
+
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      ipcRenderer.send('splash:close')
+    })
+
+    let dragging = false
+    let ox = 0
+    let oy = 0
+    document.body.addEventListener('mousedown', e => {
+      if (e.target.closest('.close-btn')) return
+      dragging = true
+      ox = e.screenX
+      oy = e.screenY
+    })
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return
+      const dx = e.screenX - ox
+      const dy = e.screenY - oy
+      ox = e.screenX
+      oy = e.screenY
+      ipcRenderer.send('splash:move', dx, dy)
+    })
+    document.addEventListener('mouseup', () => { dragging = false })
+    window.addEventListener('beforeunload', () => clearInterval(stepTimer))
+  </script>
+</body>
+</html>
