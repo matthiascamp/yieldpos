@@ -1305,7 +1305,7 @@ async function initDatabase() {
         VALUES ('fn-advanced', 'ADVANCED', 'management', 0, NULL, '#fff', '#334155', NULL, NULL, NULL, 6, 'grid', 1, 0, 1, 1, 1, 1, NULL, datetime('now'))`)
       db.run(`INSERT OR REPLACE INTO keyboard_buttons
         (id, label, type, price, image, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
-        VALUES ('fn-pricechange-mode', 'PRICE\\nMODE', 'price_change', 0, NULL, '#fff', '#0f766e', NULL, NULL, NULL, 7, 'grid', 1, 0, 2, 1, 1, 1, NULL, datetime('now'))`)
+        VALUES ('fn-pricechange-mode', 'PRICE\\nCHANGE', 'price_change', 0, NULL, '#fff', '#0f766e', NULL, NULL, NULL, 7, 'grid', 1, 0, 2, 1, 1, 1, NULL, datetime('now'))`)
       db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_utility_layout_v1', '1')")
       appLog('info', 'migration', 'Applied register utility keyboard layout')
     }
@@ -2231,7 +2231,7 @@ async function initDatabase() {
         VALUES ('fn-advanced', 'ADVANCED', 'management', 0, NULL, '#fff', '#334155', NULL, NULL, NULL, 6, 'grid', 1, 0, 1, 1, 1, 1, NULL, datetime('now'))`)
       db.run(`INSERT OR REPLACE INTO keyboard_buttons
         (id, label, type, price, image, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
-        VALUES ('fn-pricechange-mode', 'PRICE\\nMODE', 'price_change', 0, NULL, '#fff', '#0f766e', NULL, NULL, NULL, 7, 'grid', 1, 0, 2, 1, 1, 1, NULL, datetime('now'))`)
+        VALUES ('fn-pricechange-mode', 'PRICE\\nCHANGE', 'price_change', 0, NULL, '#fff', '#0f766e', NULL, NULL, NULL, 7, 'grid', 1, 0, 2, 1, 1, 1, NULL, datetime('now'))`)
       db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_utility_layout_v2_post_import', '1')")
     }
   } catch (e) { appLog('error', 'migration', 'Register utility keyboard post-import failed', e.message) }
@@ -2244,7 +2244,7 @@ async function initDatabase() {
       WHERE id = 'fn-advanced'`)
     db.run(`INSERT OR REPLACE INTO keyboard_buttons
       (id, label, type, price, image, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
-      VALUES ('fn-pricechange-mode', 'PRICE\\nMODE', 'price_change', 0, NULL, '#fff', '#0f766e', NULL, NULL, NULL, 7, 'grid', 1, 0, 2, 1, 1, 1, NULL, datetime('now'))`)
+      VALUES ('fn-pricechange-mode', 'PRICE\\nCHANGE', 'price_change', 0, NULL, '#fff', '#0f766e', NULL, NULL, NULL, 7, 'grid', 1, 0, 2, 1, 1, 1, NULL, datetime('now'))`)
   } catch (e) { appLog('error', 'migration', 'Price change key repair failed', e.message) }
 
   try {

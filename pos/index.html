@@ -1756,6 +1756,9 @@ function posButtonProductId (btn) {
 
 function posButtonLabel (btn) {
   const type = btn?.type || ''
+  if (type === 'price_change' && String(btn?.label || '').replace(/\\n|\s+/g, '').toUpperCase() === 'PRICEMODE') {
+    return 'PRICE\\nCHANGE'
+  }
   if (['product', 'fixed_price', 'open_price', 'weighed_open'].includes(type) && btn.product_name) {
     return btn.product_name
   }

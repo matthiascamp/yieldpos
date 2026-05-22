@@ -7800,6 +7800,7 @@
       let label = (['product', 'fixed_price', 'open_price', 'weighed_open'].includes(btn.type) && btn.product_name)
         ? btn.product_name
         : labelFromDb(btn.label)
+      if (btn.type === 'price_change' && label.replace(/\s+/g, '').toUpperCase() === 'PRICEMODE') label = 'PRICE\nCHANGE'
       if (kbIsOpenPrice(btn)) label = label.replace(/\n\$[\d.]+.*$/i, '')
       return label
     }
