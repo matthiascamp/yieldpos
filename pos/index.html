@@ -1708,7 +1708,11 @@ function renderPosGrid () {
   for (const b of pageButtons) {
     const r = b.grid_row || 0, c = b.grid_col || 0
     const rs = b.row_span || 1, cs = b.col_span || 1
-    cellMap[`${r}-${c}`] = b
+    const key = `${r}-${c}`
+    const current = cellMap[key]
+    if (!current || posButtonCellPriority(b) >= posButtonCellPriority(current)) {
+      cellMap[key] = b
+    }
     for (let dr = 0; dr < rs; dr++)
       for (let dc = 0; dc < cs; dc++)
         occupied.add(`${r + dr}-${c + dc}`)
@@ -1754,8 +1758,25 @@ function posButtonProductId (btn) {
   return btn.matched_product_id || btn.product_id || ''
 }
 
+function posButtonEffectiveType (btn) {
+  const rawType = btn?.type || ''
+  const normalizedLabel = String(btn?.label || '').replace(/\\n|\s+/g, '').toUpperCase()
+  if (btn?.id === 'fn-pricechange-mode' || normalizedLabel === 'PRICEMODE' || normalizedLabel === 'PRICECHANGE') {
+    return 'price_change'
+  }
+  return rawType
+}
+
+function posButtonCellPriority (btn) {
+  const type = posButtonEffectiveType(btn)
+  if (btn?.id === 'fn-pricechange-mode' || type === 'price_change') return 90
+  if (FUNC_TYPES.has(type) || PAY_TYPES.has(type) || NUMPAD_TYPES.has(type)) return 70
+  if (type === 'cart_display' || type === 'num_display') return 60
+  return 10
+}
+
 function posButtonLabel (btn) {
-  const type = btn?.type || ''
+  const type = posButtonEffectiveType(btn)
   if (type === 'price_change' && String(btn?.label || '').replace(/\\n|\s+/g, '').toUpperCase() === 'PRICEMODE') {
     return 'PRICE\\nCHANGE'
   }
@@ -1766,7 +1787,7 @@ function posButtonLabel (btn) {
 }
 
 function renderPosButton (btn, gridStyle) {
-  const type = btn.type
+  const type = posButtonEffectiveType(btn)
   const effectiveType = type
   const bg = esc(btn.bg_color || '#ddd')
   const color = esc(btn.color || '#000')
