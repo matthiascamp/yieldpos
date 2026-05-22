@@ -690,7 +690,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#12141c;color:#1a1a2e;d
     <button data-val="1">1</button><button data-val="2">2</button><button data-val="3">3</button>
     <button data-val="4">4</button><button data-val="5">5</button><button data-val="6">6</button>
     <button data-val="7">7</button><button data-val="8">8</button><button data-val="9">9</button>
-    <button data-val=".">.</button><button data-val="0">0</button><button data-val="C">C</button>
+    <button data-val="00">00</button><button data-val="0">0</button><button data-val="C">C</button>
   </div>
   <div class="modal-actions"><button class="modal-cancel" id="weighedOpenCancel">Cancel</button><button class="modal-confirm" id="weighedOpenConfirm">Add to Cart</button></div>
 </div></div>
@@ -1545,7 +1545,7 @@ document.addEventListener('keydown', async e => {
 })
 
 // ═══ Float Entry ══════════════════════════════════════════════════
-let floatBuf = ''
+let floatBuf = '', floatReplaceOnInput = false
 function parseTillDesiredFloats (settings) {
   try {
     const parsed = JSON.parse(settings?.till_desired_floats || '{}')
@@ -1565,6 +1565,35 @@ function signedMoney (amount) {
   const abs = Math.abs(amount)
   return `${amount >= 0 ? '+' : '-'}${money(abs)}`
 }
+function moneyInputCents (buf) {
+  const raw = String(buf || '').trim()
+  if (!raw) return 0
+  if (raw.includes('.')) {
+    const n = parseFloat(raw)
+    return Number.isFinite(n) ? Math.max(0, Math.round(n * 100)) : 0
+  }
+  const cents = parseInt(raw.replace(/\D/g, ''), 10)
+  return Number.isFinite(cents) ? Math.max(0, cents) : 0
+}
+function moneyInputValue (buf) {
+  return moneyInputCents(buf) / 100
+}
+function moneyInputFromAmount (amount) {
+  const cents = Math.max(0, Math.round((Number(amount) || 0) * 100))
+  return cents > 0 ? String(cents) : ''
+}
+function moneyInputDigits (buf) {
+  const raw = String(buf || '')
+  return raw.includes('.') ? String(moneyInputCents(raw)) : raw.replace(/\D/g, '')
+}
+function appendMoneyInput (buf, v) {
+  if (v === 'C') return ''
+  if (v === 'back') return moneyInputDigits(buf).slice(0, -1)
+  if (v === '.') return moneyInputDigits(buf)
+  const digits = String(v || '').replace(/\D/g, '')
+  if (!digits) return moneyInputDigits(buf)
+  return (moneyInputDigits(buf) + digits).replace(/^0+(?=\d)/, '')
+}
 function eodDrawerInstruction (counted, desired) {
   if (!desired || desired <= 0) return ''
   const diff = counted - desired
@@ -1577,27 +1606,28 @@ async function showFloatPrompt () {
   try {
     suggested = desiredFloatForSettings(await window.pos.getAllSettings())
   } catch (_) {}
-  floatBuf = suggested > 0 ? String(Math.round(suggested * 100)) : ''
+  floatBuf = moneyInputFromAmount(suggested)
+  floatReplaceOnInput = !!floatBuf
   $('#floatSuggested').style.display = suggested > 0 ? 'block' : 'none'
   $('#floatSuggested').textContent = suggested > 0 ? `Suggested start float: ${money(suggested)}` : ''
   updateFloatDisplay()
   $('#floatOverlay').classList.remove('hidden')
 }
 function updateFloatDisplay () {
-  const cents = parseInt(floatBuf || '0')
-  $('#floatDisplay').textContent = '$' + (cents / 100).toFixed(2)
+  $('#floatDisplay').textContent = money(moneyInputValue(floatBuf))
 }
 
 $('#floatPad').addEventListener('click', e => {
   const b = e.target.closest('.pin-btn'); if (!b) return
   const v = b.dataset.val
-  if (v === 'C') { floatBuf = '' }
-  else { floatBuf += v }
+  if (floatReplaceOnInput && v !== 'C' && v !== 'back') floatBuf = ''
+  floatReplaceOnInput = false
+  floatBuf = appendMoneyInput(floatBuf, v)
   updateFloatDisplay()
 })
 
 $('#floatConfirmBtn').addEventListener('click', async () => {
-  const cents = parseInt(floatBuf || '0')
+  const cents = moneyInputCents(floatBuf)
   const amount = cents / 100
   if (amount > 0) {
     await window.pos.logCashDrawer({ staff_id: currentStaff?.id, action: 'float', amount, note: `Float: $${amount.toFixed(2)}` })
@@ -1615,8 +1645,14 @@ $('#floatSkipBtn').addEventListener('click', () => {
 // Keyboard support for float entry
 document.addEventListener('keydown', e => {
   if ($('#floatOverlay').classList.contains('hidden')) return
-  if (e.key >= '0' && e.key <= '9') { e.preventDefault(); floatBuf += e.key; updateFloatDisplay() }
-  else if (e.key === 'Backspace') { e.preventDefault(); floatBuf = floatBuf.slice(0, -1); updateFloatDisplay() }
+  if (e.key >= '0' && e.key <= '9') {
+    e.preventDefault()
+    if (floatReplaceOnInput) floatBuf = ''
+    floatReplaceOnInput = false
+    floatBuf = appendMoneyInput(floatBuf, e.key)
+    updateFloatDisplay()
+  }
+  else if (e.key === 'Backspace') { e.preventDefault(); floatReplaceOnInput = false; floatBuf = appendMoneyInput(floatBuf, 'back'); updateFloatDisplay() }
   else if (e.key === 'Enter') { e.preventDefault(); $('#floatConfirmBtn').click() }
   else if (e.key === 'Escape') { e.preventDefault(); $('#floatSkipBtn').click() }
 })
@@ -2578,21 +2614,24 @@ $('#quantityCancel').addEventListener('click', () => {
 let openPriceBuf = '', openPriceLabel = ''
 let openPriceProduct = null
 function showOpenPriceModal (label, defaultPrice, product) {
-  openPriceLabel = label; openPriceBuf = ''
+  openPriceLabel = label; openPriceBuf = moneyInputFromAmount(defaultPrice)
   openPriceProduct = product || null
   updateOpenPriceDisplay()
   $('#openPriceTitle').textContent = label
-  $('#openPriceSub').textContent = 'Type amount in cents (e.g. 150 = $1.50)'
+  $('#openPriceSub').textContent = 'Manual price'
   $('#openPriceModal').classList.add('show')
 }
-function updateOpenPriceDisplay () { $('#openPriceDisplay').textContent = money(parseInt(openPriceBuf || '0') / 100) }
+function updateOpenPriceDisplay () { $('#openPriceDisplay').textContent = money(moneyInputValue(openPriceBuf)) }
+function appendOpenPriceInput (v) {
+  openPriceBuf = appendMoneyInput(openPriceBuf, v)
+  updateOpenPriceDisplay()
+}
 $('#openPricePad').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return
-  if (b.dataset.val === 'C') openPriceBuf = ''; else openPriceBuf += b.dataset.val
-  updateOpenPriceDisplay()
+  appendOpenPriceInput(b.dataset.val)
 })
 $('#openPriceConfirm').addEventListener('click', () => {
-  const cents = parseInt(openPriceBuf || '0'); if (cents <= 0) return
+  const cents = moneyInputCents(openPriceBuf); if (cents <= 0) return
   const price = cents / 100
   const prod = openPriceProduct
     ? { ...openPriceProduct, price, active_price: price }
@@ -2606,12 +2645,13 @@ $('#openPriceConfirm').addEventListener('click', () => {
 $('#openPriceCancel').addEventListener('click', () => { $('#openPriceModal').classList.remove('show'); refocus() })
 
 // ═══ Weighed Open-Price Modal — /KG generic button =================
-// Cashier enters $/kg, scale provides weight, total = weight × price/kg.
-let weighedOpenBuf = ''  // dollar amount string, e.g. "4.99"
+// Cashier keys cents-per-kg, scale provides weight, total = weight × price/kg.
+let weighedOpenBuf = '', weighedOpenReplaceOnInput = false
 let weighedOpenLabel = ''
 function showWeighedOpenModal (label, defaultPrice) {
   weighedOpenLabel = label || 'Weighed item'
-  weighedOpenBuf = (defaultPrice && defaultPrice > 0) ? defaultPrice.toFixed(2).replace(/\.?0+$/, '') || defaultPrice.toString() : ''
+  weighedOpenBuf = moneyInputFromAmount(defaultPrice)
+  weighedOpenReplaceOnInput = !!weighedOpenBuf
   $('#weighedOpenTitle').textContent = label || 'Enter Price per kg'
   updateWeighedOpenDisplay()
   $('#weighedOpenModal').classList.add('show')
@@ -2623,7 +2663,7 @@ function getScaleKg () {
   return 0
 }
 function updateWeighedOpenDisplay () {
-  const price = parseFloat(weighedOpenBuf) || 0
+  const price = moneyInputValue(weighedOpenBuf)
   const w = getScaleKg()
   $('#weighedOpenPriceDisplay').textContent = '$' + price.toFixed(2)
   const wEl = $('#weighedOpenScaleW')
@@ -2641,21 +2681,18 @@ function updateWeighedOpenDisplay () {
     confirmBtn.style.opacity = ok ? '1' : '0.5'
   }
 }
+function appendWeighedOpenInput (v) {
+  if (weighedOpenReplaceOnInput && v !== 'C' && v !== 'back' && v !== '.') weighedOpenBuf = ''
+  if (v !== '.') weighedOpenReplaceOnInput = false
+  weighedOpenBuf = appendMoneyInput(weighedOpenBuf, v)
+  updateWeighedOpenDisplay()
+}
 $('#weighedOpenPad').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return
-  const v = b.dataset.val
-  if (v === 'C') weighedOpenBuf = ''
-  else if (v === '.') { if (!weighedOpenBuf.includes('.')) weighedOpenBuf = weighedOpenBuf === '' ? '0.' : weighedOpenBuf + '.' }
-  else {
-    weighedOpenBuf += v
-    // Max 2 decimal places
-    const parts = weighedOpenBuf.split('.')
-    if (parts[1] && parts[1].length > 2) weighedOpenBuf = weighedOpenBuf.slice(0, -1)
-  }
-  updateWeighedOpenDisplay()
+  appendWeighedOpenInput(b.dataset.val)
 })
 $('#weighedOpenConfirm').addEventListener('click', () => {
-  const price = parseFloat(weighedOpenBuf) || 0
+  const price = moneyInputValue(weighedOpenBuf)
   const w = getScaleKg()
   if (price <= 0 || w <= 0) {
     showToast(w <= 0 ? 'No stable scale reading' : 'Enter a price first', 'error')
@@ -2697,7 +2734,7 @@ function showPriceChangeModalForProduct (product) {
   priceChangeIndex = -1
   priceChangeProduct = product
   const currentPrice = Number(product.active_price ?? product.price ?? 0)
-  priceChangeBuf = currentPrice > 0 ? String(Math.round(currentPrice * 100)) : ''
+  priceChangeBuf = ''
   updatePriceChangeDisplay()
   $('#priceChangeTitle').textContent = product.name || 'Change Product'
   const productCode = product.plu || product.barcode || (!/^p-open-/i.test(product.id || '') ? product.id : '')
@@ -2708,14 +2745,17 @@ function showPriceChangeModalForProduct (product) {
   $('#priceChangeConfirm').textContent = 'Save Product'
   $('#priceChangeModal').classList.add('show')
 }
-function updatePriceChangeDisplay () { $('#priceChangeDisplay').textContent = money(parseInt(priceChangeBuf || '0') / 100) }
+function updatePriceChangeDisplay () { $('#priceChangeDisplay').textContent = money(moneyInputValue(priceChangeBuf)) }
+function appendPriceChangeInput (v) {
+  priceChangeBuf = appendMoneyInput(priceChangeBuf, v)
+  updatePriceChangeDisplay()
+}
 $('#priceChangePad').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return
-  if (b.dataset.val === 'C') priceChangeBuf = ''; else priceChangeBuf += b.dataset.val
-  updatePriceChangeDisplay()
+  appendPriceChangeInput(b.dataset.val)
 })
 $('#priceChangeConfirm').addEventListener('click', async () => {
-  const cents = parseInt(priceChangeBuf || '0')
+  const cents = moneyInputCents(priceChangeBuf)
   const newPrice = cents / 100
   if (priceChangeProduct) {
     const openPrice = $('#priceChangeOpenPrice').checked
@@ -2753,6 +2793,32 @@ $('#priceChangeConfirm').addEventListener('click', async () => {
   showToast('Price updated', 'success'); $('#priceChangeModal').classList.remove('show'); refocus()
 })
 $('#priceChangeCancel').addEventListener('click', () => { $('#priceChangeModal').classList.remove('show'); refocus() })
+
+document.addEventListener('keydown', e => {
+  const modalHandlers = [
+    { modal: '#openPriceModal', confirm: '#openPriceConfirm', cancel: '#openPriceCancel', append: appendOpenPriceInput },
+    { modal: '#priceChangeModal', confirm: '#priceChangeConfirm', cancel: '#priceChangeCancel', append: appendPriceChangeInput },
+    { modal: '#weighedOpenModal', confirm: '#weighedOpenConfirm', cancel: '#weighedOpenCancel', append: appendWeighedOpenInput }
+  ]
+  const active = modalHandlers.find(h => $(h.modal)?.classList.contains('show'))
+  if (!active || e.ctrlKey || e.altKey || e.metaKey) return
+  if (/^\d$/.test(e.key)) {
+    e.preventDefault(); e.stopPropagation()
+    active.append(e.key)
+  } else if (e.key === 'Backspace') {
+    e.preventDefault(); e.stopPropagation()
+    active.append('back')
+  } else if (e.key === '.') {
+    e.preventDefault(); e.stopPropagation()
+    active.append('.')
+  } else if (e.key === 'Enter') {
+    e.preventDefault(); e.stopPropagation()
+    $(active.confirm)?.click()
+  } else if (e.key === 'Escape') {
+    e.preventDefault(); e.stopPropagation()
+    $(active.cancel)?.click()
+  }
+}, true)
 
 // ═══ Weight Modal ═════════════════════════════════════════════════
 let wBuf = '0'
@@ -3893,7 +3959,7 @@ function showCashModal () {
 function completeCashPayment (amount) {
   showCashModal()
   const rounded = getRemainingCashRounded()
-  cashNumBuf = rounded.toFixed(2)
+  cashNumBuf = moneyInputFromAmount(rounded)
   updateCashDisplay()
   $('#cashConfirm').disabled = false
   $('#cashConfirm').click()
@@ -4003,28 +4069,18 @@ function showCashChangeWindow (change, tendered, receiptData) {
 }
 
 function cashTenderedValue () {
-  if (!cashNumBuf) return 0
-  if (cashNumBuf.includes('.')) return parseFloat(cashNumBuf || '0') || 0
-  return (parseInt(cashNumBuf, 10) || 0) / 100
+  return moneyInputValue(cashNumBuf)
 }
 
 function appendCashInput (v) {
-  if (v === 'C') cashNumBuf = ''
-  else if (v === 'back') cashNumBuf = cashNumBuf.slice(0, -1)
-  else if (v === '.') {
-    return
-  } else {
-    if (cashNumBuf.includes('.')) cashNumBuf = String(Math.round(cashTenderedValue() * 100))
-    cashNumBuf += v
-  }
-  cashNumBuf = cashNumBuf.replace(/^0+(?=\d)/, '')
+  cashNumBuf = appendMoneyInput(cashNumBuf, v)
   updateCashDisplay()
 }
 
 function confirmCashEntry () {
   const tendered = cashTenderedValue()
   if (!cashNumBuf || tendered < getRemainingCashRounded()) return
-  cashNumBuf = tendered.toFixed(2)
+  cashNumBuf = moneyInputFromAmount(tendered)
   updateCashDisplay()
   $('#cashConfirm').click()
 }
@@ -4057,14 +4113,14 @@ $('#quickCash').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || !b.dataset.amt) return
   if (b.dataset.amt === 'exact') {
     const remaining = getRemainingCashRounded()
-    cashNumBuf = remaining.toFixed(2)
+    cashNumBuf = moneyInputFromAmount(remaining)
     updateCashDisplay()
     $('#cashConfirm').click()
     return
   }
   const remaining = getRemainingCashRounded()
   const amt = parseFloat(b.dataset.amt)
-  cashNumBuf = amt.toFixed(2)
+  cashNumBuf = moneyInputFromAmount(amt)
   updateCashDisplay()
   if (amt >= remaining) {
     $('#cashConfirm').click()
