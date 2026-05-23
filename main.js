@@ -2328,6 +2328,212 @@ async function initDatabase() {
       VALUES ('fn-pricechange-mode', 'PRICE\\nCHANGE', 'price_change', 0, NULL, '#fff', '#0f766e', NULL, NULL, NULL, 7, 'grid', 1, 0, 2, 1, 1, 1, NULL, datetime('now'))`)
   } catch (e) { appLog('error', 'migration', 'Price change key repair failed', e.message) }
 
+  // Register keyboard palette v3: DB-owned colours matching the YieldPOS splash theme.
+  try {
+    const keyboardPaletteV3Done = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_palette_v3'")
+    if (!keyboardPaletteV3Done.length) {
+      const typePalette = [
+        ["type = 'pay_cash'", '#ffffff', '#17643d'],
+        ["type = 'pay_card'", '#f3f5f0', '#424b57'],
+        ["type = 'subtotal'", '#171104', '#d7b461'],
+        ["type IN ('void','errcorrect','return')", '#fff0eb', '#6f2f31'],
+        ["type IN ('hold','recall','reprint','park')", '#e5fff2', '#185342'],
+        ["type IN ('nosale','movedrawer')", '#fff4d8', '#79571e'],
+        ["type IN ('supervisor','lock','management')", '#f0e3ff', '#432a4b'],
+        ["type IN ('pricecheck','price_change','item_search','product_lookup')", '#e5f3ff', '#2f506d'],
+        ["type IN ('discount','pctdiscount','pctone')", '#ffe8d4', '#6d4529'],
+        ["type IN ('endofday','viewor','ubereats')", '#e6e8df', '#2a2f36'],
+        ["type = 'digit'", '#07150d', '#fff8e8'],
+        ["type IN ('clear','codeenter')", '#07150d', '#d9cda9'],
+        ["type = 'qtyx'", '#fff8df', '#9b6a2f'],
+        ["type = 'num_display'", '#f0d89c', '#020604'],
+      ]
+      for (const [where, color, bg] of typePalette) {
+        db.run(`UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE ${where}`, [color, bg])
+      }
+      const idPalette = [
+        ['btn-meat', '#fff3ef', '#7b3f3f'], ['btn-flowers', '#fff1ff', '#80538a'],
+        ['btn-fv', '#f4fff2', '#1f6f45'], ['btn-coffee', '#fff0df', '#6b4a32'],
+        ['btn-bread', '#fff1d8', '#9a6530'], ['btn-fvkg', '#f4fff2', '#247652'],
+        ['btn-deli', '#f1fff5', '#526d58'], ['btn-cheese', '#171104', '#d9b75d'],
+        ['btn-bags', '#f0f4ec', '#586052'], ['btn-grocery', '#f3f5f0', '#4f5966'],
+        ['btn-grocery-open', '#f3f5f0', '#44515c'], ['btn-nuts', '#fff0d5', '#7d6330'],
+        ['btn-gas', '#f3f5f0', '#343a40'], ['btn-fruit-am', '#f7f0dc', '#2d7048'],
+        ['btn-fruit-nz', '#f7f0dc', '#2d7048'], ['btn-veg-ag', '#f7f0dc', '#356b38'],
+        ['btn-veg-hz', '#f7f0dc', '#356b38'], ['fn-advanced', '#f0e3ff', '#432a4b'],
+        ['fn-pricechange-mode', '#e5f3ff', '#2f506d'],
+      ]
+      for (const [id, color, bg] of idPalette) {
+        db.run("UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE id = ?3", [color, bg, id])
+      }
+      db.run("UPDATE keyboard_buttons SET color = '#f7f0dc', bg_color = '#1f5d3c', updated_at = datetime('now') WHERE type = 'back_home'")
+      db.run("UPDATE keyboard_buttons SET color = '#07150d', bg_color = '#f0d89c', updated_at = datetime('now') WHERE id IN ('pg2-veg-menu','pg3-prev-fruit','pg4-fruit-menu','pg5-fruit-menu','pg2-next-fruit','pg4-next-veg','pg5-prev-veg')")
+      db.run("UPDATE keyboard_buttons SET color = '#f7f0dc', bg_color = '#2d3a2e', updated_at = datetime('now') WHERE page IN (2,3) AND type IN ('product','open_price','fixed_price','weighed_open') AND (image IS NULL OR TRIM(image) = '')")
+      db.run("UPDATE keyboard_buttons SET color = '#f7f0dc', bg_color = '#1e3328', updated_at = datetime('now') WHERE page IN (4,5) AND type IN ('product','open_price','fixed_price','weighed_open') AND (image IS NULL OR TRIM(image) = '')")
+      db.run("UPDATE keyboard_buttons SET color = '#f3f5f0', bg_color = '#4f5966', updated_at = datetime('now') WHERE page = 6 AND type IN ('product','open_price','fixed_price','weighed_open') AND (image IS NULL OR TRIM(image) = '')")
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_palette_v3', '1')")
+      appLog('info', 'migration', 'Applied register keyboard palette v3')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register keyboard palette v3 failed', e.message) }
+
+  // Register keyboard palette v4: soften the beige/gold register-home keys into off-white neutrals.
+  try {
+    const keyboardPaletteV4Done = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_palette_v4_offwhite'")
+    if (!keyboardPaletteV4Done.length) {
+      const softPalette = [
+        ["type = 'subtotal'", '#0f172a', '#f8fafc'],
+        ["type IN ('nosale','movedrawer')", '#111827', '#f3f6fa'],
+        ["type IN ('discount','pctdiscount','pctone')", '#1e293b', '#eef4ff'],
+        ["type = 'digit'", '#0f172a', '#fbfcfe'],
+        ["type IN ('clear','codeenter')", '#1f2937', '#e9eef5'],
+        ["type = 'qtyx'", '#0f2b55', '#dbeafe'],
+        ["type = 'num_display'", '#86efac', '#020604'],
+      ]
+      for (const [where, color, bg] of softPalette) {
+        db.run(`UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE ${where}`, [color, bg])
+      }
+      const softIds = [
+        ['btn-coffee', '#1f2937', '#eef2f7'],
+        ['btn-bread', '#1f2937', '#f8fafc'],
+        ['btn-cheese', '#111827', '#fbfcfe'],
+        ['btn-nuts', '#1f2937', '#f4f6f8'],
+        ['btn-subtotal', '#0f172a', '#f8fafc'],
+        ['fn-nosale', '#111827', '#f3f6fa'],
+        ['fn-discount', '#1e293b', '#eef4ff'],
+      ]
+      for (const [id, color, bg] of softIds) {
+        db.run("UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE id = ?3 AND page = 1", [color, bg, id])
+      }
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_palette_v4_offwhite', '1')")
+      appLog('info', 'migration', 'Applied register keyboard off-white palette v4')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register keyboard palette v4 failed', e.message) }
+
+  // Register keyboard palette v5: DB-backed top and bottom rows to match the splash screen.
+  try {
+    const splashRowsDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_splash_rows_v1'")
+    if (!splashRowsDone.length) {
+      const splashRows = [
+        ['fn-reprint', '#f7f0dc', '#185342'],
+        ['fn-advanced', '#f7f0dc', '#142b1c'],
+        ['fn-pricechange-mode', '#f0d89c', '#1f5d3c'],
+        ['fn-endofday', '#f0d89c', '#2a2f36'],
+        ['fn-hold', '#f7f0dc', '#185342'],
+        ['fn-itemsearch', '#f7f0dc', '#1f5d3c'],
+        ['fn-nosale', '#f0d89c', '#61451e'],
+        ['fn-pricecheck', '#f7f0dc', '#142b1c'],
+        ['btn-fruit-am', '#f7f0dc', '#1f5d3c'],
+        ['btn-fruit-nz', '#f7f0dc', '#1f5d3c'],
+        ['btn-veg-ag', '#f7f0dc', '#0d2216'],
+        ['btn-veg-hz', '#f7f0dc', '#0d2216'],
+        ['btn-subtotal', '#07150d', '#f0d89c'],
+      ]
+      for (const [id, color, bg] of splashRows) {
+        db.run("UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE id = ?3 AND page = 1", [color, bg, id])
+      }
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_splash_rows_v1', '1')")
+      appLog('info', 'migration', 'Applied splash-themed register top and bottom rows')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register splash row palette failed', e.message) }
+
+  // Register keyboard palette v6: cohesive earth palette, no red/blue accents.
+  try {
+    const earthPaletteDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_earth_palette_v2'")
+    if (!earthPaletteDone.length) {
+      const earthPalette = [
+        // Numeric pad and display
+        ["type = 'digit' AND page = 1", '#0b2418', '#ffffff'],
+        ["type IN ('clear','codeenter') AND page = 1", '#0b2418', '#f8f4ea'],
+        ["type = 'qtyx' AND page = 1", '#f8f4ea', '#6f5f3a'],
+        ["type = 'num_display' AND page = 1", '#bfe6c2', '#020604'],
+      ]
+      for (const [where, color, bg] of earthPalette) {
+        db.run(`UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE ${where}`, [color, bg])
+      }
+      const earthIds = [
+        ['fn-reprint', '#f8f4ea', '#123c27'],
+        ['fn-advanced', '#f8f4ea', '#0b2418'],
+        ['fn-pricechange-mode', '#f8f4ea', '#2e6b45'],
+        ['fn-endofday', '#efe6d2', '#4a321f'],
+        ['fn-hold', '#f8f4ea', '#123c27'],
+        ['fn-itemsearch', '#f8f4ea', '#2e6b45'],
+        ['fn-nosale', '#f8f4ea', '#6b4a32'],
+        ['fn-pricecheck', '#f8f4ea', '#0b2418'],
+        ['fn-discount', '#f8f4ea', '#6f5f3a'],
+        ['fn-movedrawer', '#f8f4ea', '#4a321f'],
+        ['fn-return', '#f8f4ea', '#6b4a32'],
+        ['fn-recall', '#f8f4ea', '#123c27'],
+        ['btn-meat', '#f8f4ea', '#6f5f3a'],
+        ['btn-flowers', '#0b2418', '#dfe8d6'],
+        ['btn-fv', '#f8f4ea', '#2e6b45'],
+        ['btn-coffee', '#f8f4ea', '#4a321f'],
+        ['btn-bread', '#4a321f', '#f8f4ea'],
+        ['btn-fvkg', '#f8f4ea', '#2e6b45'],
+        ['btn-deli', '#f8f4ea', '#5e7f52'],
+        ['btn-cheese', '#4a321f', '#efe6d2'],
+        ['btn-bags', '#f8f4ea', '#5e6f4b'],
+        ['btn-grocery', '#f8f4ea', '#5e6f4b'],
+        ['btn-grocery-open', '#f8f4ea', '#6b4a32'],
+        ['btn-nuts', '#4a321f', '#efe6d2'],
+        ['btn-gas', '#f8f4ea', '#0b2418'],
+        ['btn-fruit-am', '#f8f4ea', '#2e6b45'],
+        ['btn-fruit-nz', '#f8f4ea', '#2e6b45'],
+        ['btn-veg-ag', '#f8f4ea', '#123c27'],
+        ['btn-veg-hz', '#f8f4ea', '#123c27'],
+        ['btn-subtotal', '#0b2418', '#efe6d2'],
+      ]
+      for (const [id, color, bg] of earthIds) {
+        db.run("UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE id = ?3 AND page = 1", [color, bg, id])
+      }
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_earth_palette_v2', '1')")
+      appLog('info', 'migration', 'Applied earth-toned register keyboard palette')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register earth palette failed', e.message) }
+
+  // Register keyboard palette v7: organised bands rather than scattered utility colours.
+  try {
+    const organisedPaletteDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_organised_palette_v1'")
+    if (!organisedPaletteDone.length) {
+      const organisedRules = [
+        ["page = 1 AND active = 1 AND grid_row = 0", '#f8f4ea', '#123c27'],
+        ["page = 1 AND active = 1 AND grid_row = 1 AND id != 'layout-cart'", '#f8f4ea', '#6b4a32'],
+        ["page = 1 AND type = 'digit'", '#0b2418', '#ffffff'],
+        ["page = 1 AND type IN ('clear','codeenter')", '#0b2418', '#f8f4ea'],
+        ["page = 1 AND type = 'qtyx'", '#f8f4ea', '#6f5f3a'],
+        ["page = 1 AND type = 'num_display'", '#bfe6c2', '#020604'],
+      ]
+      for (const [where, color, bg] of organisedRules) {
+        db.run(`UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE ${where}`, [color, bg])
+      }
+      const organisedIds = [
+        // Column groups: earthy sections, light neutral sections, fresh greens.
+        ['btn-meat', '#f8f4ea', '#6f5f3a'],
+        ['btn-coffee', '#f8f4ea', '#4a321f'],
+        ['btn-deli', '#f8f4ea', '#5e7f52'],
+        ['btn-grocery', '#f8f4ea', '#5e6f4b'],
+        ['btn-grocery-open', '#f8f4ea', '#6b4a32'],
+        ['btn-flowers', '#0b2418', '#dfe8d6'],
+        ['btn-bread', '#4a321f', '#f8f4ea'],
+        ['btn-cheese', '#4a321f', '#efe6d2'],
+        ['btn-nuts', '#4a321f', '#efe6d2'],
+        ['btn-fv', '#f8f4ea', '#2e6b45'],
+        ['btn-fvkg', '#f8f4ea', '#2e6b45'],
+        ['btn-bags', '#f8f4ea', '#5e6f4b'],
+        ['btn-gas', '#f8f4ea', '#0b2418'],
+        ['btn-fruit-am', '#f8f4ea', '#2e6b45'],
+        ['btn-fruit-nz', '#f8f4ea', '#2e6b45'],
+        ['btn-veg-ag', '#f8f4ea', '#123c27'],
+        ['btn-veg-hz', '#f8f4ea', '#123c27'],
+        ['btn-subtotal', '#0b2418', '#efe6d2'],
+      ]
+      for (const [id, color, bg] of organisedIds) {
+        db.run("UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE id = ?3 AND page = 1", [color, bg, id])
+      }
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_organised_palette_v1', '1')")
+      appLog('info', 'migration', 'Applied organised register keyboard palette')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register organised palette failed', e.message) }
+
   try {
     const categoryButtonFixDone = dbAll("SELECT value FROM settings WHERE key = 'migration_department_category_buttons_v1'")
     if (!categoryButtonFixDone.length) {
