@@ -2604,6 +2604,17 @@ async function initDatabase() {
     }
   } catch (e) { appLog('error', 'migration', 'Register compact utility palette v2 failed', e.message) }
 
+  // Register keyboard palette v13: force the final splash theme onto stale runtime DBs.
+  try {
+    const enforcedSplashPaletteDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_final_splash_theme_v1'")
+    if (!enforcedSplashPaletteDone.length) {
+      applyOrganisedRegisterKeyboardPalette()
+      db.run("DELETE FROM settings WHERE key IN ('migration_register_keyboard_cool_offwhite_palette_v1')")
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_final_splash_theme_v1', '1')")
+      appLog('info', 'migration', 'Enforced final splash register keyboard theme')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register final splash theme enforcement failed', e.message) }
+
   try {
     const categoryButtonFixDone = dbAll("SELECT value FROM settings WHERE key = 'migration_department_category_buttons_v1'")
     if (!categoryButtonFixDone.length) {
@@ -2624,6 +2635,8 @@ async function initDatabase() {
       appLog('info', 'migration', 'Fixed Green Sweet local image')
     }
   } catch (e) { appLog('error', 'migration', 'Green Sweet local image fix failed', e.message) }
+
+  applyBundledKeyboardDatabaseTheme(SQL)
 
   saveDBSync()
   appLog('info', 'database', 'Database initialized', `Path: ${DB_PATH}`)
@@ -2830,6 +2843,84 @@ function dbRun(sql, params = []) {
     scheduleSave()
   } catch (e) {
     appLog('error', 'database', `dbRun error: ${e.message}`, sql.slice(0, 200))
+  }
+}
+
+function databaseAll(sourceDb, sql, params = []) {
+  let stmt
+  try {
+    stmt = sourceDb.prepare(sql)
+    stmt.bind(params)
+    const rows = []
+    while (stmt.step()) rows.push(stmt.getAsObject())
+    return rows
+  } finally {
+    if (stmt) try { stmt.free() } catch (_) {}
+  }
+}
+
+function sqlIdent(name) {
+  return `"${String(name).replace(/"/g, '""')}"`
+}
+
+function dbValueEqual(a, b) {
+  if (a == null && b == null) return true
+  if (a == null || b == null) return false
+  return String(a) === String(b)
+}
+
+function applyBundledKeyboardDatabaseTheme(SQL) {
+  if (!fs.existsSync(BUNDLED_DB_PATH) || path.resolve(BUNDLED_DB_PATH) === path.resolve(DB_PATH)) return
+
+  let sourceDb = null
+  try {
+    sourceDb = new SQL.Database(fs.readFileSync(BUNDLED_DB_PATH))
+    const runtimeColumns = new Set(databaseAll(db, "PRAGMA table_info('keyboard_buttons')").map(row => row.name))
+    const sourceColumns = new Set(databaseAll(sourceDb, "PRAGMA table_info('keyboard_buttons')").map(row => row.name))
+    const desiredColumns = [
+      'id', 'label', 'type', 'color', 'bg_color', 'parent_id', 'category_filter', 'alpha_range',
+      'sort_order', 'position', 'page', 'grid_row', 'grid_col', 'col_span', 'row_span', 'active'
+    ]
+    const columns = desiredColumns.filter(column => runtimeColumns.has(column) && sourceColumns.has(column))
+    if (!columns.includes('id') || !columns.includes('page')) return
+
+    const columnSql = columns.map(sqlIdent).join(', ')
+    const sourceRows = databaseAll(sourceDb, `SELECT ${columnSql} FROM keyboard_buttons WHERE page = 1`)
+    if (!sourceRows.length) return
+
+    const currentRows = databaseAll(db, `SELECT ${columnSql} FROM keyboard_buttons WHERE page = 1`)
+    const currentById = new Map(currentRows.map(row => [row.id, row]))
+    const placeholders = columns.map(() => '?').join(', ')
+    const updateColumns = columns.filter(column => column !== 'id')
+    const updatedAt = runtimeColumns.has('updated_at') ? ", updated_at = datetime('now')" : ''
+    const upsertSql = `INSERT INTO keyboard_buttons (${columnSql}) VALUES (${placeholders})
+      ON CONFLICT(id) DO UPDATE SET ${updateColumns.map(column => `${sqlIdent(column)} = excluded.${sqlIdent(column)}`).join(', ')}${updatedAt}`
+
+    let applied = 0
+    for (const row of sourceRows) {
+      const current = currentById.get(row.id)
+      const needsUpdate = !current || columns.some(column => !dbValueEqual(current[column], row[column]))
+      if (!needsUpdate) continue
+      db.run(upsertSql, columns.map(column => row[column]))
+      applied++
+    }
+
+    const sourceIds = sourceRows.map(row => row.id).filter(Boolean)
+    if (sourceIds.length) {
+      const extraRows = dbAll(`SELECT id FROM keyboard_buttons WHERE page = 1 AND active = 1 AND id NOT IN (${sourceIds.map(() => '?').join(', ')})`, sourceIds)
+      for (const row of extraRows) {
+        db.run(`UPDATE keyboard_buttons SET active = 0${runtimeColumns.has('updated_at') ? ", updated_at = datetime('now')" : ''} WHERE id = ?1`, [row.id])
+        applied++
+      }
+    }
+
+    db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_keyboard_theme_source', 'bundled-db-page1')")
+    if (applied) appLog('info', 'database', `Applied bundled DB keyboard theme on startup (${applied} changes)`)
+    else appLog('info', 'database', 'Bundled DB keyboard theme already current')
+  } catch (e) {
+    appLog('error', 'database', 'Failed to apply bundled DB keyboard theme', e.message)
+  } finally {
+    if (sourceDb) try { sourceDb.close() } catch (_) {}
   }
 }
 

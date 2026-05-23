@@ -8,24 +8,70 @@ if (-not (Test-Path -LiteralPath $sourceDb)) {
   throw "Bundled database not found: $sourceDb"
 }
 
-$running = Get-Process | Where-Object {
-  $isYieldPos = $_.ProcessName -in @('YieldPOS Client', 'YieldPOS Register', 'YieldPOS Admin')
-  $isLocalElectron = $false
-  if ($_.ProcessName -eq 'electron') {
+function Get-YieldPosProcesses {
+  Get-Process | Where-Object {
+    $processName = [string]$_.ProcessName
+    $isYieldPos = $processName -in @('YieldPOS Client', 'YieldPOS Register', 'YieldPOS Admin', 'BoundOS Client') -or
+      $processName -like 'YieldPOS*' -or
+      $processName -like 'BoundOS*'
+    $isLocalElectron = $false
+    if ($_.ProcessName -eq 'electron') {
+      try {
+        $isLocalElectron = $_.Path -and $_.Path.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)
+      } catch {
+        $isLocalElectron = $true
+      }
+    }
+    $isYieldPos -or $isLocalElectron
+  }
+}
+
+function Stop-YieldPosProcesses {
+  $running = @(Get-YieldPosProcesses)
+  if (-not $running.Count) {
+    Write-Host 'YieldPOS is not running.' -ForegroundColor DarkGray
+    return
+  }
+
+  Write-Host 'Closing YieldPOS before replacing the runtime database...' -ForegroundColor Yellow
+  foreach ($p in $running) {
+    Write-Host "  Closing $($p.ProcessName) (PID $($p.Id))" -ForegroundColor DarkGray
     try {
-      $isLocalElectron = $_.Path -and $_.Path.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)
-    } catch {
-      $isLocalElectron = $true
+      if ($p.MainWindowHandle -ne 0) {
+        [void]$p.CloseMainWindow()
+      }
+    } catch {}
+  }
+
+  $deadline = (Get-Date).AddSeconds(8)
+  while ((Get-Date) -lt $deadline) {
+    Start-Sleep -Milliseconds 250
+    if (-not @(Get-YieldPosProcesses).Count) {
+      Write-Host 'YieldPOS closed cleanly.' -ForegroundColor Green
+      return
     }
   }
-  $isYieldPos -or $isLocalElectron
-} | Select-Object -First 1
 
-if ($running) {
-  Write-Host 'YieldPOS appears to be running. Close the Register/Admin app before resetting the DB.' -ForegroundColor Yellow
-  Write-Host "Found process: $($running.ProcessName) (PID $($running.Id))" -ForegroundColor Yellow
-  exit 1
+  $stillRunning = @(Get-YieldPosProcesses)
+  if ($stillRunning.Count) {
+    Write-Host 'YieldPOS did not close in time; forcing it closed so the DB can be replaced.' -ForegroundColor Yellow
+    foreach ($p in $stillRunning) {
+      try {
+        Stop-Process -Id $p.Id -Force -ErrorAction Stop
+        Write-Host "  Stopped $($p.ProcessName) (PID $($p.Id))" -ForegroundColor DarkGray
+      } catch {
+        Write-Host "  Could not stop $($p.ProcessName) (PID $($p.Id)): $($_.Exception.Message)" -ForegroundColor Red
+      }
+    }
+    Start-Sleep -Seconds 1
+  }
+
+  if (@(Get-YieldPosProcesses).Count) {
+    throw 'YieldPOS is still running. Close it manually and run this script again.'
+  }
 }
+
+Stop-YieldPosProcesses
 
 function Reset-RuntimeDatabase {
   param(
@@ -52,7 +98,21 @@ function Reset-RuntimeDatabase {
     Write-Host "Backed up $Name DB to: $backupDb"
   }
 
-  Copy-Item -LiteralPath $sourceDb -Destination $runtimeDb -Force
+  $copied = $false
+  for ($attempt = 1; $attempt -le 5; $attempt++) {
+    try {
+      Copy-Item -LiteralPath $sourceDb -Destination $runtimeDb -Force
+      $copied = $true
+      break
+    } catch {
+      if ($attempt -eq 5) { throw }
+      Write-Host "Copy attempt $attempt failed; retrying..." -ForegroundColor Yellow
+      Start-Sleep -Seconds 1
+    }
+  }
+  if (-not $copied) {
+    throw "$Name DB copy failed: $runtimeDb"
+  }
   Remove-Item -LiteralPath $runtimeWal -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $runtimeShm -Force -ErrorAction SilentlyContinue
 
@@ -62,7 +122,7 @@ function Reset-RuntimeDatabase {
     throw "$Name DB copy verification failed: $runtimeDb"
   }
 
-  Write-Host "$Name DB replaced from local DB: $runtimeDb"
+  Write-Host "$Name DB replaced and verified: $runtimeDb" -ForegroundColor Green
 }
 
 $primaryRuntimeDir = Join-Path $env:APPDATA 'YieldPOS Client'
@@ -72,5 +132,6 @@ Reset-RuntimeDatabase -Name 'YieldPOS Client runtime' -RuntimeDir $primaryRuntim
 Reset-RuntimeDatabase -Name 'BoundOS legacy runtime' -RuntimeDir $legacyRuntimeDir -CreateIfMissing $false
 
 Write-Host "Source local DB: $sourceDb"
+Write-Host "Source DB hash: $((Get-FileHash -LiteralPath $sourceDb -Algorithm SHA256).Hash)"
 Write-Host "Source DB size: $([Math]::Round((Get-Item -LiteralPath $sourceDb).Length / 1MB, 2)) MB"
-Write-Host "Next launch will use this folder's full database and keyboard."
+Write-Host "Reset complete. Next launch will use this folder's full database and keyboard." -ForegroundColor Green

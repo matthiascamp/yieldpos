@@ -322,6 +322,22 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 .pin-btn.enter:active{background:#123c27}
 .pin-btn.clear{color:var(--bound-cream);font-size:clamp(1rem,1.45vw,1.25rem);font-weight:800;background:#6b4a32}
 .login-error{margin-top:16px;color:#f0d89c;font-size:13px;min-height:20px;font-weight:600}
+#floatOverlay{background:rgba(8,15,11,.88)}
+.float-panel{width:min(340px,92vw);padding:24px 22px;border-radius:16px;background:#fffdf7;border:1px solid rgba(205,167,95,.28);text-align:center;box-shadow:0 22px 60px rgba(0,0,0,.36)}
+.float-symbol{width:48px;height:48px;margin:0 auto 10px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#123c27;color:#f8f4ea;font-size:24px;font-weight:900;box-shadow:0 10px 22px rgba(18,60,39,.24)}
+.float-title{font-size:18px;font-weight:800;color:#0b2418;margin-bottom:4px}
+.float-copy{font-size:13px;color:#5e6b61;margin-bottom:18px;line-height:1.35}
+.float-suggested{font-size:12px;font-weight:800;color:#1f5d3c;background:#f8f4ea;border:1px solid #efe6d2;border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.float-display{font-size:32px;font-weight:800;color:#123c27;background:#f8f4ea;border:2px solid #78916b;border-radius:10px;padding:12px;margin-bottom:14px;min-height:48px;letter-spacing:1px}
+.float-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.float-key{width:100%;height:56px;min-width:0;border-radius:10px;border:1px solid #efe6d2;background:#f8f4ea;color:#0b2418;font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 3px 10px rgba(11,36,24,.08);transition:transform .1s,background .1s,filter .1s;touch-action:manipulation}
+.float-key:active{background:#efe6d2;transform:scale(.97)}
+.float-key.clear{background:#6b4a32;color:#f8f4ea;border-color:#6b4a32}
+.float-key.double-zero{background:#1f5d3c;color:#f8f4ea;border-color:#1f5d3c}
+.float-actions{display:flex;gap:8px}
+.float-action{min-height:46px;border-radius:9px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation}
+.float-skip{flex:1;border:1px solid #efe6d2;background:#f8f4ea;color:#5e6b61}
+.float-confirm{flex:2;border:0;background:#123c27;color:#f8f4ea}
 
 /* ═══ Sale Complete & Toast ══════════════════════════════════════ */
 .sale-complete{position:fixed;inset:0;background:rgba(15,17,23,.5);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:150}
@@ -423,22 +439,22 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 </div>
 
 <!-- ═══ Float Entry Modal ══════════════════════════════════════════ -->
-<div class="login-overlay hidden" id="floatOverlay" style="background:rgba(0,0,0,0.85)">
-  <div style="background:#fff;border-radius:16px;padding:32px 28px;width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-    <div style="font-size:28px;margin-bottom:8px">💰</div>
-    <div style="font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:4px">Enter Drawer Float</div>
-    <div style="font-size:13px;color:#8891a5;margin-bottom:20px">Count the cash in the drawer and enter the total amount.</div>
-    <div id="floatSuggested" style="font-size:12px;font-weight:700;color:#166534;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;margin-bottom:10px">Suggested start float: $0.00</div>
-    <div id="floatDisplay" style="font-size:32px;font-weight:700;color:#1a3d2a;background:#f0fdf4;border:2px solid #4fbd77;border-radius:10px;padding:12px;margin-bottom:16px;min-height:48px;letter-spacing:1px">$0.00</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;" id="floatPad">
-      <button class="pin-btn" data-val="1">1</button><button class="pin-btn" data-val="2">2</button><button class="pin-btn" data-val="3">3</button>
-      <button class="pin-btn" data-val="4">4</button><button class="pin-btn" data-val="5">5</button><button class="pin-btn" data-val="6">6</button>
-      <button class="pin-btn" data-val="7">7</button><button class="pin-btn" data-val="8">8</button><button class="pin-btn" data-val="9">9</button>
-      <button class="pin-btn clear" data-val="C">CLR</button><button class="pin-btn" data-val="0">0</button><button class="pin-btn" data-val="00">00</button>
+<div class="login-overlay hidden" id="floatOverlay">
+  <div class="float-panel">
+    <div class="float-symbol">$</div>
+    <div class="float-title">Enter Drawer Float</div>
+    <div class="float-copy">Count the cash in the drawer and enter the total amount.</div>
+    <div id="floatSuggested" class="float-suggested">Suggested start float: $0.00</div>
+    <div id="floatDisplay" class="float-display">$0.00</div>
+    <div class="float-pad" id="floatPad">
+      <button class="float-key" data-val="1">1</button><button class="float-key" data-val="2">2</button><button class="float-key" data-val="3">3</button>
+      <button class="float-key" data-val="4">4</button><button class="float-key" data-val="5">5</button><button class="float-key" data-val="6">6</button>
+      <button class="float-key" data-val="7">7</button><button class="float-key" data-val="8">8</button><button class="float-key" data-val="9">9</button>
+      <button class="float-key clear" data-val="C">CLR</button><button class="float-key" data-val="0">0</button><button class="float-key double-zero" data-val="00">00</button>
     </div>
-    <div style="display:flex;gap:8px;">
-      <button id="floatSkipBtn" style="flex:1;padding:12px;border-radius:8px;border:1px solid #ddd;background:#f8f9fa;font-size:14px;cursor:pointer;color:#666">Skip</button>
-      <button id="floatConfirmBtn" style="flex:2;padding:12px;border-radius:8px;border:none;background:#1a3d2a;color:#fff;font-size:14px;font-weight:600;cursor:pointer">Confirm Float</button>
+    <div class="float-actions">
+      <button id="floatSkipBtn" class="float-action float-skip">Skip</button>
+      <button id="floatConfirmBtn" class="float-action float-confirm">Confirm Float</button>
     </div>
   </div>
 </div>
@@ -1788,7 +1804,7 @@ function updateFloatDisplay () {
 }
 
 $('#floatPad').addEventListener('click', e => {
-  const b = e.target.closest('.pin-btn'); if (!b) return
+  const b = e.target.closest('.float-key'); if (!b) return
   const v = b.dataset.val
   if (floatReplaceOnInput && v !== 'C' && v !== 'back') floatBuf = ''
   floatReplaceOnInput = false
