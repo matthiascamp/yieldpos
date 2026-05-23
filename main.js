@@ -13,6 +13,7 @@ let db
 let saveTimer = null
 let dailyBackupTimer = null
 let hardwareCleanup = null  // set by setupIPC, called on shutdown
+let hardwareCleanupDone = false
 let appShuttingDown = false
 let tray = null
 let trayHintShown = false
@@ -140,6 +141,18 @@ function appLog (level, source, message, detail) {
   }
 }
 
+function runHardwareCleanup (reason = 'shutdown') {
+  if (hardwareCleanupDone) return
+  hardwareCleanupDone = true
+  appShuttingDown = true
+  try { appLog('info', 'hardware', `Running hardware cleanup (${reason})`) } catch (_) {}
+  try {
+    if (typeof hardwareCleanup === 'function') hardwareCleanup(reason)
+  } catch (e) {
+    try { appLog('warn', 'hardware', 'Hardware cleanup failed', e.message || String(e)) } catch (_) {}
+  }
+}
+
 function killPtposProcesses () {
   if (process.platform !== 'win32') return { killed: [], remaining: [], error: null }
   const { execFileSync } = require('child_process')
@@ -196,6 +209,57 @@ $remaining = Get-Process | Where-Object {
   )
 } | ForEach-Object { [pscustomobject]@{ name = $_.ProcessName; id = $_.Id; path = $_.Path } }
 [pscustomobject]@{ killed = $killed; remaining = @($remaining) } | ConvertTo-Json -Depth 4 -Compress
+`
+  try {
+    const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], {
+      encoding: 'utf8',
+      timeout: 8000,
+      windowsHide: true
+    }).trim()
+    return out ? JSON.parse(out) : { killed: [], remaining: [], error: null }
+  } catch (e) {
+    return { killed: [], remaining: [], error: e.message || String(e) }
+  }
+}
+
+function cleanupStaleHardwareHelpers () {
+  if (process.platform !== 'win32') return { killed: [], remaining: [], error: null }
+  const { execFileSync } = require('child_process')
+  const script = `
+$ErrorActionPreference = 'SilentlyContinue'
+$tokens = @(
+  'barcode-live.ps1',
+  'opos-bridge.ps1',
+  'scale_reader.py',
+  'scanner-bridge.exe'
+)
+$selfPid = $PID
+$currentPid = ${process.pid}
+function Is-YieldPosHelper($p) {
+  $cmd = [string]$p.CommandLine
+  $name = [string]$p.Name
+  foreach ($t in $tokens) {
+    if ($cmd -like "*$t*" -or $name -ieq $t) { return $true }
+  }
+  return $false
+}
+$matches = Get-CimInstance Win32_Process | Where-Object {
+  $_.ProcessId -ne $selfPid -and $_.ProcessId -ne $currentPid -and (Is-YieldPosHelper $_)
+}
+$killed = @()
+foreach ($p in $matches) {
+  try {
+    $killed += [pscustomobject]@{ name = $p.Name; id = $p.ProcessId; commandLine = $p.CommandLine }
+    Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop
+  } catch {
+    $killed += [pscustomobject]@{ name = $p.Name; id = $p.ProcessId; commandLine = $p.CommandLine; error = $_.Exception.Message }
+  }
+}
+Start-Sleep -Milliseconds 250
+$remaining = Get-CimInstance Win32_Process | Where-Object {
+  $_.ProcessId -ne $selfPid -and $_.ProcessId -ne $currentPid -and (Is-YieldPosHelper $_)
+} | ForEach-Object { [pscustomobject]@{ name = $_.Name; id = $_.ProcessId; commandLine = $_.CommandLine } }
+[pscustomobject]@{ killed = @($killed); remaining = @($remaining) } | ConvertTo-Json -Depth 4 -Compress
 `
   try {
     const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], {
@@ -2920,8 +2984,9 @@ function hideMainWindowToTray (reason = 'close') {
 
 function quitApplication () {
   appShuttingDown = true
+  runHardwareCleanup('quit')
   app.quit()
-  setTimeout(() => app.exit(0), 1500)
+  setTimeout(() => app.exit(0), 3500)
 }
 
 function startModeSignalWatcher () {
@@ -3256,6 +3321,14 @@ app.whenReady().then(async () => {
   if (isAdminApp) ensureTray()
   startModeSignalWatcher()
 
+  if (isRegisterApp) {
+    const staleHelpers = cleanupStaleHardwareHelpers()
+    const killedCount = Array.isArray(staleHelpers.killed) ? staleHelpers.killed.length : (staleHelpers.killed ? 1 : 0)
+    if (staleHelpers.error) appLog('warn', 'startup', 'Stale hardware helper cleanup failed', staleHelpers.error)
+    else if (killedCount) appLog('info', 'startup', 'Stale hardware helper cleanup complete', staleHelpers)
+    else appLog('info', 'startup', 'No stale YieldPOS hardware helpers found')
+  }
+
   // Force-quit PTPOS + GUARDIAN so they release the OPOS scanner / COM ports.
   // They run elevated and respawn, so the durable fix is the SYSTEM "KillPTPOS"
   // scheduled task: ensure it's installed (one-time UAC prompt), then trigger it
@@ -3438,6 +3511,7 @@ app.on('before-quit', () => {
   try { if (tray) tray.destroy() } catch (_) {}
   tray = null
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+  runHardwareCleanup('before-quit')
   normalizeKeyboardProductRefs()
   saveDBSync()
 })
@@ -3446,7 +3520,7 @@ app.on('window-all-closed', () => {
   appShuttingDown = true
   if (dailyBackupTimer) clearInterval(dailyBackupTimer)
   appLog('info', 'app', 'App shutting down')
-  try { if (hardwareCleanup) hardwareCleanup() } catch (_) {}
+  runHardwareCleanup('window-all-closed')
   saveDBSync()
   app.quit()
 })
@@ -3523,7 +3597,11 @@ function setupIPC() {
     appLog('info', 'app', `Mode set to '${mode}', verified as '${check?.value}', DB saved to ${DB_PATH}`)
     if (mode === 'register') {
       appLog('info', 'app', 'Restarting app for register mode')
-      setTimeout(() => { app.relaunch(); app.exit(0) }, 1000)
+      setTimeout(() => {
+        runHardwareCleanup('mode-change-relaunch')
+        app.relaunch()
+        setTimeout(() => app.exit(0), 2500)
+      }, 1000)
     } else {
       const startMode = (role === 'admin' || role === 'manager') ? 'admin' : 'register'
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -3669,8 +3747,9 @@ if (Test-Path -LiteralPath $LauncherPath) {
       appLog('info', 'update', `Staged Git update for ${repoRoot} (${before.slice(0,7)} from ${remote})`)
       setTimeout(() => {
         try { lanSync.stopAll() } catch (_) {}
+        runHardwareCleanup('git-update')
         app.quit()
-        setTimeout(() => app.exit(0), 700)
+        setTimeout(() => app.exit(0), 3500)
       }, 800)
       return {
         updated: true,
@@ -3780,8 +3859,9 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       appLog('info', 'update', `Staged GitHub ZIP update into ${updateRoot}; app will quit before files are replaced`)
       setTimeout(() => {
         try { lanSync.stopAll() } catch (_) {}
+        runHardwareCleanup('zip-update')
         app.quit()
-        setTimeout(() => app.exit(0), 500)
+        setTimeout(() => app.exit(0), 3500)
       }, 800)
       return { updated: true, staged: true, log: `Downloaded update from GitHub ZIP.\nDestination: ${updateRoot}\nYieldPOS will close, apply the update after hardware handlers stop, and relaunch.` }
     } catch (e) {
@@ -3818,7 +3898,11 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         if (before === after) return { upToDate: true, log: pullOutput.trim() }
         const diffLog = execSync(`git log --oneline ${before}..${after}`, { cwd: appDir, encoding: 'utf-8', timeout: 5000 }).trim()
         appLog('info', 'update', `Updated from ${before.slice(0,7)} to ${after.slice(0,7)}`)
-        setTimeout(() => { app.relaunch(); app.exit(0) }, 1500)
+        setTimeout(() => {
+          runHardwareCleanup('legacy-git-update-relaunch')
+          app.relaunch()
+          setTimeout(() => app.exit(0), 2500)
+        }, 1500)
         return { updated: true, log: `${pullOutput.trim()}\n\nNew commits:\n${diffLog}`, from: before.slice(0,7), to: after.slice(0,7) }
       } catch (e) {
         const msg = (e.stderr || e.message || '').trim()
@@ -3880,7 +3964,11 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch (_) {}
 
       appLog('info', 'update', 'Updated from GitHub zip download')
-      setTimeout(() => { app.relaunch(); app.exit(0) }, 1500)
+      setTimeout(() => {
+        runHardwareCleanup('legacy-zip-update-relaunch')
+        app.relaunch()
+        setTimeout(() => app.exit(0), 2500)
+      }, 1500)
       return { updated: true, log: 'Downloaded latest version from GitHub and applied.\nApp will restart now.' }
     } catch (e) {
       return { error: `Download update failed: ${e.message}`, log: e.message }
@@ -5714,12 +5802,22 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     const proc = scannerProc
     if (!proc) return
     scannerProc = null
+    let exited = false
+    try { proc.once('exit', () => { exited = true }) } catch (_) {}
     // Graceful: closing stdin makes barcode-live.ps1 exit its loop and run OPOS
     // cleanup (ReleaseDevice/DeviceEnabled=false/Close). A hard kill would skip that
     // and leave the Datalogic scanner hung until a physical power-cycle. Force-kill
     // only as a fallback if it hasn't exited shortly.
+    appLog('info', 'scanner', 'Stopping OPOS scanner listener')
     try { if (proc.stdin && !proc.stdin.destroyed) proc.stdin.end() } catch (_) {}
-    setTimeout(() => { try { if (!proc.killed) proc.kill() } catch (_) {} }, 1500)
+    setTimeout(() => {
+      try {
+        if (!exited && !proc.killed) {
+          appLog('warn', 'scanner', 'Scanner listener did not exit after graceful stop; killing helper')
+          proc.kill()
+        }
+      } catch (_) {}
+    }, 2500)
   }
 
   function listOposDevices () {
@@ -7524,7 +7622,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   }
 
   // â”€â”€ Expose cleanup for shutdown handler (module-scope can't see setupIPC locals) â”€
-  hardwareCleanup = () => {
+  hardwareCleanup = (reason) => {
+    appLog('info', 'hardware', `Cleaning up register hardware (${reason || 'shutdown'})`)
     stopScalePolling()
     if (hwScalePort?.isOpen) try { hwScalePort.close() } catch (_) {}
     try { closeHidScale() } catch (_) {}
@@ -7661,7 +7760,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         if (settled) return
         settled = true
         if (timer) clearTimeout(timer)
-        try { proc?.kill() } catch (_) {}
+        try { if (proc?.stdin && !proc.stdin.destroyed) proc.stdin.end() } catch (_) {}
+        setTimeout(() => { try { if (proc && !proc.killed) proc.kill() } catch (_) {} }, 1000)
         resolve(result)
       }
 
@@ -7786,7 +7886,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       // Skip auto-restart if we killed it ourselves (app shutdown, manual stop).
       // Otherwise we'd spawn a new Python child right as the app is exiting and
       // leave an orphan holding COM2.
-      if (pythonScaleStopping) {
+      if (appShuttingDown || pythonScaleStopping) {
         pythonScaleStopping = false
         return
       }
@@ -7816,12 +7916,23 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   }
 
   function stopPythonScaleBridge () {
-    if (pythonScaleProc) {
-      pythonScaleStopping = true  // tell the exit handler this is intentional
-      try { pythonScaleProc.kill() } catch (_) {}
-      pythonScaleProc = null
-      lastPythonReading = null
-    }
+    const proc = pythonScaleProc
+    if (!proc) return
+    pythonScaleStopping = true  // tell the exit handler this is intentional
+    pythonScaleProc = null
+    lastPythonReading = null
+    let exited = false
+    try { proc.once('exit', () => { exited = true }) } catch (_) {}
+    appLog('info', 'scale', 'Stopping Python scale bridge')
+    try { if (proc.stdin && !proc.stdin.destroyed) proc.stdin.end() } catch (_) {}
+    setTimeout(() => {
+      try {
+        if (!exited && !proc.killed) {
+          appLog('warn', 'scale', 'Python scale bridge did not exit after graceful stop; killing helper')
+          proc.kill()
+        }
+      } catch (_) {}
+    }, 5000)
   }
 
   async function startScalePolling () {

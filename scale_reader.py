@@ -13,6 +13,7 @@ Usage:
 import argparse
 import json
 import sys
+import threading
 import time
 
 import serial
@@ -125,11 +126,13 @@ def parse_response(data):
     return result
 
 
-def read_response(ser, timeout=READ_TIMEOUT):
+def read_response(ser, timeout=READ_TIMEOUT, should_stop=None):
     """Read bytes from serial until CR is found or timeout expires."""
     buf = b""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
+        if should_stop and should_stop():
+            break
         waiting = ser.in_waiting
         if waiting:
             chunk = ser.read(waiting)
@@ -365,6 +368,16 @@ def main():
     last_emitted = None  # for line_mode dedup
     start_time = time.monotonic()
     last_emit_time = start_time
+    stop_requested = False
+
+    def watch_parent_stdin():
+        nonlocal stop_requested
+        try:
+            while sys.stdin.readline() != "":
+                pass
+        except Exception:
+            pass
+        stop_requested = True
 
     def emit_human(text):
         nonlocal last_emitted, last_emit_time
@@ -435,12 +448,17 @@ def main():
             else:
                 emit_human(f"WARNING: {parsed['message']}")
 
+    if not sys.stdin.isatty():
+        threading.Thread(target=watch_parent_stdin, daemon=True).start()
+
     try:
-        while True:
+        while not stop_requested:
             try:
                 ser.reset_input_buffer()
                 ser.write(WEIGHT_CMD)
-                raw = read_response(ser)
+                raw = read_response(ser, should_stop=lambda: stop_requested)
+                if stop_requested:
+                    break
                 parsed = parse_response(raw)
 
                 if parsed["type"] == "weight":
