@@ -2627,7 +2627,10 @@ async function initDatabase() {
     const needsMainColourRepair = mainColourProbe &&
       (String(mainColourProbe.bg_color || '').toLowerCase() !== '#1a3f2c' ||
        String(mainColourProbe.color || '').toLowerCase() !== '#f8f4ea')
-    if (!mainColourRepairDone.length && needsMainColourRepair) {
+    const hasKnownOldMainColours = mainColourProbe &&
+      String(mainColourProbe.bg_color || '').toLowerCase() === '#475569' &&
+      String(mainColourProbe.color || '').toLowerCase() === '#fff'
+    if ((!mainColourRepairDone.length && needsMainColourRepair) || hasKnownOldMainColours) {
       applyOrganisedRegisterKeyboardPalette()
       db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_final_splash_theme_v2', '1')")
       appLog('info', 'migration', 'Repaired stale register main keyboard colours')
