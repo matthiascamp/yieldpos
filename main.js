@@ -2619,6 +2619,21 @@ async function initDatabase() {
     }
   } catch (e) { appLog('error', 'migration', 'Register final splash theme enforcement failed', e.message) }
 
+  // Register keyboard palette v14: repair DBs where the v13 flag exists but
+  // page 1 was later written back with the older high-contrast colour set.
+  try {
+    const mainColourRepairDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_final_splash_theme_v2'")
+    const mainColourProbe = dbGet("SELECT bg_color, color FROM keyboard_buttons WHERE id = 'fn-reprint' AND page = 1")
+    const needsMainColourRepair = mainColourProbe &&
+      (String(mainColourProbe.bg_color || '').toLowerCase() !== '#1a3f2c' ||
+       String(mainColourProbe.color || '').toLowerCase() !== '#f8f4ea')
+    if (!mainColourRepairDone.length && needsMainColourRepair) {
+      applyOrganisedRegisterKeyboardPalette()
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_final_splash_theme_v2', '1')")
+      appLog('info', 'migration', 'Repaired stale register main keyboard colours')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register main keyboard colour repair failed', e.message) }
+
   try {
     const categoryButtonFixDone = dbAll("SELECT value FROM settings WHERE key = 'migration_department_category_buttons_v1'")
     if (!categoryButtonFixDone.length) {
