@@ -391,6 +391,9 @@ const gotModeLock = acquireModeProcessLock(runtimeAppMode)
 if (!gotModeLock) app.quit()
 app.on('will-quit', releaseModeProcessLock)
 process.on('exit', releaseModeProcessLock)
+process.on('exit', () => {
+  try { runHardwareCleanup('process-exit') } catch (_) {}
+})
 // Prune old log files at startup â€” keep last 14 days
 try {
   if (fs.existsSync(LOG_DIR)) {
@@ -3353,7 +3356,7 @@ function quitApplication () {
   appShuttingDown = true
   runHardwareCleanup('quit')
   app.quit()
-  setTimeout(() => app.exit(0), 3500)
+  setTimeout(() => app.exit(0), 10000)
 }
 
 function startModeSignalWatcher () {
@@ -3967,7 +3970,7 @@ function setupIPC() {
       setTimeout(() => {
         runHardwareCleanup('mode-change-relaunch')
         app.relaunch()
-        setTimeout(() => app.exit(0), 2500)
+        setTimeout(() => app.exit(0), 10000)
       }, 1000)
     } else {
       const startMode = (role === 'admin' || role === 'manager') ? 'admin' : 'register'
@@ -4116,7 +4119,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
         try { lanSync.stopAll() } catch (_) {}
         runHardwareCleanup('git-update')
         app.quit()
-        setTimeout(() => app.exit(0), 3500)
+        setTimeout(() => app.exit(0), 10000)
       }, 800)
       return {
         updated: true,
@@ -4228,7 +4231,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         try { lanSync.stopAll() } catch (_) {}
         runHardwareCleanup('zip-update')
         app.quit()
-        setTimeout(() => app.exit(0), 3500)
+        setTimeout(() => app.exit(0), 10000)
       }, 800)
       return { updated: true, staged: true, log: `Downloaded update from GitHub ZIP.\nDestination: ${updateRoot}\nYieldPOS will close, apply the update after hardware handlers stop, and relaunch.` }
     } catch (e) {
@@ -4268,7 +4271,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         setTimeout(() => {
           runHardwareCleanup('legacy-git-update-relaunch')
           app.relaunch()
-          setTimeout(() => app.exit(0), 2500)
+          setTimeout(() => app.exit(0), 10000)
         }, 1500)
         return { updated: true, log: `${pullOutput.trim()}\n\nNew commits:\n${diffLog}`, from: before.slice(0,7), to: after.slice(0,7) }
       } catch (e) {
@@ -4334,7 +4337,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       setTimeout(() => {
         runHardwareCleanup('legacy-zip-update-relaunch')
         app.relaunch()
-        setTimeout(() => app.exit(0), 2500)
+        setTimeout(() => app.exit(0), 10000)
       }, 1500)
       return { updated: true, log: 'Downloaded latest version from GitHub and applied.\nApp will restart now.' }
     } catch (e) {
@@ -6050,6 +6053,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Sta',
       '-File', BARCODE_LIVE_PS1,
       '-Device', device,
+      '-ParentPid', String(process.pid),
       '-NoKill', '-Json', '-NoRelaunch32Bit'
     ], { windowsHide: true })
 
@@ -6184,7 +6188,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
           proc.kill()
         }
       } catch (_) {}
-    }, 2500)
+    }, appShuttingDown ? 9000 : 5000)
   }
 
   function listOposDevices () {

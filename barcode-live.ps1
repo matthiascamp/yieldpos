@@ -29,6 +29,7 @@ param(
     [switch]$Json,                       # emit one JSON event per line (for YieldPOS to consume on stdout)
     [switch]$NoKill,                     # skip stopping PTPOS/GUARDIAN (use if they are already closed)
     [int]$ClaimTimeoutMs = 1500,
+    [int]$ParentPid = 0,                 # YieldPOS parent PID; if it dies, release OPOS and exit
     [switch]$NoRelaunch32Bit             # internal: set automatically after the 32-bit relaunch
 )
 
@@ -79,6 +80,7 @@ function Start-SelfIn32BitSta {
         '-File', $PSCommandPath,
         '-Device', $Device,
         '-ClaimTimeoutMs', $ClaimTimeoutMs,
+        '-ParentPid', $ParentPid,
         '-NoKill',            # PTPOS already handled in the first pass
         '-NoRelaunch32Bit'
     )
@@ -96,6 +98,7 @@ Add-Type -ReferencedAssemblies @('System.Core', 'System.Windows.Forms', 'Microso
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
@@ -143,7 +146,7 @@ public class BarcodeLive
         return sb.ToString();
     }
 
-    public static int Run(string device, int claimTimeoutMs, bool plainOut, bool jsonOut)
+    public static int Run(string device, int claimTimeoutMs, bool plainOut, bool jsonOut, int parentPid)
     {
         plain = plainOut;
         json = jsonOut;
@@ -159,6 +162,26 @@ public class BarcodeLive
         });
         stdinWatch.IsBackground = true;
         stdinWatch.Start();
+
+        // If YieldPOS is killed or the updater closes it before stdin is flushed,
+        // release the scanner anyway so PTPos can claim it again.
+        if (parentPid > 0)
+        {
+            Thread parentWatch = new Thread(delegate() {
+                while (!stop)
+                {
+                    try
+                    {
+                        Process p = Process.GetProcessById(parentPid);
+                        if (p.HasExited) { stop = true; break; }
+                    }
+                    catch { stop = true; break; }
+                    Thread.Sleep(500);
+                }
+            });
+            parentWatch.IsBackground = true;
+            parentWatch.Start();
+        }
 
         try
         {
@@ -235,8 +258,11 @@ public class BarcodeLive
                 Thread.Sleep(15);
             }
 
-            Console.WriteLine();
-            Console.WriteLine("Stopped.");
+            if (!json)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Stopped.");
+            }
             return 0;
         }
         catch (Exception ex)
@@ -401,4 +427,4 @@ public class BarcodeEventSink : IScannerEvents
 }
 '@
 
-exit ([BarcodeLive]::Run($Device, $ClaimTimeoutMs, [bool]$Plain, [bool]$Json))
+exit ([BarcodeLive]::Run($Device, $ClaimTimeoutMs, [bool]$Plain, [bool]$Json, $ParentPid))
