@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, shell, protocol, Tray, Menu, nativeImage } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const crypto = require('crypto')
 const { fileURLToPath } = require('url')
 const { v4: uuid } = require('uuid')
 const lanSync = require('./lan-sync')
@@ -2639,7 +2640,7 @@ async function initDatabase() {
     }
   } catch (e) { appLog('error', 'migration', 'Green Sweet local image fix failed', e.message) }
 
-  applyBundledKeyboardDatabaseTheme(SQL)
+  applyBundledDatabaseContent(SQL)
 
   saveDBSync()
   appLog('info', 'database', 'Database initialized', `Path: ${DB_PATH}`)
@@ -2870,6 +2871,164 @@ function dbValueEqual(a, b) {
   if (a == null && b == null) return true
   if (a == null || b == null) return false
   return String(a) === String(b)
+}
+
+function fileSha256(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')
+}
+
+function tableInfo(sourceDb, table) {
+  return databaseAll(sourceDb, `PRAGMA table_info(${sqlIdent(table)})`)
+}
+
+function tableHasColumn(sourceDb, table, column) {
+  return tableInfo(sourceDb, table).some(row => row.name === column)
+}
+
+function rowKey(row, keyColumns) {
+  return keyColumns.map(column => String(row[column] ?? '')).join('\u001f')
+}
+
+function clearProductCodeConflicts(sourceRows) {
+  for (const row of sourceRows) {
+    if (row.plu) {
+      db.run("UPDATE products SET plu = NULL, active = 0, updated_at = datetime('now') WHERE id != ?1 AND plu = ?2", [row.id, row.plu])
+    }
+    if (row.barcode) {
+      db.run("UPDATE products SET barcode = NULL, active = 0, updated_at = datetime('now') WHERE id != ?1 AND barcode = ?2", [row.id, row.barcode])
+    }
+  }
+}
+
+function deactivateMissingSingleKeyRows(table, keyColumn, sourceRows, opts = {}) {
+  if (!tableHasColumn(db, table, 'active')) return 0
+  const sourceKeys = new Set(sourceRows.map(row => String(row[keyColumn] ?? '')))
+  const currentRows = databaseAll(db, `SELECT ${sqlIdent(keyColumn)} AS key_value FROM ${sqlIdent(table)} WHERE active = 1`)
+  const setClause = opts.clearProductCodes
+    ? "active = 0, plu = NULL, barcode = NULL"
+    : "active = 0"
+  const updatedAt = tableHasColumn(db, table, 'updated_at') ? ", updated_at = datetime('now')" : ''
+  let changed = 0
+  for (const row of currentRows) {
+    if (sourceKeys.has(String(row.key_value ?? ''))) continue
+    db.run(`UPDATE ${sqlIdent(table)} SET ${setClause}${updatedAt} WHERE ${sqlIdent(keyColumn)} = ?1`, [row.key_value])
+    changed++
+  }
+  return changed
+}
+
+function deleteMissingSingleKeyRows(table, keyColumn, sourceRows) {
+  const sourceKeys = new Set(sourceRows.map(row => String(row[keyColumn] ?? '')))
+  const currentRows = databaseAll(db, `SELECT ${sqlIdent(keyColumn)} AS key_value FROM ${sqlIdent(table)}`)
+  let changed = 0
+  for (const row of currentRows) {
+    if (sourceKeys.has(String(row.key_value ?? ''))) continue
+    db.run(`DELETE FROM ${sqlIdent(table)} WHERE ${sqlIdent(keyColumn)} = ?1`, [row.key_value])
+    changed++
+  }
+  return changed
+}
+
+function shouldSyncBundledSetting(key) {
+  const localPrefixes = ['lan_', 'linkly_', 'opos_', 'opos2_', 'hw_', 'hw2_']
+  if (localPrefixes.some(prefix => String(key).startsWith(prefix))) return false
+  return !new Set([
+    'app_mode',
+    'desired_till_float',
+    'hardware_config_version',
+    'next_receipt_number',
+    'register_id',
+    'scanner_opos_enabled',
+    'scanner_opos_unavailable',
+    'start_fullscreen',
+    'startup_bundled_db_content_hash_v1',
+    'startup_keyboard_theme_source',
+    'till_desired_floats'
+  ]).has(String(key))
+}
+
+function syncBundledTable(sourceDb, table, opts = {}) {
+  const sourceInfo = tableInfo(sourceDb, table)
+  const runtimeInfo = tableInfo(db, table)
+  if (!sourceInfo.length || !runtimeInfo.length) return { table, rows: 0, missing: 0 }
+
+  const runtimeColumns = new Set(runtimeInfo.map(row => row.name))
+  const columns = sourceInfo.map(row => row.name).filter(column => runtimeColumns.has(column))
+  const pkColumns = sourceInfo
+    .filter(row => row.pk > 0 && runtimeColumns.has(row.name))
+    .sort((a, b) => a.pk - b.pk)
+    .map(row => row.name)
+  if (!columns.length || !pkColumns.length) return { table, rows: 0, missing: 0 }
+
+  const columnSql = columns.map(sqlIdent).join(', ')
+  let sourceRows = databaseAll(sourceDb, `SELECT ${columnSql} FROM ${sqlIdent(table)}`)
+  if (opts.filter) sourceRows = sourceRows.filter(opts.filter)
+
+  if (opts.clearFirst) db.run(`DELETE FROM ${sqlIdent(table)}`)
+  if (table === 'products') clearProductCodeConflicts(sourceRows)
+
+  const placeholders = columns.map(() => '?').join(', ')
+  const conflictSql = pkColumns.map(sqlIdent).join(', ')
+  const updateColumns = columns.filter(column => !pkColumns.includes(column))
+  const upsertSql = updateColumns.length
+    ? `INSERT INTO ${sqlIdent(table)} (${columnSql}) VALUES (${placeholders})
+       ON CONFLICT(${conflictSql}) DO UPDATE SET ${updateColumns.map(column => `${sqlIdent(column)} = excluded.${sqlIdent(column)}`).join(', ')}`
+    : `INSERT INTO ${sqlIdent(table)} (${columnSql}) VALUES (${placeholders}) ON CONFLICT(${conflictSql}) DO NOTHING`
+
+  let rows = 0
+  const seen = new Set()
+  for (const row of sourceRows) {
+    const key = rowKey(row, pkColumns)
+    if (seen.has(key)) continue
+    seen.add(key)
+    db.run(upsertSql, columns.map(column => row[column]))
+    rows++
+  }
+
+  let missing = 0
+  if (opts.deactivateMissing && pkColumns.length === 1) {
+    missing = deactivateMissingSingleKeyRows(table, pkColumns[0], sourceRows, opts)
+  } else if (opts.deleteMissing && pkColumns.length === 1) {
+    missing = deleteMissingSingleKeyRows(table, pkColumns[0], sourceRows)
+  }
+
+  return { table, rows, missing }
+}
+
+function applyBundledDatabaseContent(SQL) {
+  if (!fs.existsSync(BUNDLED_DB_PATH) || path.resolve(BUNDLED_DB_PATH) === path.resolve(DB_PATH)) return
+
+  const hash = fileSha256(BUNDLED_DB_PATH)
+  const existingHash = dbGet("SELECT value FROM settings WHERE key = 'startup_bundled_db_content_hash_v1'")?.value
+  if (existingHash === hash) return
+
+  let sourceDb = null
+  try {
+    sourceDb = new SQL.Database(fs.readFileSync(BUNDLED_DB_PATH))
+    db.run('BEGIN TRANSACTION')
+    const results = []
+    results.push(syncBundledTable(sourceDb, 'categories', { deactivateMissing: true }))
+    results.push(syncBundledTable(sourceDb, 'products', { deactivateMissing: true, clearProductCodes: true }))
+    results.push(syncBundledTable(sourceDb, 'specials', { deactivateMissing: true }))
+    results.push(syncBundledTable(sourceDb, 'deals', { deactivateMissing: true }))
+    results.push(syncBundledTable(sourceDb, 'deal_products', { clearFirst: true }))
+    results.push(syncBundledTable(sourceDb, 'staff', { deactivateMissing: true }))
+    results.push(syncBundledTable(sourceDb, 'keyboard_pages', { deleteMissing: true }))
+    results.push(syncBundledTable(sourceDb, 'keyboard_buttons', { deactivateMissing: true }))
+    results.push(syncBundledTable(sourceDb, 'settings', {
+      filter: row => shouldSyncBundledSetting(row.key)
+    }))
+    db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_bundled_db_content_hash_v1', ?1)", [hash])
+    db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_keyboard_theme_source', 'bundled-db')")
+    db.run('COMMIT')
+    appLog('info', 'database', 'Applied bundled DB catalog/keyboard content on startup', results)
+  } catch (e) {
+    try { db.run('ROLLBACK') } catch (_) {}
+    appLog('error', 'database', 'Failed to apply bundled DB content', e.message)
+    try { applyBundledKeyboardDatabaseTheme(SQL) } catch (_) {}
+  } finally {
+    if (sourceDb) try { sourceDb.close() } catch (_) {}
+  }
 }
 
 function applyBundledKeyboardDatabaseTheme(SQL) {
@@ -4046,9 +4205,7 @@ function setupIPC() {
       const remote = execSync('git remote get-url origin', { cwd: repoRoot, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
       execSync('git fetch origin main --prune', { cwd: repoRoot, encoding: 'utf-8', timeout: 60000, windowsHide: true })
       const remoteHead = execSync('git rev-parse origin/main', { cwd: repoRoot, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-      if (before === remoteHead) {
-        return { upToDate: true, log: `${gitVersion}\nAlready on latest commit ${before.slice(0, 7)}.\nRepo: ${repoRoot}` }
-      }
+      const alreadyLatest = before === remoteHead
 
       saveDBSync()
       createBackup('pre-update')
@@ -4093,6 +4250,14 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "git reset failed with exit code $LASTEXITCODE" }
   $after = (& git -C $RepoRoot rev-parse --short HEAD)
   Log "Updated to $after"
+  $resetScript = Join-Path $RepoRoot 'reset-runtime-db.ps1'
+  if (Test-Path -LiteralPath $resetScript) {
+    Log 'Applying bundled database to Electron runtime data'
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $resetScript *>> $LogPath
+    if ($LASTEXITCODE -ne 0) { Log "Runtime database reset exited with code $LASTEXITCODE" }
+  } else {
+    Log 'reset-runtime-db.ps1 not found; runtime database was not reset'
+  }
 } catch {
   Log "Update failed: $($_.Exception.Message)"
 }
@@ -4122,9 +4287,9 @@ if (Test-Path -LiteralPath $LauncherPath) {
         setTimeout(() => app.exit(0), 10000)
       }, 800)
       return {
-        updated: true,
+        updated: !alreadyLatest,
         staged: true,
-        log: `Git update staged.\nRepo: ${repoRoot}\nRemote: ${remote}\nCurrent: ${before.slice(0, 7)}\n\nYieldPOS will close, run git fetch/reset, then relaunch ${mode}.`
+        log: `${alreadyLatest ? 'Already on latest code; database refresh staged.' : 'Git update staged.'}\nRepo: ${repoRoot}\nRemote: ${remote}\nCurrent: ${before.slice(0, 7)}\n\nYieldPOS will close, apply the bundled database to this PC, then relaunch ${mode}.`
       }
     } catch (e) {
       const msg = (e.stderr || e.message || String(e)).trim()
@@ -4209,6 +4374,14 @@ try {
   Log "Copying update from $Source to $Destination"
   Copy-BoundTree $Source $Destination
   Log 'Copy completed'
+  $resetScript = Join-Path $Destination 'reset-runtime-db.ps1'
+  if (Test-Path -LiteralPath $resetScript) {
+    Log 'Applying bundled database to Electron runtime data'
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $resetScript *>> $LogPath
+    if ($LASTEXITCODE -ne 0) { Log "Runtime database reset exited with code $LASTEXITCODE" }
+  } else {
+    Log 'reset-runtime-db.ps1 not found; runtime database was not reset'
+  }
 } catch {
   Log "Copy failed: $($_.Exception.Message)"
   throw
