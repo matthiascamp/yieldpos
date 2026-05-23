@@ -1831,6 +1831,9 @@
         <button class="osk-key" data-osk="Z">Z</button><button class="osk-key" data-osk="X">X</button><button class="osk-key" data-osk="C">C</button><button class="osk-key" data-osk="V">V</button><button class="osk-key" data-osk="B">B</button><button class="osk-key" data-osk="N">N</button><button class="osk-key" data-osk="M">M</button>
       </div>
       <div style="display:flex;gap:5px;justify-content:center">
+        <button class="osk-key" data-osk="-">-</button><button class="osk-key" data-osk="/">/</button><button class="osk-key" data-osk="&amp;">&amp;</button><button class="osk-key" data-osk="@">@</button><button class="osk-key" data-osk="#">#</button><button class="osk-key" data-osk=":">:</button><button class="osk-key" data-osk="_">_</button>
+      </div>
+      <div style="display:flex;gap:5px;justify-content:center">
         <button class="osk-key" data-osk=" " style="flex:1;max-width:300px">SPACE</button>
         <button class="osk-key" data-osk="." style="min-width:44px">.</button>
         <button class="osk-key" data-osk="DONE" style="background:#1a3d2a;color:#fff;min-width:80px;font-size:14px">DONE</button>
@@ -3471,9 +3474,14 @@
 
     const modalBackdrop = $('#modalBackdrop')
 
+    function hoistModalPanel (el) {
+      if (el?.closest('.tab-content')) document.body.appendChild(el)
+    }
+
     function openModal(panelId) {
       const el = document.getElementById(panelId)
       if (!el) return
+      hoistModalPanel(el)
       el.classList.add('modal-open')
       modalBackdrop.classList.add('active')
     }
@@ -4122,7 +4130,7 @@
     let dealTiers = []
 
     function productCodeText (p) {
-      const code = p?.plu || p?.barcode || ''
+      const code = String(p?.plu || '').trim()
       return code ? `PLU ${code}` : ''
     }
 
@@ -4220,7 +4228,7 @@
         $('#dStartDate').value = deal.start_date || ''
         $('#dEndDate').value = deal.end_date || ''
         const prods = await window.pos.getDealProducts(deal.id)
-        dealProducts = prods.map(p => ({ id: p.product_id, name: p.product_name, price: p.price, plu: p.plu || p.barcode || '' }))
+        dealProducts = prods.map(p => ({ id: p.product_id, name: p.product_name, price: p.price, plu: p.plu || '' }))
         $('#dDeleteBtn').style.display = 'inline-block'
       } else {
         $('#dealEditTitle').textContent = 'New Deal'
@@ -4234,6 +4242,7 @@
       renderDealTiers()
       renderDealProducts()
       openModal('dealEditPanel')
+      $('#dName').focus()
     }
 
     function renderDealProducts () {
@@ -4248,6 +4257,10 @@
         : '<span style="color:var(--text-dim);font-size:12px">No products added yet</span>'
     }
 
+    function dealProductsMissingPlu () {
+      return dealProducts.filter(p => !String(p.plu || '').trim())
+    }
+
     $('#dealProductList').addEventListener('click', e => {
       const rm = e.target.closest('[data-remove-dp]')
       if (!rm) return
@@ -4260,7 +4273,8 @@
       if (q.length < 2) { $('#dealProductResults').innerHTML = ''; return }
       const results = await window.pos.searchProducts(q)
       $('#dealProductResults').innerHTML = results.slice(0, 10).map(p => {
-        return `<div style="padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px" data-add-dp="${esc(p.id)}" data-dp-name="${esc(p.name)}" data-dp-price="${p.price}" data-dp-plu="${esc(p.plu || p.barcode || '')}">
+        const hasPlu = !!String(p.plu || '').trim()
+        return `<div style="padding:6px 8px;cursor:${hasPlu ? 'pointer' : 'not-allowed'};border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px;${hasPlu ? '' : 'opacity:.55'}" data-add-dp="${esc(p.id)}" data-dp-name="${esc(p.name)}" data-dp-price="${p.price}" data-dp-plu="${esc(p.plu || '')}" data-missing-plu="${hasPlu ? '0' : '1'}">
           <span style="flex:1">${esc(p.name)}</span>
           ${productCodeHtml(p)}
           <span style="color:var(--green);font-weight:600;font-size:12px">${money(p.active_price ?? p.price)}</span>
@@ -4271,6 +4285,10 @@
     $('#dealProductResults').addEventListener('click', e => {
       const row = e.target.closest('[data-add-dp]')
       if (!row) return
+      if (row.dataset.missingPlu === '1' || !String(row.dataset.dpPlu || '').trim()) {
+        showToast('Add a PLU to this product before using it in a deal', 'error')
+        return
+      }
       const id = row.dataset.addDp
       if (dealProducts.find(p => p.id === id)) return
       dealProducts.push({ id, name: row.dataset.dpName, price: parseFloat(row.dataset.dpPrice), plu: row.dataset.dpPlu || '' })
@@ -4285,6 +4303,17 @@
       if (!dealTiers.length || dealTiers.some(t => !t.qty || t.qty < 1)) {
         showToast('Each tier needs a quantity of at least 1', 'error'); return
       }
+      if (!dealProducts.length) {
+        showToast('Add at least one product with a PLU before saving this deal', 'error')
+        $('#dealProductSearch').focus()
+        return
+      }
+      const missingPlu = dealProductsMissingPlu()
+      if (missingPlu.length) {
+        const names = missingPlu.slice(0, 3).map(p => p.name || 'Product').join(', ')
+        showToast(`Add PLUs before saving: ${names}${missingPlu.length > 3 ? '...' : ''}`, 'error')
+        return
+      }
       const tiers = dealTiers.sort((a, b) => a.qty - b.qty)
       const config = { tiers }
 
@@ -4293,12 +4322,13 @@
         name, type: 'multi_buy', config,
         start_date: $('#dStartDate').value || null,
         end_date: $('#dEndDate').value || null,
-        active: true
+        active: true,
+        product_ids: dealProducts.map(p => p.id)
       }
       const res = await window.pos.upsertDeal(deal)
-      if (dealProducts.length) {
-        await window.pos.setDealProducts(res.id || deal.id, dealProducts.map(p => p.id))
-      }
+      if (res?.error) { showToast(res.error, 'error'); return }
+      const linkRes = await window.pos.setDealProducts(res.id || deal.id, dealProducts.map(p => p.id))
+      if (linkRes?.error) { showToast(linkRes.error, 'error'); return }
       showToast(`Deal "${name}" saved`, 'success')
       closeModal('dealEditPanel')
       loadDeals()
@@ -6203,6 +6233,12 @@
     let dragSelCurrent = null
     let dragSelJustFinished = false
     let activeSelRange = null
+    let keyboardReloadPending = false
+    let kbEditorDirty = false
+    let kbEditorHydrating = false
+    let kbEditorLoadSeq = 0
+    let kbSuppressNextGridClick = false
+    const KB_DRAG_THRESHOLD_PX = 8
 
     // ── Load & Init ────────────────────────────────────────────────
 
@@ -6217,6 +6253,19 @@
       $('#kbCurrentPageLabel').textContent = info.name || `Page ${currentPage}`
     }
 
+    function isKeyboardEditPanelOpen () {
+      return $('#kbEditPanel')?.classList.contains('active')
+    }
+
+    function markKeyboardEditorDirty () {
+      if (!kbEditorHydrating) kbEditorDirty = true
+    }
+
+    function isKeyboardWorkInProgress () {
+      const focusedEditorControl = document.activeElement?.closest?.('#tab-keyboard input, #tab-keyboard textarea, #tab-keyboard select')
+      return isKeyboardEditPanelOpen() || !!focusedEditorControl || isDragSelecting || bulkDragging || singleDragging
+    }
+
     async function savePageSize () {
       await window.pos.updatePageSize(currentPage, gridCols, gridRows)
       const info = getPageInfo(currentPage)
@@ -6225,6 +6274,10 @@
 
     async function loadKeyboard (opts = {}) {
       const preserveEditor = !!opts.preserveEditor
+      if (preserveEditor && isKeyboardWorkInProgress()) {
+        keyboardReloadPending = true
+        return
+      }
       const editorWasOpen = preserveEditor && $('#kbEditPanel')?.classList.contains('active')
       const selectedBeforeReload = selectedBtnId
       kbButtons = await window.pos.getAllButtons()
@@ -6238,7 +6291,7 @@
       applyPageSize()
       renderPageTree()
       renderGrid()
-      if (!editorWasOpen || !selectedStillExists) closeEditPanel()
+      if (!editorWasOpen || !selectedStillExists) closeEditPanel({ skipPendingReload: true })
 
       const cats = await window.pos.getCategories()
       $('#kbCatList').innerHTML = cats.map(c => `<option value="${esc(c.name)}">`).join('') + '<option value="__all__">'
@@ -7051,6 +7104,10 @@
     // ── Grid Click & Drag ──────────────────────────────────────────
 
     $('#kbGrid').addEventListener('click', e => {
+      if (kbSuppressNextGridClick) {
+        kbSuppressNextGridClick = false
+        return
+      }
       if (dragSelJustFinished) return
       const cell = e.target.closest('.kb-cell')
       if (!cell) return
@@ -7094,6 +7151,7 @@
     let bulkDragging = false
     let bulkDragAnchor = null   // {row, col} of the grabbed button
     let bulkDragOffset = null   // {dr, dc} current offset from anchor
+    let bulkDragStartClient = null
     let bulkGhostEls = []       // ghost div elements
 
     function getCellFromPoint (x, y) {
@@ -7197,12 +7255,15 @@
         bulkDragClickId = id
         bulkDragAnchor = { row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col) }
         bulkDragOffset = { dr: 0, dc: 0 }
+        bulkDragStartClient = { x: e.clientX, y: e.clientY }
         $('#kbGrid').style.position = 'relative'
       }
     })
 
     document.addEventListener('mousemove', e => {
       if (!bulkDragging) return
+      const movedPx = bulkDragStartClient ? Math.hypot(e.clientX - bulkDragStartClient.x, e.clientY - bulkDragStartClient.y) : 0
+      if (movedPx < KB_DRAG_THRESHOLD_PX) return
       const pos = getCellFromPoint(e.clientX, e.clientY)
       const dr = pos.row - bulkDragAnchor.row
       const dc = pos.col - bulkDragAnchor.col
@@ -7224,6 +7285,7 @@
       if (bulkDragMoved) {
         const { dr, dc } = bulkDragOffset
         if (dr !== 0 || dc !== 0) {
+          kbSuppressNextGridClick = true
           await bulkMove(dr, dc)
         }
       } else if (bulkDragClickId) {
@@ -7234,6 +7296,7 @@
       bulkDragOffset = null
       bulkDragAnchor = null
       bulkDragClickId = null
+      bulkDragStartClient = null
     })
 
     // Single-button drag — also uses custom mouse approach for proper size preview
@@ -7244,6 +7307,7 @@
     let singleDragging = false
     let singleDragBtn = null
     let singleDragAnchor = null
+    let singleDragStartClient = null
     let singleDragMoved = false
 
     $('#kbGrid').addEventListener('mousedown', e => {
@@ -7258,11 +7322,14 @@
       singleDragMoved = false
       singleDragBtn = btn
       singleDragAnchor = { row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col) }
+      singleDragStartClient = { x: e.clientX, y: e.clientY }
       e.preventDefault()
     })
 
     document.addEventListener('mousemove', e => {
       if (!singleDragging || !singleDragBtn) return
+      const movedPx = singleDragStartClient ? Math.hypot(e.clientX - singleDragStartClient.x, e.clientY - singleDragStartClient.y) : 0
+      if (movedPx < KB_DRAG_THRESHOLD_PX) return
       const pos = getCellFromPoint(e.clientX, e.clientY)
       const dr = pos.row - singleDragAnchor.row
       const dc = pos.col - singleDragAnchor.col
@@ -7306,11 +7373,13 @@
             kbButtons = await window.pos.getAllButtons()
             renderGrid()
             showToast('Button moved', 'success')
+            kbSuppressNextGridClick = true
           }
         }
       }
       singleDragBtn = null
       singleDragAnchor = null
+      singleDragStartClient = null
     })
 
     // ── Drag-Select Empty Cells ────────────────────────────────────
@@ -7483,6 +7552,8 @@
     }
 
     function openNewButton (row, col) {
+      kbEditorHydrating = true
+      kbEditorLoadSeq++
       selectedBtnId = null
       $('#kbEditId').value = ''
       $('#kbLabel').value = ''
@@ -7513,9 +7584,13 @@
       updateTypeFields()
       updateLivePreview()
       updateImageRemoveButton()
+      kbEditorDirty = false
+      kbEditorHydrating = false
     }
 
     function openEditPanel (btn) {
+      const loadToken = ++kbEditorLoadSeq
+      kbEditorHydrating = true
       $('#kbEditId').value = btn.id
       $('#kbLabel').value = labelFromDb(btn.label) || btn.product_name || ''
       // Linked sellable keys are database products; standalone fixed/open keys keep their own type.
@@ -7547,6 +7622,7 @@
       $('#kbProductPrice').value = 0
       if (linkedProductRef) {
         window.pos.getProductById(linkedProductRef).then(async p => p || await window.pos.getProductByBarcode(linkedProductRef)).then(p => {
+          if (loadToken !== kbEditorLoadSeq || kbEditorDirty || $('#kbEditId').value !== btn.id) return
           if (p) {
             kbFillProductFields(p, { keepOpenPrice: Number(btn.product_open_price || 0) === 1 })
           } else {
@@ -7568,14 +7644,24 @@
         $('#kbTargetPage').value = btn.parent_id
       }
       updateLivePreview()
+      kbEditorDirty = false
+      kbEditorHydrating = false
     }
 
-    function closeEditPanel () {
+    function closeEditPanel (opts = {}) {
       selectedBtnId = null
       activeSelRange = null
+      kbEditorDirty = false
+      kbEditorHydrating = false
+      kbEditorLoadSeq++
+      if (document.activeElement?.closest?.('#kbEditPanel')) document.activeElement.blur()
       $('#kbEditPanel').classList.remove('active')
       hideBulkPanel()
       renderGrid()
+      if (!opts.skipPendingReload && keyboardReloadPending && !isKeyboardWorkInProgress()) {
+        keyboardReloadPending = false
+        loadKeyboard().catch(() => {})
+      }
     }
 
     function updateLivePreview () {
@@ -7619,6 +7705,8 @@
     ;['kbLabel', 'kbBgColor', 'kbColor', 'kbPrice', 'kbProductPrice', 'kbProductPlu'].forEach(id => {
       $(`#${id}`).addEventListener('input', updateLivePreview)
     })
+    $('#kbEditPanel').addEventListener('input', markKeyboardEditorDirty, true)
+    $('#kbEditPanel').addEventListener('change', markKeyboardEditorDirty, true)
     const kbProductPluLookup = debounce(() => { kbResolveTypedPlu({ silent: true, fillLabel: kbShouldFillLabelFromProduct() }).catch(() => {}) }, 300)
     function kbShouldFillLabelFromProduct () {
       return !$('#kbEditId').value || !$('#kbLabel').value.trim()
@@ -7704,6 +7792,7 @@
     $('#kbProductResults').addEventListener('click', e => {
       const item = e.target.closest('.kb-prod-pick')
       if (!item) return
+      markKeyboardEditorDirty()
       $('#kbProductResults').style.display = 'none'
       const fillLabel = !$('#kbEditId').value || !$('#kbLabel').value.trim()
       kbFillProductFields({
@@ -7729,6 +7818,7 @@
     })
 
     $('#kbProductClear').addEventListener('click', () => {
+      markKeyboardEditorDirty()
       clearProductPicker()
       $('#kbPrice').value = 0
       updateTypeFields()
@@ -8814,10 +8904,23 @@
       currentMode = mode
     }
 
-    // -- On-screen keyboard (register mode) --------------------------------
+    // -- Touch on-screen keyboard ------------------------------------------
     let oskTarget = null
     const oskOverlay = $('#oskOverlay')
     const oskPreview = $('#oskPreview')
+    const oskBlockedInputTypes = new Set(['hidden', 'button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'color', 'range', 'date', 'time', 'datetime-local', 'month', 'week'])
+
+    function isOskEditableTarget (target) {
+      if (!target || !target.matches?.('input, textarea')) return false
+      if (target.disabled || target.readOnly) return false
+      const tag = target.tagName
+      const type = (target.type || '').toLowerCase()
+      return tag === 'TEXTAREA' || !oskBlockedInputTypes.has(type)
+    }
+
+    function oskPreviewText (target, value = target?.value || '') {
+      return (target?.type || '').toLowerCase() === 'password' ? '•'.repeat(String(value).length) : value
+    }
 
     function updateOskBottomSpace () {
       const height = oskOverlay?.offsetHeight || 390
@@ -8833,8 +8936,9 @@
     }
 
     function showOskForTarget (target) {
+      if (!isOskEditableTarget(target)) return
       oskTarget = target
-      if (oskPreview) oskPreview.textContent = target.value || ''
+      if (oskPreview) oskPreview.textContent = oskPreviewText(target)
       oskOverlay.style.display = 'block'
       document.body.classList.add('osk-open')
       updateOskBottomSpace()
@@ -8850,8 +8954,7 @@
     }
 
     document.addEventListener('focusin', e => {
-      if (!document.body.classList.contains('register-mode')) return
-      if (e.target.matches('input[type="text"], input[type="search"], input[type="number"], input:not([type])')) {
+      if (isOskEditableTarget(e.target)) {
         showOskForTarget(e.target)
         if (oskTarget.matches('[data-tier-price], [data-tier-qty]')) {
           setTimeout(() => { try { oskTarget.select() } catch (_) {} }, 0)
@@ -8880,7 +8983,7 @@
 
     function oskSetValue (target, value, cursor) {
       target.value = value
-      if (oskPreview) oskPreview.textContent = value
+      if (oskPreview) oskPreview.textContent = oskPreviewText(target, value)
       try { target.setSelectionRange(cursor, cursor) } catch (_) {}
       target.dispatchEvent(new Event('input', { bubbles: true }))
       scrollOskTargetIntoView()
@@ -8895,8 +8998,9 @@
         return oskSetValue(target, value.slice(0, start - 1) + value.slice(end), start - 1)
       }
 
+      const inputType = (target.type || '').toLowerCase()
       const isQtyField = target.matches('[data-tier-qty]') || target.inputMode === 'numeric'
-      const isDecimalField = target.matches('[data-tier-price]') || target.inputMode === 'decimal'
+      const isDecimalField = target.matches('[data-tier-price]') || target.inputMode === 'decimal' || inputType === 'number'
       if (isQtyField && !/^\d$/.test(key)) return
       if (isDecimalField) {
         if (!/^\d$|^\.$/.test(key)) return

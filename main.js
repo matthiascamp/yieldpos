@@ -2936,6 +2936,9 @@ function shouldSyncBundledSetting(key) {
     'app_mode',
     'desired_till_float',
     'hardware_config_version',
+    'keyboard_page_names',
+    'keyboard_page_sizes',
+    'keyboard_user_customized',
     'next_receipt_number',
     'register_id',
     'scanner_opos_enabled',
@@ -2945,6 +2948,10 @@ function shouldSyncBundledSetting(key) {
     'startup_keyboard_theme_source',
     'till_desired_floats'
   ]).has(String(key))
+}
+
+function hasUserCustomizedKeyboard() {
+  return dbGet("SELECT value FROM settings WHERE key = 'keyboard_user_customized'")?.value === '1'
 }
 
 function syncBundledTable(sourceDb, table, opts = {}) {
@@ -3013,8 +3020,13 @@ function applyBundledDatabaseContent(SQL) {
     results.push(syncBundledTable(sourceDb, 'deals', { deactivateMissing: true }))
     results.push(syncBundledTable(sourceDb, 'deal_products', { clearFirst: true }))
     results.push(syncBundledTable(sourceDb, 'staff', { deactivateMissing: true }))
-    results.push(syncBundledTable(sourceDb, 'keyboard_pages', { deleteMissing: true }))
-    results.push(syncBundledTable(sourceDb, 'keyboard_buttons', { deactivateMissing: true }))
+    if (hasUserCustomizedKeyboard()) {
+      results.push({ table: 'keyboard_pages', rows: 0, missing: 0, skipped: 'keyboard_user_customized' })
+      results.push({ table: 'keyboard_buttons', rows: 0, missing: 0, skipped: 'keyboard_user_customized' })
+    } else {
+      results.push(syncBundledTable(sourceDb, 'keyboard_pages', { deleteMissing: true }))
+      results.push(syncBundledTable(sourceDb, 'keyboard_buttons', { deactivateMissing: true }))
+    }
     results.push(syncBundledTable(sourceDb, 'settings', {
       filter: row => shouldSyncBundledSetting(row.key)
     }))
@@ -3033,6 +3045,10 @@ function applyBundledDatabaseContent(SQL) {
 
 function applyBundledKeyboardDatabaseTheme(SQL) {
   if (!fs.existsSync(BUNDLED_DB_PATH) || path.resolve(BUNDLED_DB_PATH) === path.resolve(DB_PATH)) return
+  if (hasUserCustomizedKeyboard()) {
+    appLog('info', 'database', 'Skipped bundled DB keyboard theme because the keyboard has user edits')
+    return
+  }
 
   let sourceDb = null
   try {
@@ -4943,8 +4959,41 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     return dbAll("SELECT * FROM deals ORDER BY active DESC, name")
   })
 
+  function validateDealProductPlus (productIds) {
+    const ids = [...new Set((productIds || []).map(id => String(id || '').trim()).filter(Boolean))]
+    if (!ids.length) return { ok: false, error: 'Add at least one product with a PLU before saving this deal' }
+
+    const placeholders = ids.map((_, i) => `?${i + 1}`).join(',')
+    const products = dbAll(`SELECT id, name, plu FROM products WHERE id IN (${placeholders})`, ids)
+    const byId = new Map(products.map(p => [p.id, p]))
+    const invalid = ids.map(id => byId.get(id) || { id, name: `Missing product ${id}`, plu: '' })
+      .filter(p => !String(p.plu || '').trim())
+
+    if (invalid.length) {
+      const names = invalid.slice(0, 3).map(p => p.name || p.id).join(', ')
+      return {
+        ok: false,
+        error: `Add PLUs before saving this deal: ${names}${invalid.length > 3 ? '...' : ''}`
+      }
+    }
+    return { ok: true, ids }
+  }
+
   ipcMain.handle('db:deals:upsert', (_e, deal) => {
     const id = deal.id || uuid()
+    if (deal.active !== false) {
+      let idsToValidate = Array.isArray(deal.product_ids) ? deal.product_ids : null
+      if (!idsToValidate && deal.id) {
+        idsToValidate = dbAll("SELECT product_id FROM deal_products WHERE deal_id = ?1", [deal.id]).map(r => r.product_id)
+      }
+      if (!idsToValidate && !deal.id) {
+        return { error: 'Add at least one product with a PLU before saving this deal' }
+      }
+      if (idsToValidate) {
+        const check = validateDealProductPlus(idsToValidate)
+        if (!check.ok) return { error: check.error }
+      }
+    }
     dbRun(`
       INSERT OR REPLACE INTO deals (id, name, type, config, start_date, end_date, active, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))
@@ -4982,6 +5031,9 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   })
 
   ipcMain.handle('db:deals:setProducts', (_e, dealId, productIds) => {
+    const check = validateDealProductPlus(productIds)
+    if (!check.ok) return { error: check.error }
+    productIds = check.ids
     const existing = dbAll("SELECT product_id FROM deal_products WHERE deal_id = ?1", [dealId]).map(r => r.product_id)
     const nextIds = new Set(productIds || [])
     for (const oldPid of existing) {
@@ -5188,6 +5240,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         AND (d.start_date IS NULL OR d.start_date <= date('now'))
         AND (d.end_date IS NULL OR d.end_date >= date('now'))
       GROUP BY d.id
+      HAVING COUNT(dp.product_id) > 0
+        AND SUM(CASE WHEN p.plu IS NULL OR TRIM(p.plu) = '' THEN 1 ELSE 0 END) = 0
       ORDER BY d.name
     `)
   })
