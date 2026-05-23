@@ -4162,7 +4162,13 @@ function setupIPC() {
     const https = require('https')
     const os = require('os')
     const appDir = __dirname
-    const updateRoot = app.isPackaged ? path.dirname(process.execPath) : appDir
+    const portableExeFile = process.env.PORTABLE_EXECUTABLE_FILE || ''
+    const cwdPortableDir = fs.existsSync(path.join(process.cwd(), 'YieldPOS-Client-1.0.0.exe')) ? process.cwd() : ''
+    const portableExeDir = process.env.PORTABLE_EXECUTABLE_DIR || (portableExeFile ? path.dirname(portableExeFile) : '') || cwdPortableDir
+    const updateRoot = app.isPackaged ? (portableExeDir || path.dirname(process.execPath)) : appDir
+    const updateMode = isRegisterApp ? 'register' : 'admin'
+    const updateLauncherPath = path.join(updateRoot, isRegisterApp ? 'YieldPOS Register.exe' : 'YieldPOS Admin.exe')
+    const updateClientExe = path.join(updateRoot, 'YieldPOS-Client-1.0.0.exe')
     const looksLikeAppRoot = dir => !!dir && fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'main.js'))
     const resolveZipSourceRoot = tmpDir => {
       const skip = new Set(['node_modules', '.git', 'dist', 'dist2', 'backups'])
@@ -4348,7 +4354,6 @@ if (Test-Path -LiteralPath $LauncherPath) {
       saveDBSync()
       createBackup('pre-update')
 
-      const relaunchArgs = process.argv.slice(1).filter(arg => !String(arg).includes('--squirrel-'))
       const updaterScript = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}.ps1`)
       const logPath = path.join(updateRoot, 'yieldpos-update-last.log')
       const script = `
@@ -4356,8 +4361,9 @@ param(
   [string]$Source,
   [string]$Destination,
   [int]$ParentPid,
-  [string]$ExePath,
-  [string]$ArgsJson,
+  [string]$Mode,
+  [string]$LauncherPath,
+  [string]$ClientExe,
   [string]$TempRoot,
   [string]$LogPath
 )
@@ -4403,15 +4409,21 @@ try {
   throw
 }
 try { Remove-Item -LiteralPath $TempRoot -Recurse -Force } catch {}
-$args = @()
-if ($ArgsJson) { $args = [string[]]($ArgsJson | ConvertFrom-Json) }
-Log "Relaunching $ExePath"
-Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destination
+if (Test-Path -LiteralPath $LauncherPath) {
+  Log "Starting launcher $LauncherPath"
+  Start-Process -FilePath $LauncherPath -WorkingDirectory $Destination
+} elseif (Test-Path -LiteralPath $ClientExe) {
+  $arg = if ($Mode -eq 'admin') { 'admin' } else { 'register' }
+  Log "Starting client $ClientExe $arg"
+  Start-Process -FilePath $ClientExe -ArgumentList $arg -WorkingDirectory $Destination
+} else {
+  Log 'Could not find launcher or client exe after update'
+}
 `
       fs.writeFileSync(updaterScript, script, 'utf-8')
       const child = spawn('powershell.exe', [
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', updaterScript,
-        extracted, updateRoot, String(process.pid), process.execPath, JSON.stringify(relaunchArgs), tmpDir, logPath
+        extracted, updateRoot, String(process.pid), updateMode, updateLauncherPath, updateClientExe, tmpDir, logPath
       ], { detached: true, stdio: 'ignore', windowsHide: true })
       child.unref()
 
