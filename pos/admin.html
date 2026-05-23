@@ -790,9 +790,37 @@
       padding: 16px 18px !important;
       border-radius: 18px 18px 0 0 !important;
     }
+    body.osk-open {
+      padding-bottom: var(--osk-bottom-space, 390px);
+    }
+    body.osk-open .main-content {
+      padding-bottom: var(--osk-bottom-space, 390px);
+    }
+    body.osk-open .modal-panel.modal-open {
+      top: 18px;
+      max-height: calc(100vh - var(--osk-bottom-space, 390px) - 34px);
+      transform: translate(-50%, 0) scale(1);
+    }
     #oskOverlay > div {
       max-width: 1120px !important;
       gap: 9px !important;
+    }
+    #oskPreview {
+      background: #fff;
+      color: #111827;
+      border: 2px solid #cfd6df;
+      border-radius: 12px;
+      min-height: 56px;
+      padding: 12px 18px;
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.25;
+      word-break: break-word;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 8px rgba(0,0,0,.08);
+    }
+    #oskPreview:empty::before {
+      content: ' ';
+      white-space: pre;
     }
     #oskOverlay > div > div {
       gap: 9px !important;
@@ -2749,6 +2777,7 @@
   <!-- On-screen keyboard for register mode -->
   <div id="oskOverlay" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#e8eaef;padding:10px 14px;box-shadow:0 -4px 20px rgba(0,0,0,.3);border-radius:14px 14px 0 0">
     <div style="display:flex;flex-direction:column;gap:5px;max-width:700px;margin:0 auto">
+      <div id="oskPreview" role="textbox" aria-live="polite"></div>
       <div style="display:flex;gap:5px;justify-content:center">
         <button class="osk-key" data-osk="1">1</button><button class="osk-key" data-osk="2">2</button><button class="osk-key" data-osk="3">3</button><button class="osk-key" data-osk="4">4</button><button class="osk-key" data-osk="5">5</button><button class="osk-key" data-osk="6">6</button><button class="osk-key" data-osk="7">7</button><button class="osk-key" data-osk="8">8</button><button class="osk-key" data-osk="9">9</button><button class="osk-key" data-osk="0">0</button><button class="osk-key osk-del" data-osk="BKSP" style="background:#fee2e2;color:#991b1b;min-width:86px;font-size:14px">BKSP</button>
       </div>
@@ -5065,9 +5094,9 @@
     function renderDealTiers () {
       $('#dealTiersArea').innerHTML = dealTiers.map((t, i) =>
         `<div style="display:flex;gap:8px;align-items:end;margin-bottom:6px">
-          <div class="form-field" style="flex:1"><label style="font-size:11px">Buy Qty</label><input type="number" min="1" value="${t.qty}" data-tier-qty="${i}" style="padding:6px 8px"></div>
+          <div class="form-field" style="flex:1"><label style="font-size:11px">Buy Qty</label><input type="text" inputmode="numeric" pattern="[0-9]*" value="${t.qty}" data-tier-qty="${i}" style="padding:6px 8px"></div>
           <div style="padding-bottom:8px;font-weight:bold;color:var(--text-dim)">for</div>
-          <div class="form-field" style="flex:1"><label style="font-size:11px">Price ($)</label><input type="number" step="0.01" min="0" value="${t.price.toFixed(2)}" data-tier-price="${i}" style="padding:6px 8px"></div>
+          <div class="form-field" style="flex:1"><label style="font-size:11px">Price ($)</label><input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${t.price.toFixed(2)}" data-tier-price="${i}" style="padding:6px 8px"></div>
           ${dealTiers.length > 1 ? `<button class="btn" style="background:var(--red);color:#fff;padding:6px 10px;margin-bottom:4px;font-size:11px" data-remove-tier="${i}">&times;</button>` : ''}
         </div>`
       ).join('')
@@ -9748,12 +9777,45 @@
     // -- On-screen keyboard (register mode) --------------------------------
     let oskTarget = null
     const oskOverlay = $('#oskOverlay')
+    const oskPreview = $('#oskPreview')
+
+    function updateOskBottomSpace () {
+      const height = oskOverlay?.offsetHeight || 390
+      document.documentElement.style.setProperty('--osk-bottom-space', `${height + 24}px`)
+    }
+
+    function scrollOskTargetIntoView () {
+      if (!oskTarget) return
+      updateOskBottomSpace()
+      requestAnimationFrame(() => {
+        try { oskTarget.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' }) } catch (_) {}
+      })
+    }
+
+    function showOskForTarget (target) {
+      oskTarget = target
+      if (oskPreview) oskPreview.textContent = target.value || ''
+      oskOverlay.style.display = 'block'
+      document.body.classList.add('osk-open')
+      updateOskBottomSpace()
+      scrollOskTargetIntoView()
+    }
+
+    function hideOsk () {
+      oskOverlay.style.display = 'none'
+      document.body.classList.remove('osk-open')
+      document.documentElement.style.removeProperty('--osk-bottom-space')
+      if (oskPreview) oskPreview.textContent = ''
+      oskTarget = null
+    }
 
     document.addEventListener('focusin', e => {
       if (!document.body.classList.contains('register-mode')) return
       if (e.target.matches('input[type="text"], input[type="search"], input[type="number"], input:not([type])')) {
-        oskTarget = e.target
-        oskOverlay.style.display = 'block'
+        showOskForTarget(e.target)
+        if (oskTarget.matches('[data-tier-price], [data-tier-qty]')) {
+          setTimeout(() => { try { oskTarget.select() } catch (_) {} }, 0)
+        }
       }
     })
 
@@ -9761,20 +9823,125 @@
       setTimeout(() => {
         if (document.activeElement === oskTarget) return
         if (document.activeElement?.closest('#oskOverlay')) return
-        oskOverlay.style.display = 'none'
-        oskTarget = null
+        hideOsk()
       }, 150)
     })
+
+    function oskSelectionFor (target) {
+      const value = target.value || ''
+      try {
+        const start = Number.isInteger(target.selectionStart) ? target.selectionStart : value.length
+        const end = Number.isInteger(target.selectionEnd) ? target.selectionEnd : start
+        return { start, end }
+      } catch (_) {
+        return { start: value.length, end: value.length }
+      }
+    }
+
+    function oskSetValue (target, value, cursor) {
+      target.value = value
+      if (oskPreview) oskPreview.textContent = value
+      try { target.setSelectionRange(cursor, cursor) } catch (_) {}
+      target.dispatchEvent(new Event('input', { bubbles: true }))
+      scrollOskTargetIntoView()
+    }
+
+    function oskInsertKey (target, key) {
+      const value = target.value || ''
+      const { start, end } = oskSelectionFor(target)
+      if (key === 'BKSP') {
+        if (start !== end) return oskSetValue(target, value.slice(0, start) + value.slice(end), start)
+        if (start <= 0) return
+        return oskSetValue(target, value.slice(0, start - 1) + value.slice(end), start - 1)
+      }
+
+      const isQtyField = target.matches('[data-tier-qty]') || target.inputMode === 'numeric'
+      const isDecimalField = target.matches('[data-tier-price]') || target.inputMode === 'decimal'
+      if (isQtyField && !/^\d$/.test(key)) return
+      if (isDecimalField) {
+        if (!/^\d$|^\.$/.test(key)) return
+        if (key === '.' && (value.slice(0, start) + value.slice(end)).includes('.')) return
+      }
+
+      let next = value.slice(0, start) + key + value.slice(end)
+      let cursor = start + key.length
+      if (isDecimalField && next === '.') {
+        next = '0.'
+        cursor = 2
+      }
+      oskSetValue(target, next, cursor)
+    }
+
+    function scannerEditableTarget () {
+      if (oskTarget && document.body.classList.contains('osk-open')) return { target: oskTarget, replaceAll: false }
+      const el = document.activeElement
+      if (el && el !== document.body) {
+        const tag = el.tagName
+        const editable = el.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA'
+        const blockedTypes = new Set(['hidden', 'button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'color', 'range', 'date', 'time', 'datetime-local', 'month', 'week'])
+        if (editable && !el.disabled && !el.readOnly && !(tag === 'INPUT' && blockedTypes.has((el.type || '').toLowerCase()))) {
+          return { target: el, replaceAll: false }
+        }
+      }
+      if ($('#dealEditPanel')?.classList.contains('modal-open')) {
+        const dealSearch = $('#dealProductSearch')
+        if (dealSearch) return { target: dealSearch, replaceAll: true }
+      }
+      return null
+    }
+
+    function insertScannerText (target, text, opts = {}) {
+      const scanText = String(text || '')
+      if (!target || !scanText) return false
+      target.focus()
+      if (target.isContentEditable) {
+        document.execCommand('insertText', false, scanText)
+        target.dispatchEvent(new Event('input', { bubbles: true }))
+        return true
+      }
+      const current = target.value || ''
+      let start = opts.replaceAll ? 0 : current.length
+      let end = opts.replaceAll ? current.length : current.length
+      if (!opts.replaceAll) {
+        try {
+          start = Number.isInteger(target.selectionStart) ? target.selectionStart : current.length
+          end = Number.isInteger(target.selectionEnd) ? target.selectionEnd : start
+        } catch (_) {}
+      }
+      const next = current.slice(0, start) + scanText + current.slice(end)
+      const cursor = start + scanText.length
+      if (target === oskTarget) {
+        oskSetValue(target, next, cursor)
+      } else {
+        target.value = next
+        try { target.setSelectionRange(cursor, cursor) } catch (_) {}
+        target.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+      target.dispatchEvent(new Event('change', { bubbles: true }))
+      return true
+    }
+
+    function routeScannerToEditorField (code) {
+      const found = scannerEditableTarget()
+      if (!found) return false
+      return insertScannerText(found.target, code, { replaceAll: found.replaceAll })
+    }
+
+    if (window.pos && typeof window.pos.onScannerData === 'function') {
+      window.pos.onScannerData(({ label, raw }) => {
+        const code = String(label || raw || '').trim()
+        if (!code) return
+        routeScannerToEditorField(code)
+      })
+    }
 
     $('#oskOverlay').addEventListener('mousedown', e => { e.preventDefault() })
     $('#oskOverlay').addEventListener('click', e => {
       const btn = e.target.closest('[data-osk]')
       if (!btn || !oskTarget) return
       const key = btn.dataset.osk
-      if (key === 'DONE') { oskOverlay.style.display = 'none'; oskTarget.blur(); oskTarget = null; return }
-      if (key === 'BKSP') { oskTarget.value = oskTarget.value.slice(0, -1) }
-      else { oskTarget.value += key }
-      oskTarget.dispatchEvent(new Event('input', { bubbles: true }))
+      if (key === 'DONE') { const target = oskTarget; hideOsk(); target?.blur(); return }
+      oskInsertKey(oskTarget, key)
     })
 
     // -- Insights --------------------------------------------------------
