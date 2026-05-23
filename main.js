@@ -4272,14 +4272,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "git reset failed with exit code $LASTEXITCODE" }
   $after = (& git -C $RepoRoot rev-parse --short HEAD)
   Log "Updated to $after"
-  $resetScript = Join-Path $RepoRoot 'reset-runtime-db.ps1'
-  if (Test-Path -LiteralPath $resetScript) {
-    Log 'Applying bundled database to Electron runtime data'
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $resetScript *>> $LogPath
-    if ($LASTEXITCODE -ne 0) { Log "Runtime database reset exited with code $LASTEXITCODE" }
-  } else {
-    Log 'reset-runtime-db.ps1 not found; runtime database was not reset'
-  }
+  Log 'Runtime database reset skipped; app startup sync will apply bundled content without overwriting customized keyboard styling'
 } catch {
   Log "Update failed: $($_.Exception.Message)"
 }
@@ -4396,14 +4389,7 @@ try {
   Log "Copying update from $Source to $Destination"
   Copy-BoundTree $Source $Destination
   Log 'Copy completed'
-  $resetScript = Join-Path $Destination 'reset-runtime-db.ps1'
-  if (Test-Path -LiteralPath $resetScript) {
-    Log 'Applying bundled database to Electron runtime data'
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $resetScript *>> $LogPath
-    if ($LASTEXITCODE -ne 0) { Log "Runtime database reset exited with code $LASTEXITCODE" }
-  } else {
-    Log 'reset-runtime-db.ps1 not found; runtime database was not reset'
-  }
+  Log 'Runtime database reset skipped; app startup sync will apply bundled content without overwriting customized keyboard styling'
 } catch {
   Log "Copy failed: $($_.Exception.Message)"
   throw
