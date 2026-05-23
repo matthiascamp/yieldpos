@@ -31,6 +31,8 @@ export class Cart {
         is_special: product.is_special || false,
         deal_id: null,
         deal_name: null,
+        plu: product.plu || null,
+        barcode: product.barcode || null,
         category_id: product.category_id || null,
         image_url: product.image_url || null,
         category_color: product.category_color || null,

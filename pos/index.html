@@ -97,6 +97,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#12141c;color:#1a1a2e;d
 
 /* ═══ Keyboard Panel (RIGHT — all buttons) ════════════════════════ */
 .keyboard-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(165deg,#1a1d28 0%,#12141c 40%,#0e1017 100%)}
+.register-input-preview{margin:clamp(4px,0.6vw,8px) clamp(4px,0.6vw,8px) 0;background:#fff;border:2px solid #cfd6df;border-radius:10px;min-height:clamp(38px,5.5vh,52px);display:flex;align-items:center;padding:0 clamp(12px,1.4vw,18px);font-family:'JetBrains Mono','Courier New',monospace;font-size:clamp(18px,2.2vw,28px);font-weight:800;color:#111827;box-shadow:0 3px 10px rgba(0,0,0,.22);overflow:hidden}
+.register-input-preview.has-value{border-color:#93c5fd;box-shadow:0 0 0 3px rgba(147,197,253,.18),0 3px 10px rgba(0,0,0,.22)}
+.register-input-preview span{display:block;min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .keyboard-home{flex:1;display:flex;flex-direction:column;padding:clamp(3px,0.5vw,6px);gap:clamp(2px,0.4vw,5px);min-height:0}
 
@@ -491,6 +494,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#12141c;color:#1a1a2e;d
 
   <!-- RIGHT: Keyboard Panel (all buttons) -->
   <div class="keyboard-panel">
+    <div class="register-input-preview" id="registerInputPreview"><span id="registerInputPreviewText"></span></div>
 
     <!-- Keyboard Home View — dynamic grid from DB -->
     <div class="keyboard-home" id="keyboardView">
@@ -1279,23 +1283,7 @@ async function processScannedCode (code) {
   const q = (code || '').toString().trim()
   if (!q) return false
   si.value = ''
-  if (/^[a-f0-9]{32}$/i.test(q) || /^[a-f0-9-]{36}$/i.test(q)) {
-    const txnId = q.length === 32 ? q.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5') : q
-    try {
-      const held = await window.pos.getTransaction(txnId)
-      if (held && held.status === 'parked') {
-        completedSaleViewActive = false
-        viewingSaleId = null
-        cart.clear()
-        cart.loadItems(held.items || [])
-        await window.pos.voidTransaction(txnId)
-        returnToMainKeyboard()
-        showToast('Held sale recalled', 'success')
-        refocus()
-        return true
-      }
-    } catch (_) {}
-  }
+  if (await recallHeldSaleFromCode(q)) return true
   try {
     const p = await window.pos.getProductByBarcode(q)
     if (p) clearCompletedSaleViewForNewInput()
@@ -1308,16 +1296,72 @@ async function processScannedCode (code) {
   }
 }
 
+function heldSaleRecallCode (txnId) {
+  const clean = String(txnId || '').replace(/-/g, '').toUpperCase()
+  return clean ? `H${clean.slice(0, 12)}` : ''
+}
+
+async function recallHeldSale (txnId) {
+  try {
+    const held = await window.pos.getTransaction(txnId)
+    if (held && held.status === 'parked') {
+      completedSaleViewActive = false
+      viewingSaleId = null
+      cart.clear()
+      cart.loadItems(held.items || [])
+      await window.pos.voidTransaction(txnId)
+      returnToMainKeyboard()
+      showToast('Held sale recalled', 'success')
+      refocus()
+      return true
+    }
+  } catch (_) {}
+  return false
+}
+
+async function recallHeldSaleFromCode (code) {
+  const q = String(code || '').trim()
+  if (/^[a-f0-9]{32}$/i.test(q) || /^[a-f0-9-]{36}$/i.test(q)) {
+    const txnId = q.length === 32 ? q.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5') : q
+    return recallHeldSale(txnId)
+  }
+  if (!/^H[a-f0-9]{8,16}$/i.test(q)) return false
+  const prefix = q.slice(1).toLowerCase()
+  try {
+    const parked = await window.pos.getParkedSales()
+    const matches = parked.filter(t => String(t.id || '').replace(/-/g, '').toLowerCase().startsWith(prefix))
+    if (matches.length === 1) return recallHeldSale(matches[0].id)
+    if (matches.length > 1) {
+      showToast('More than one held sale matches that code', 'error')
+      return true
+    }
+  } catch (_) {}
+  return false
+}
+
 // All barcode sources feed this queue so scans are processed in order.
 let scanKeyBuffer = ''
 let scanKeyLastAt = 0
 let scanSubmitQueue = Promise.resolve()
 let lastSubmittedScan = { code: '', at: 0 }
+
+function updateRegisterInputPreview (value) {
+  const wrap = $('#registerInputPreview')
+  const textEl = $('#registerInputPreviewText')
+  if (!wrap || !textEl) return
+  const text = value !== undefined
+    ? String(value || '')
+    : (qtyExplicit ? `QTY x${qtyMultiplier}` : (numBuf || scanKeyBuffer || si.value || ''))
+  textEl.textContent = text
+  wrap.classList.toggle('has-value', !!text)
+}
+
 function submitScannedCode (code) {
   const q = (code || '').toString().trim()
   const now = Date.now()
   si.value = ''
   scanKeyBuffer = ''
+  updateRegisterInputPreview()
   if (!q) return scanSubmitQueue
   if (q === lastSubmittedScan.code && now - lastSubmittedScan.at < 650) {
     return scanSubmitQueue
@@ -1326,7 +1370,7 @@ function submitScannedCode (code) {
   scanSubmitQueue = scanSubmitQueue
     .catch(() => {})
     .then(() => processScannedCode(q))
-    .finally(() => { si.value = ''; scanKeyBuffer = '' })
+    .finally(() => { si.value = ''; scanKeyBuffer = ''; updateRegisterInputPreview() })
   return scanSubmitQueue
 }
 
@@ -1732,6 +1776,7 @@ function updateNumDisplay () {
       nb.style.display = 'none'
     }
   }
+  updateRegisterInputPreview()
   // Legacy in-grid display
   const d = document.querySelector('.num-display-cell')
   if (d) {
@@ -2188,9 +2233,11 @@ async function holdCurrentSale () {
     const txnP = cart.toTransaction(currentStaff?.id, [])
     txnP.status = 'parked'
     const r = await window.pos.saveTransaction(txnP)
-    try { await printHeldSaleReceipt(r.id, txnP) } catch (_) {}
+    let printed = null
+    try { printed = await printHeldSaleReceipt(r.id, txnP) } catch (printErr) { printed = { error: printErr.message } }
     cart.clear(); clearCartLocal()
-    showToast('Sale held - recall barcode printed', 'info')
+    if (printed?.error) showToast(`Sale held - receipt print failed: ${printed.error}`, 'error')
+    else showToast('Sale held - recall barcode printed', 'info')
   } catch (e2) {
     showToast('Failed to hold sale', 'error')
   } finally {
@@ -2200,7 +2247,8 @@ async function holdCurrentSale () {
 
 async function printHeldSaleReceipt (txnId, txnP) {
   const settings = await window.pos.getAllSettings()
-  await window.pos.printReceipt({
+  const recallCode = heldSaleRecallCode(txnId)
+  return window.pos.printReceipt({
     storeName: settings.store_name || 'YieldPOS',
     storeAddress: '', storePhone: '', storeHours: settings.store_hours || '', storeAbn: '',
     header: '*** HELD SALE ***',
@@ -2211,7 +2259,8 @@ async function printHeldSaleReceipt (txnId, txnP) {
     items: txnP.items,
     subtotal: txnP.subtotal, tax: txnP.tax, discount: txnP.discount, total: txnP.total,
     payments: [], change: 0, status: 'parked',
-    barcode: txnId,
+    barcode: recallCode || txnId,
+    recallCode,
     footer: 'Scan barcode to recall this sale'
   })
 }
@@ -3139,17 +3188,78 @@ function showSaleComplete (ch, txnData) {
 // ═══ Deal Auto-Application ════════════════════════════════════════
 async function loadDeals () {
   try { activeDeals = await window.pos.getActiveDeals() } catch (_) { activeDeals = [] }
+  if (!cart.isEmpty) applyDeals()
+}
+
+function normaliseDealText (value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function splitDealValues (value, separator = ',') {
+  return String(value || '')
+    .split(separator)
+    .map(v => v.trim())
+    .filter(Boolean)
+}
+
+function dealMatchesCartItem (deal, item) {
+  const ids = new Set(splitDealValues(deal.product_ids))
+  if (ids.has(item.product_id)) return true
+
+  const plus = new Set(splitDealValues(deal.product_plus, '|'))
+  if (item.plu && plus.has(String(item.plu))) return true
+
+  const barcodes = new Set(splitDealValues(deal.product_barcodes, '|'))
+  if (item.barcode && barcodes.has(String(item.barcode))) return true
+
+  const names = new Set(splitDealValues(deal.product_names, '|').map(normaliseDealText))
+  return names.has(normaliseDealText(item.name))
+}
+
+function applyMultiBuyDeal (deal, matchingItems, tiers) {
+  const units = []
+  for (const item of matchingItems) {
+    const qty = Math.floor(Number(item.qty) || 0)
+    if (qty <= 0 || Math.abs(qty - Number(item.qty)) > 0.001) continue
+    for (let i = 0; i < qty; i++) units.push({ item, unitPrice: Number(item.unit_price) || 0 })
+  }
+  if (!units.length) return
+
+  units.sort((a, b) => b.unitPrice - a.unitPrice)
+  let cursor = 0
+  for (const tier of tiers) {
+    const tierQty = parseInt(tier.qty) || 0
+    const tierPrice = Number(tier.price) || 0
+    if (tierQty <= 0 || tierPrice <= 0) continue
+    while (cursor + tierQty <= units.length) {
+      const group = units.slice(cursor, cursor + tierQty)
+      const fullTotal = group.reduce((s, u) => s + u.unitPrice, 0)
+      const saving = +(fullTotal - tierPrice).toFixed(2)
+      if (saving > 0 && fullTotal > 0) {
+        let allocated = 0
+        for (let i = 0; i < group.length; i++) {
+          const portion = i === group.length - 1
+            ? +(saving - allocated).toFixed(2)
+            : +(saving * (group[i].unitPrice / fullTotal)).toFixed(2)
+          allocated = +(allocated + portion).toFixed(2)
+          group[i].item.discount = +((group[i].item.discount || 0) + portion).toFixed(2)
+          group[i].item.deal_id = deal.id
+          group[i].item.deal_name = deal.name
+        }
+      }
+      cursor += tierQty
+    }
+  }
 }
 
 function applyDeals () {
   for (const item of cart.items) { item.deal_id = null; item.deal_name = null; item.discount = 0; cart._recalcItem(item) }
 
   for (const deal of activeDeals) {
-    const cfg = typeof deal.config === 'string' ? JSON.parse(deal.config) : (deal.config || {})
-    const dealProductIds = deal.product_ids ? deal.product_ids.split(',') : []
-    if (!dealProductIds.length) continue
+    let cfg = {}
+    try { cfg = typeof deal.config === 'string' ? JSON.parse(deal.config) : (deal.config || {}) } catch (_) { cfg = {} }
 
-    const matchingItems = cart.items.filter(i => dealProductIds.includes(i.product_id) && i.qty > 0)
+    const matchingItems = cart.items.filter(i => i.qty > 0 && !i.deal_id && dealMatchesCartItem(deal, i))
     if (!matchingItems.length) continue
 
     const tiers = cfg.tiers
@@ -3157,25 +3267,8 @@ function applyDeals () {
       : (cfg.qty ? [{ qty: cfg.qty, price: cfg.price || 0 }] : [])
     if (!tiers.length) continue
 
-    for (const item of matchingItems) {
-      let remaining = item.qty
-      let totalCost = 0
-      for (const tier of tiers) {
-        const groups = Math.floor(remaining / tier.qty)
-        if (groups > 0) {
-          totalCost += groups * tier.price
-          remaining -= groups * tier.qty
-        }
-      }
-      totalCost += remaining * item.unit_price
-      const fullTotal = item.qty * item.unit_price
-      const saving = fullTotal - totalCost
-      if (saving > 0) {
-        item.discount = +saving.toFixed(2)
-        item.deal_id = deal.id; item.deal_name = deal.name
-        cart._recalcItem(item)
-      }
-    }
+    applyMultiBuyDeal(deal, matchingItems, tiers)
+    for (const item of matchingItems) cart._recalcItem(item)
   }
   cart._notify()
 }
@@ -4266,7 +4359,7 @@ document.addEventListener('keydown', e => {
   if (e.key.length > 1 && e.key !== 'Enter' && e.key !== 'Backspace') return
 
   const now = Date.now()
-  if (now - scanKeyLastAt > 250) scanKeyBuffer = ''
+  if (now - scanKeyLastAt > 8000) scanKeyBuffer = ''
   scanKeyLastAt = now
   si.focus()
 
@@ -4276,18 +4369,21 @@ document.addEventListener('keydown', e => {
     const q = (scanKeyBuffer || si.value || '').trim()
     scanKeyBuffer = ''
     si.value = ''
+    updateRegisterInputPreview()
     if (q) submitScannedCode(q)
   } else if (e.key === 'Backspace') {
     e.preventDefault()
     e.stopPropagation()
     scanKeyBuffer = scanKeyBuffer.slice(0, -1)
     si.value = scanKeyBuffer
+    updateRegisterInputPreview(scanKeyBuffer)
   } else if (e.key.length === 1) {
     e.preventDefault()
     e.stopPropagation()
     clearCompletedSaleViewForNewInput()
     scanKeyBuffer += e.key
     si.value = scanKeyBuffer
+    updateRegisterInputPreview(scanKeyBuffer)
     si.dispatchEvent(new Event('input', { bubbles: true }))
   }
 }, true)
@@ -4890,9 +4986,10 @@ async function init () {
     ])
     allCategories = categories
     await renderPosKeyboard()
-    loadDeals()
+    await loadDeals()
     updateTotals()
     restoreCartLocal()
+    if (!cart.isEmpty) applyDeals()
 
     // Non-critical — runs in background after keyboard is ready
     initBackground()

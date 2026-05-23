@@ -4545,13 +4545,19 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
   ipcMain.handle('db:deals:getActive', () => {
     return dbAll(`
-      SELECT d.*, GROUP_CONCAT(dp.product_id) as product_ids
+      SELECT d.*,
+        GROUP_CONCAT(dp.product_id) as product_ids,
+        GROUP_CONCAT(COALESCE(p.plu, ''), '|') as product_plus,
+        GROUP_CONCAT(COALESCE(p.barcode, ''), '|') as product_barcodes,
+        GROUP_CONCAT(COALESCE(p.name, ''), '|') as product_names
       FROM deals d
       LEFT JOIN deal_products dp ON dp.deal_id = d.id
+      LEFT JOIN products p ON p.id = dp.product_id
       WHERE d.active = 1
         AND (d.start_date IS NULL OR d.start_date <= date('now'))
         AND (d.end_date IS NULL OR d.end_date >= date('now'))
       GROUP BY d.id
+      ORDER BY d.name
     `)
   })
 
@@ -6946,13 +6952,22 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       if (!qty) return sum
       return sum + (receiptItemUnit(item) === 'each' ? qty : 1)
     }, 0)
-    const emitBarcode = value => {
-      const barcodeStr = String(value || '').replace(/-/g, '')
+    const emitBarcode = (value, opts = {}) => {
+      const barcodeStr = String(value || '').replace(/-/g, '').toUpperCase()
       if (!barcodeStr) return
       cmd(ESCPOS.ALIGN_CENTER)
-      cmd(ESCPOS.BARCODE_HEIGHT); cmd(ESCPOS.BARCODE_WIDTH); cmd(ESCPOS.BARCODE_HRI_BELOW)
-      const barcodeData = Buffer.from(`{B${barcodeStr}`, 'ascii')
-      cmd(Buffer.from([GS, 0x6B, 0x49, barcodeData.length])); cmd(barcodeData)
+      cmd(Buffer.from([GS, 0x68, opts.height || 0x50]))
+      cmd(Buffer.from([GS, 0x77, opts.width || 0x02]))
+      cmd(ESCPOS.BARCODE_HRI_BELOW)
+      if (/^[0-9A-Z $%+\-.\/]+$/.test(barcodeStr)) {
+        const barcodeData = Buffer.from(barcodeStr, 'ascii')
+        cmd(Buffer.from([GS, 0x6B, 0x45, barcodeData.length]))
+        cmd(barcodeData)
+      } else {
+        const barcodeData = Buffer.from(`{B${barcodeStr}`, 'ascii')
+        cmd(Buffer.from([GS, 0x6B, 0x49, barcodeData.length]))
+        cmd(barcodeData)
+      }
       text('')
     }
 
@@ -6962,11 +6977,14 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
     // Held-sale recall slip: put the scannable transaction code right at the top.
     if (receiptData.status === 'parked' && receiptData.barcode) {
+      const recallCode = String(receiptData.recallCode || receiptData.barcode || '').replace(/-/g, '').toUpperCase()
       cmd(ESCPOS.BOLD_ON); cmd(ESCPOS.DOUBLE_SIZE)
       text('HELD SALE')
       cmd(ESCPOS.NORMAL_SIZE); cmd(ESCPOS.BOLD_OFF)
       text('SCAN TO RECALL')
-      emitBarcode(receiptData.barcode)
+      if (recallCode) text(`CODE ${recallCode}`)
+      emitBarcode(recallCode || receiptData.barcode, { height: 0x70, width: 0x02 })
+      text('')
     }
 
     // Header block â€” receipt_header is the primary source of store info
