@@ -2490,49 +2490,119 @@ async function initDatabase() {
     }
   } catch (e) { appLog('error', 'migration', 'Register earth palette failed', e.message) }
 
+  const applyOrganisedRegisterKeyboardPalette = () => {
+    const organisedRules = [
+      // Splash palette: cream text on one consistent forest-green utility band.
+      ["page = 1 AND active = 1 AND grid_row = 0", '#f8f4ea', '#123c27'],
+      ["page = 1 AND active = 1 AND grid_row = 1 AND id != 'layout-cart'", '#f8f4ea', '#1f5d3c'],
+      ["page = 1 AND type = 'digit'", '#0b2418', '#fffdf7'],
+      ["page = 1 AND type IN ('clear','codeenter')", '#0b2418', '#efe6d2'],
+      ["page = 1 AND type = 'qtyx'", '#f8f4ea', '#6b4a32'],
+      ["page = 1 AND type = 'subtotal'", '#0b2418', '#f0d89c'],
+      ["page = 1 AND type = 'num_display'", '#bfe6c2', '#020604'],
+    ]
+    for (const [where, color, bg] of organisedRules) {
+      db.run(`UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE ${where}`, [color, bg])
+    }
+    const organisedIds = [
+      // Column groups: walnut/bark, warm off-whites, sage, and fresh greens.
+      ['btn-meat', '#f8f4ea', '#6b4a32'],
+      ['fn-reprint', '#f8f4ea', '#1a3f2c'],
+      ['fn-advanced', '#f8f4ea', '#0b2418'],
+      ['fn-pricechange-mode', '#f8f4ea', '#4b6643'],
+      ['btn-coffee', '#f8f4ea', '#4a321f'],
+      ['btn-deli', '#f8f4ea', '#78916b'],
+      ['btn-grocery', '#f8f4ea', '#5e6f4b'],
+      ['btn-grocery-open', '#f8f4ea', '#6b4a32'],
+      ['btn-flowers', '#0b2418', '#dfe8d6'],
+      ['btn-bread', '#4a321f', '#fffdf7'],
+      ['btn-cheese', '#4a321f', '#efe6d2'],
+      ['btn-nuts', '#4a321f', '#efe6d2'],
+      ['btn-fv', '#f8f4ea', '#2e6b45'],
+      ['btn-fvkg', '#f8f4ea', '#2e6b45'],
+      ['btn-bags', '#0b2418', '#efe6d2'],
+      ['btn-gas', '#f8f4ea', '#0b2418'],
+      ['btn-fruit-am', '#f8f4ea', '#2e6b45'],
+      ['btn-fruit-nz', '#f8f4ea', '#2e6b45'],
+      ['btn-veg-ag', '#f8f4ea', '#123c27'],
+      ['btn-veg-hz', '#f8f4ea', '#123c27'],
+      ['btn-subtotal', '#0b2418', '#f0d89c'],
+    ]
+    for (const [id, color, bg] of organisedIds) {
+      db.run("UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE id = ?3 AND page = 1", [color, bg, id])
+    }
+  }
+
   // Register keyboard palette v7: organised bands rather than scattered utility colours.
   try {
     const organisedPaletteDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_organised_palette_v1'")
     if (!organisedPaletteDone.length) {
-      const organisedRules = [
-        ["page = 1 AND active = 1 AND grid_row = 0", '#f8f4ea', '#123c27'],
-        ["page = 1 AND active = 1 AND grid_row = 1 AND id != 'layout-cart'", '#f8f4ea', '#6b4a32'],
-        ["page = 1 AND type = 'digit'", '#0b2418', '#ffffff'],
-        ["page = 1 AND type IN ('clear','codeenter')", '#0b2418', '#f8f4ea'],
-        ["page = 1 AND type = 'qtyx'", '#f8f4ea', '#6f5f3a'],
-        ["page = 1 AND type = 'num_display'", '#bfe6c2', '#020604'],
-      ]
-      for (const [where, color, bg] of organisedRules) {
-        db.run(`UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE ${where}`, [color, bg])
-      }
-      const organisedIds = [
-        // Column groups: earthy sections, light neutral sections, fresh greens.
-        ['btn-meat', '#f8f4ea', '#6f5f3a'],
-        ['btn-coffee', '#f8f4ea', '#4a321f'],
-        ['btn-deli', '#f8f4ea', '#5e7f52'],
-        ['btn-grocery', '#f8f4ea', '#5e6f4b'],
-        ['btn-grocery-open', '#f8f4ea', '#6b4a32'],
-        ['btn-flowers', '#0b2418', '#dfe8d6'],
-        ['btn-bread', '#4a321f', '#f8f4ea'],
-        ['btn-cheese', '#4a321f', '#efe6d2'],
-        ['btn-nuts', '#4a321f', '#efe6d2'],
-        ['btn-fv', '#f8f4ea', '#2e6b45'],
-        ['btn-fvkg', '#f8f4ea', '#2e6b45'],
-        ['btn-bags', '#f8f4ea', '#5e6f4b'],
-        ['btn-gas', '#f8f4ea', '#0b2418'],
-        ['btn-fruit-am', '#f8f4ea', '#2e6b45'],
-        ['btn-fruit-nz', '#f8f4ea', '#2e6b45'],
-        ['btn-veg-ag', '#f8f4ea', '#123c27'],
-        ['btn-veg-hz', '#f8f4ea', '#123c27'],
-        ['btn-subtotal', '#0b2418', '#efe6d2'],
-      ]
-      for (const [id, color, bg] of organisedIds) {
-        db.run("UPDATE keyboard_buttons SET color = ?1, bg_color = ?2, updated_at = datetime('now') WHERE id = ?3 AND page = 1", [color, bg, id])
-      }
+      applyOrganisedRegisterKeyboardPalette()
       db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_organised_palette_v1', '1')")
       appLog('info', 'migration', 'Applied organised register keyboard palette')
     }
   } catch (e) { appLog('error', 'migration', 'Register organised palette failed', e.message) }
+
+  // Re-assert the grouped palette on DBs that briefly received the cooler scattered palette.
+  try {
+    const regroupedPaletteDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_organised_palette_v2'")
+    if (!regroupedPaletteDone.length) {
+      applyOrganisedRegisterKeyboardPalette()
+      db.run("DELETE FROM settings WHERE key = 'migration_register_keyboard_cool_offwhite_palette_v1'")
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_organised_palette_v2', '1')")
+      appLog('info', 'migration', 'Re-applied organised register keyboard palette')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register organised palette reapply failed', e.message) }
+
+  // Register keyboard palette v8: intentional grouped splash palette.
+  try {
+    const groupedSplashPaletteDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_grouped_splash_palette_v1'")
+    if (!groupedSplashPaletteDone.length) {
+      applyOrganisedRegisterKeyboardPalette()
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_grouped_splash_palette_v1', '1')")
+      appLog('info', 'migration', 'Applied grouped splash register keyboard palette')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register grouped splash palette failed', e.message) }
+
+  // Register keyboard palette v9: re-apply the final splash-matched grouped palette on existing installs.
+  try {
+    const groupedSplashPaletteV2Done = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_splash_palette_v2'")
+    if (!groupedSplashPaletteV2Done.length) {
+      applyOrganisedRegisterKeyboardPalette()
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_splash_palette_v2', '1')")
+      appLog('info', 'migration', 'Applied final splash register keyboard palette')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register final splash palette failed', e.message) }
+
+  // Register keyboard palette v10: semantic colours for the three compact top-left utility keys.
+  try {
+    const compactUtilityPaletteDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_compact_utilities_v1'")
+    if (!compactUtilityPaletteDone.length) {
+      applyOrganisedRegisterKeyboardPalette()
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_compact_utilities_v1', '1')")
+      appLog('info', 'migration', 'Applied compact utility keyboard colours')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register compact utility palette failed', e.message) }
+
+  // Register keyboard palette v11: second utility row gets its own green shade.
+  try {
+    const secondRowGreenDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_second_row_green_v1'")
+    if (!secondRowGreenDone.length) {
+      applyOrganisedRegisterKeyboardPalette()
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_second_row_green_v1', '1')")
+      appLog('info', 'migration', 'Applied second-row utility green')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register second-row utility green failed', e.message) }
+
+  // Register keyboard palette v12: calm the compact top-left utility keys into the green family.
+  try {
+    const compactUtilityPaletteV2Done = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_compact_utilities_v2'")
+    if (!compactUtilityPaletteV2Done.length) {
+      applyOrganisedRegisterKeyboardPalette()
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_compact_utilities_v2', '1')")
+      appLog('info', 'migration', 'Calmed compact utility keyboard colours')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register compact utility palette v2 failed', e.message) }
 
   try {
     const categoryButtonFixDone = dbAll("SELECT value FROM settings WHERE key = 'migration_department_category_buttons_v1'")

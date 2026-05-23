@@ -330,10 +330,10 @@ INSERT OR IGNORE INTO keyboard_buttons (id, label, type, color, bg_color, sort_o
 
 -- Row 1: Function buttons (cols 3-12)
 INSERT OR IGNORE INTO keyboard_buttons (id, label, type, color, bg_color, sort_order, position, page, grid_row, grid_col, col_span, row_span, category_filter) VALUES
-  ('fn-discount',   'DISCOUNT',         'discount',  '#fff', '#ca8a04', 11, 'grid', 1, 1, 3, 2, 1, NULL),
-  ('fn-movedrawer', 'LOG OUT',          'movedrawer','#fff', '#be123c', 12, 'grid', 1, 1, 5, 2, 1, NULL),
-  ('fn-return',     'RETURN\nITEM',     'return',    '#fff', '#dc2626', 13, 'grid', 1, 1, 7, 2, 1, NULL),
-  ('fn-recall',     'FIND\nSALE',       'recall',    '#fff', '#1d4ed8', 14, 'grid', 1, 1, 9, 2, 1, NULL);
+  ('fn-discount',   'DISCOUNT',         'discount',  '#f8f4ea', '#1f5d3c', 11, 'grid', 1, 1, 3, 2, 1, NULL),
+  ('fn-movedrawer', 'LOG OUT',          'movedrawer','#f8f4ea', '#1f5d3c', 12, 'grid', 1, 1, 5, 2, 1, NULL),
+  ('fn-return',     'RETURN\nITEM',     'return',    '#f8f4ea', '#1f5d3c', 13, 'grid', 1, 1, 7, 2, 1, NULL),
+  ('fn-recall',     'FIND\nSALE',       'recall',    '#f8f4ea', '#1f5d3c', 14, 'grid', 1, 1, 9, 2, 1, NULL);
 
 -- Rows 2-4: Department buttons (cols 3-6) + single items (col 7) + Numpad (cols 8-12)
 INSERT OR IGNORE INTO keyboard_buttons (id, label, type, price, color, bg_color, sort_order, position, page, grid_row, grid_col, col_span, row_span, category_filter) VALUES
