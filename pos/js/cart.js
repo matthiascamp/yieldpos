@@ -7,7 +7,13 @@ export class Cart {
   addProduct(product, qty = 1, silent = false) {
     const price = product.active_price ?? product.price
     const taxRate = product.tax_rate ?? 0.10
-    const existing = this.items.find(i => i.product_id === product.id && product.unit === 'each' && i.unit_price === price)
+    const isReturnLine = qty < 0
+    const existing = this.items.find(i =>
+      i.product_id === product.id &&
+      product.unit === 'each' &&
+      i.unit_price === price &&
+      (i.qty < 0) === isReturnLine
+    )
     if (existing) {
       existing.qty += qty
       this._recalcItem(existing)

@@ -17,11 +17,11 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;touch-action:manipulation}
 body{font-family:'Inter',system-ui,sans-serif;background:#12141c;color:#1a1a2e;display:flex;flex-direction:column;user-select:none;font-size:clamp(11px,1.2vw,14px);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:rgba(0,0,0,.06)}
-::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar{width:16px;height:16px}
 ::-webkit-scrollbar-track{background:rgba(15,17,23,.28)}
-::-webkit-scrollbar-thumb{background:rgba(136,145,165,.62);border-radius:999px;border:2px solid rgba(15,17,23,.28);background-clip:padding-box}
-::-webkit-scrollbar-thumb:hover{background:rgba(180,188,204,.86);background-clip:padding-box}
-*{scrollbar-width:thin;scrollbar-color:rgba(136,145,165,.7) rgba(15,17,23,.28)}
+::-webkit-scrollbar-thumb{background:rgba(136,145,165,.72);border-radius:999px;border:3px solid rgba(15,17,23,.28);background-clip:padding-box;min-height:44px;min-width:44px}
+::-webkit-scrollbar-thumb:hover{background:rgba(180,188,204,.9);background-clip:padding-box}
+*{scrollbar-width:auto;scrollbar-color:rgba(136,145,165,.78) rgba(15,17,23,.28)}
 
 /* ═══ Animations ════════════════════════════════════════════════════ */
 @keyframes slideInRight{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
@@ -1456,6 +1456,31 @@ updateSync()
 
 // ═══ PIN Login ═════════════════════════════════════════════════════
 let pinBuf = ''
+const FLOAT_REQUIRED_KEY = 'tillaroo_float_required'
+
+async function isFloatRequiredForShift () {
+  const stored = localStorage.getItem(FLOAT_REQUIRED_KEY)
+  if (stored === '0') return false
+  if (stored === '1') return true
+  try {
+    const log = await window.pos.getCashDrawerLog()
+    const latestShiftEntry = log.find(e => e.action === 'float' || e.action === 'close')
+    if (!latestShiftEntry) return true
+    return latestShiftEntry.action === 'close'
+  } catch (_) {
+    return true
+  }
+}
+
+function setFloatRequiredForShift (required) {
+  localStorage.setItem(FLOAT_REQUIRED_KEY, required ? '1' : '0')
+}
+
+async function maybeShowFloatPrompt () {
+  if (await isFloatRequiredForShift()) await showFloatPrompt()
+  else si.focus()
+}
+
 function showLogin () {
   if (currentStaff) {
     window.pos.getSetting('register_id').then(regId => {
@@ -1467,6 +1492,7 @@ function showLogin () {
   pinBuf = ''
   $('#pinDisplay').textContent = ''
   $('#loginError').textContent = ''
+  $('#floatOverlay').classList.add('hidden')
   $('#loginOverlay').classList.remove('hidden')
   $('#staffBadge').textContent = 'Not logged in'
 }
@@ -1496,7 +1522,7 @@ async function attemptPinLogin () {
     } catch (_) {}
     completeLogin(s)
     showToast(`Welcome, ${s.name}`, 'success')
-    showFloatPrompt()
+    await maybeShowFloatPrompt()
   } else {
     $('#loginError').textContent = 'Invalid PIN'; pinBuf = ''
   }
@@ -1511,6 +1537,7 @@ function tryRestoreSession () {
       const s = JSON.parse(saved)
       if (s && s.id && s.name) {
         completeLogin(s)
+        maybeShowFloatPrompt().catch(() => {})
         return true
       }
     }
@@ -1629,15 +1656,21 @@ $('#floatPad').addEventListener('click', e => {
 $('#floatConfirmBtn').addEventListener('click', async () => {
   const cents = moneyInputCents(floatBuf)
   const amount = cents / 100
-  if (amount > 0) {
-    await window.pos.logCashDrawer({ staff_id: currentStaff?.id, action: 'float', amount, note: `Float: $${amount.toFixed(2)}` })
+  try {
+    if (amount > 0) {
+      await window.pos.logCashDrawer({ staff_id: currentStaff?.id, action: 'float', amount, note: `Float: $${amount.toFixed(2)}` })
+    }
+    setFloatRequiredForShift(false)
+    $('#floatOverlay').classList.add('hidden')
+    si.focus()
+    if (amount > 0) showToast(`Float set: $${amount.toFixed(2)}`, 'success')
+  } catch (e) {
+    showToast('Failed to save float', 'error')
   }
-  $('#floatOverlay').classList.add('hidden')
-  si.focus()
-  if (amount > 0) showToast(`Float set: $${amount.toFixed(2)}`, 'success')
 })
 
 $('#floatSkipBtn').addEventListener('click', () => {
+  setFloatRequiredForShift(false)
   $('#floatOverlay').classList.add('hidden')
   si.focus()
 })
@@ -1671,6 +1704,7 @@ let posPageNames = {}
 let posPageSizes = {} // {pageNum: {cols, rows}}
 let posPageHistory = []
 let priceChangeMode = false
+let holdSaleInFlight = false
 
 function setPriceChangeMode (on) {
   priceChangeMode = !!on
@@ -1816,10 +1850,7 @@ function posButtonLabel (btn) {
   if (type === 'price_change' && String(btn?.label || '').replace(/\\n|\s+/g, '').toUpperCase() === 'PRICEMODE') {
     return 'PRICE\\nCHANGE'
   }
-  if (['product', 'fixed_price', 'open_price', 'weighed_open'].includes(type) && btn.product_name) {
-    return btn.product_name
-  }
-  return btn?.label || ''
+  return btn?.label || btn?.product_name || ''
 }
 
 function renderPosButton (btn, gridStyle) {
@@ -2144,18 +2175,28 @@ $('#posGrid').addEventListener('click', async e => {
   }
   if (type === 'pay_card') { if (cart.isEmpty) { showToast('Cart is empty', 'info'); return }; completeCardPayment(); return }
   if (type === 'park') {
-    if (cart.isEmpty) { showToast('Nothing to hold', 'info'); return }
-    try {
-      const txnP = cart.toTransaction(currentStaff?.id, [])
-      txnP.status = 'parked'
-      const r = await window.pos.saveTransaction(txnP)
-      try { await printHeldSaleReceipt(r.id, txnP) } catch (_) {}
-      cart.clear(); clearCartLocal()
-      showToast('Sale held - recall barcode printed', 'info')
-    } catch (e2) { showToast('Failed to hold sale', 'error') }
+    await holdCurrentSale()
     return
   }
 })
+
+async function holdCurrentSale () {
+  if (holdSaleInFlight) return
+  if (cart.isEmpty) { showToast('Nothing to hold', 'info'); return }
+  holdSaleInFlight = true
+  try {
+    const txnP = cart.toTransaction(currentStaff?.id, [])
+    txnP.status = 'parked'
+    const r = await window.pos.saveTransaction(txnP)
+    try { await printHeldSaleReceipt(r.id, txnP) } catch (_) {}
+    cart.clear(); clearCartLocal()
+    showToast('Sale held - recall barcode printed', 'info')
+  } catch (e2) {
+    showToast('Failed to hold sale', 'error')
+  } finally {
+    holdSaleInFlight = false
+  }
+}
 
 async function printHeldSaleReceipt (txnId, txnP) {
   const settings = await window.pos.getAllSettings()
@@ -2188,15 +2229,7 @@ async function handleFuncButton (action) {
       } else showToast('Nothing to void', 'info')
       break
     case 'hold':
-      if (cart.isEmpty) { showToast('Nothing to hold', 'info'); return }
-      try {
-        const txnP = cart.toTransaction(currentStaff?.id, [])
-        txnP.status = 'parked'
-        const r = await window.pos.saveTransaction(txnP)
-        try { await printHeldSaleReceipt(r.id, txnP) } catch (_) {}
-        cart.clear(); clearCartLocal()
-        showToast('Sale held - recall barcode printed', 'info')
-      } catch (e2) { showToast('Failed to hold sale', 'error') }
+      await holdCurrentSale()
       break
     case 'recall': showRecallModal(); break
     case 'nosale':
@@ -2488,7 +2521,7 @@ function addEachProductToCart (product, qty) {
 
 function addScannedProductToCart (product) {
   clearCompletedSaleViewForNewInput()
-  clearQtyEntry()
+  const scannedQty = qtyExplicit ? qtyMultiplier : 1
   if (Number(product.open_price || 0) === 1) {
     showOpenPriceModal(product.name, 0, product)
     return
@@ -2506,7 +2539,7 @@ function addScannedProductToCart (product) {
     }
     pendingWeightProduct = product; showWeightModal(product); return
   }
-  addEachProductToCart(product, 1)
+  addEachProductToCart(product, scannedQty)
 }
 
 function addToCart (product) {
@@ -3010,14 +3043,18 @@ $('#cartItems').addEventListener('click', e => {
   const b = e.target.closest('.qty-btn'); if (!b) return
   const i = parseInt(b.dataset.index), item = cart.items[i]; if (!item) return
   const step = item.unit === 'each' ? 1 : 0.1
-  if (b.dataset.action === 'plus') { cart.updateQty(i, item.qty + step); applyDeals() }
-  else {
-    if (item.qty - step <= 0.001) {
+  const nextQty = b.dataset.action === 'plus'
+    ? (item.qty < 0 ? item.qty - step : item.qty + step)
+    : (item.qty < 0 ? item.qty + step : item.qty - step)
+  if (b.dataset.action === 'plus') {
+    cart.updateQty(i, nextQty); applyDeals()
+  } else {
+    if (Math.abs(nextQty) <= 0.001) {
       pendingDeleteIdx = i
       $('#removeItemName').textContent = item.name
       $('#removeItemPrice').textContent = money(item.line_total)
       $('#removeConfirmModal').classList.add('show')
-    } else { cart.updateQty(i, item.qty - step); applyDeals() }
+    } else { cart.updateQty(i, nextQty); applyDeals() }
   }
 })
 
@@ -4393,6 +4430,7 @@ $('#drawerInputConfirm').addEventListener('click', async () => {
     amount: amt,
     note: note || drawerAction.charAt(0).toUpperCase() + drawerAction.slice(1)
   })
+  if (drawerAction === 'float') setFloatRequiredForShift(false)
   try { await window.pos.openDrawer() } catch (_) {}
   showToast(`${drawerAction.charAt(0).toUpperCase() + drawerAction.slice(1)}: ${money(amt)}`, 'success')
   $('#drawerInputArea').style.display = 'none'
@@ -4587,6 +4625,7 @@ $('#eodSubmit').addEventListener('click', async () => {
     amount: countedTotal,
     note: eodNoteParts.join(' | ')
   })
+  setFloatRequiredForShift(true)
 
   // Print EOD report
   try {

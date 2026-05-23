@@ -23,6 +23,7 @@ let lanServerConflictInProgress = false
 
 const runtimeAppMode = (process.argv.includes('--admin') || process.argv.includes('admin')) ? 'admin' : 'register'
 const isRegisterApp = runtimeAppMode === 'register'
+const isAdminApp = runtimeAppMode === 'admin'
 const SOFTWARE_NAME = 'YieldPOS Client'
 const DEFAULT_STORE_NAME = 'YieldPOS'
 const APP_ICON_PATH = path.join(__dirname, 'pos', 'YieldPOS.png')
@@ -1840,7 +1841,7 @@ async function initDatabase() {
           db.run(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,datetime('now'))`,
             [id, btn.label, btn.type, btn.price || 0, btn.image || null, Number(btn.image_scale || 100) || 100,
-             btn.color || '#fff', btn.bg_color || '#1a3d2a', btn.parent_id || null,
+             btn.color || '#fff', btn.bg_color || '#409850', btn.parent_id || null,
              btn.category_filter || null, btn.alpha_range || null, btn.sort_order || 0, btn.position || 'grid',
              btn.page || 1, btn.grid_row || 0, btn.grid_col || 0, btn.col_span || 1,
              btn.row_span || 1, btn.active !== undefined ? btn.active : 1,
@@ -2856,7 +2857,7 @@ function normalizeKeyboardProductRefs() {
 const isDevMode = process.argv.includes('--dev')
 
 function updateTrayMenu () {
-  if (isRegisterApp || !tray) return
+  if (!isAdminApp || !tray) return
   const modeLabel = 'Admin'
   const windowReady = !!(mainWindow && !mainWindow.isDestroyed())
   const windowVisible = windowReady && mainWindow.isVisible()
@@ -2870,7 +2871,7 @@ function updateTrayMenu () {
 }
 
 function ensureTray () {
-  if (isRegisterApp) return null
+  if (!isAdminApp) return null
   if (tray) return tray
   const icon = nativeImage.createFromPath(APP_ICON_PATH)
   tray = new Tray(icon.isEmpty() ? APP_ICON_PATH : icon.resize({ width: 16, height: 16 }))
@@ -2895,7 +2896,7 @@ function showMainWindowFromTray () {
 }
 
 function hideMainWindowToTray (reason = 'close') {
-  if (isRegisterApp) return
+  if (!isAdminApp) return
   if (appShuttingDown || !mainWindow || mainWindow.isDestroyed()) return
   ensureTray()
   try { if (mainWindow.isKiosk()) mainWindow.setKiosk(false) } catch (_) {}
@@ -2998,7 +2999,7 @@ function createWindow() {
   mainWindow.on('show', updateTrayMenu)
   mainWindow.on('hide', updateTrayMenu)
 
-  if (!isRegisterApp) {
+  if (isAdminApp) {
     mainWindow.on('minimize', (event) => {
       if (appShuttingDown) return
       event.preventDefault()
@@ -3009,6 +3010,13 @@ function createWindow() {
       if (appShuttingDown) return
       event.preventDefault()
       hideMainWindowToTray('close')
+    })
+  } else {
+    mainWindow.on('close', () => {
+      appShuttingDown = true
+      try { if (tray) tray.destroy() } catch (_) {}
+      tray = null
+      appLog('info', 'app', 'Register window closed; shutting down')
     })
   }
 
@@ -3245,7 +3253,7 @@ const gotTheLock = gotModeLock
 app.whenReady().then(async () => {
   if (!gotTheLock) return
   registerExternalImageProtocol()
-  if (!isRegisterApp) ensureTray()
+  if (isAdminApp) ensureTray()
   startModeSignalWatcher()
 
   // Force-quit PTPOS + GUARDIAN so they release the OPOS scanner / COM ports.
@@ -3378,7 +3386,7 @@ app.whenReady().then(async () => {
 
     splashSend('splash:status', 'Preparing interface...', 85)
     createWindow()
-    if (!isRegisterApp) ensureTray()
+    if (isAdminApp) ensureTray()
 
     // Wait for the page to finish loading
     if (mainWindow.webContents.isLoading()) {
@@ -5131,7 +5139,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, datetime('now'))
     `, [id, btn.label, buttonType, btn.price || 0, incomingImage, Number(btn.image_scale || 100) || 100,
-        btn.color || '#fff', btn.bg_color || '#1a3d2a', btn.parent_id || null, btn.category_filter || null,
+        btn.color || '#fff', btn.bg_color || '#409850', btn.parent_id || null, btn.category_filter || null,
         btn.alpha_range || null, btn.sort_order || 0, btn.position || 'grid',
         btn.page || 1, btn.grid_row || 0, btn.grid_col || 0,
         btn.col_span || 1, btn.row_span || 1, btn.product_id || null,
@@ -5199,7 +5207,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
           row_span=excluded.row_span, product_id=excluded.product_id, active=excluded.active,
           updated_at=excluded.updated_at`,
         [b.id, b.label, b.type, b.price || 0, b.image || null, Number(b.image_scale || 100) || 100,
-         b.color || '#fff', b.bg_color || '#1a3d2a', b.parent_id || null, b.category_filter || null,
+         b.color || '#fff', b.bg_color || '#409850', b.parent_id || null, b.category_filter || null,
          b.alpha_range || null, b.sort_order || 0, b.position || 'grid',
          b.page || 1, b.grid_row || 0, b.grid_col || 0, b.col_span || 1, b.row_span || 1,
          b.product_id || null, b.active !== false ? 1 : 0])
@@ -5287,7 +5295,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,datetime('now'))`,
         [id, btn.label, btn.type, btn.price || 0, btn.image || null, Number(btn.image_scale || 100) || 100,
-         btn.color || '#fff', btn.bg_color || '#1a3d2a', btn.parent_id || null, btn.category_filter || null,
+         btn.color || '#fff', btn.bg_color || '#409850', btn.parent_id || null, btn.category_filter || null,
          btn.alpha_range || null, btn.sort_order || 0, btn.position || 'grid',
          btn.page || 1, row, col, cs, rs, btn.active !== undefined ? btn.active : 1,
          btn.product_id || null])

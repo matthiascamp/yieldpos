@@ -7119,6 +7119,8 @@
 
     let kbButtons = []
     const KEYBOARD_GRID_DEFAULT = { columns: 13, rows: 7 }
+    const KB_DEFAULT_BG = '#409850'
+    const KB_DEFAULT_TEXT = '#ffffff'
     let gridCols = KEYBOARD_GRID_DEFAULT.columns
     let gridRows = KEYBOARD_GRID_DEFAULT.rows
     let currentPage = 1
@@ -7152,15 +7154,22 @@
       if (info) { info.cols = gridCols; info.rows = gridRows }
     }
 
-    async function loadKeyboard () {
+    async function loadKeyboard (opts = {}) {
+      const preserveEditor = !!opts.preserveEditor
+      const editorWasOpen = preserveEditor && $('#kbEditPanel')?.classList.contains('active')
+      const selectedBeforeReload = selectedBtnId
       kbButtons = await window.pos.getAllButtons()
       const pageRows = await window.pos.getPages()
       allPages = pageRows.length ? pageRows : [{ page: 1, name: 'Main Register', cols: 13, rows: 7 }]
       if (!allPages.find(p => p.page === currentPage)) currentPage = allPages[0]?.page || 1
+      const selectedStillExists = selectedBeforeReload
+        ? kbButtons.some(b => b.id === selectedBeforeReload && (b.page || 1) === currentPage && b.active)
+        : editorWasOpen
+      if (!selectedStillExists) selectedBtnId = null
       applyPageSize()
       renderPageTree()
       renderGrid()
-      closeEditPanel()
+      if (!editorWasOpen || !selectedStillExists) closeEditPanel()
 
       const cats = await window.pos.getCategories()
       $('#kbCatList').innerHTML = cats.map(c => `<option value="${esc(c.name)}">`).join('') + '<option value="__all__">'
@@ -7296,8 +7305,9 @@
         const name = pageInfo.name || `Page ${pg}`
         const active = pg === currentPage ? 'background:var(--green);color:#000;' : ''
         const pad = depth * 12
-        let html = `<div class="kb-tree-node" data-tree-page="${pg}" style="padding:4px 6px 4px ${6 + pad}px;cursor:pointer;border-radius:4px;margin-bottom:2px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${active}" title="${esc(name)} (Page ${pg})">`
-        html += `${depth > 0 ? '└ ' : ''}${esc(name)}</div>`
+        let html = `<div class="kb-tree-node" data-tree-page="${pg}" style="display:flex;align-items:center;gap:4px;padding:4px 4px 4px ${6 + pad}px;cursor:pointer;border-radius:4px;margin-bottom:2px;font-size:11px;${active}" title="${esc(name)} (Page ${pg})">`
+        html += `<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${depth > 0 ? '- ' : ''}${esc(name)}</span>`
+        html += `<button type="button" data-rename-page="${pg}" title="Rename page" style="flex:0 0 auto;padding:1px 5px;font-size:9px;line-height:1.4;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:inherit;cursor:pointer">Edit</button></div>`
         const kids = childMap[pg] || []
         for (const kid of kids) {
           const kidInfo = allPages.find(p => p.page === kid)
@@ -7316,25 +7326,50 @@
     // Alias for compatibility
     function renderPageTabs () { renderPageTree() }
 
+    let renamingPage = null
+
+    function focusPageNameInput (input) {
+      requestAnimationFrame(() => {
+        input.focus({ preventScroll: true })
+        input.select()
+      })
+    }
+
+    function protectPageNameTyping (input) {
+      ;['beforeinput', 'keydown', 'keypress', 'keyup'].forEach(type => {
+        input.addEventListener(type, e => {
+          e.stopPropagation()
+        }, true)
+      })
+    }
+
+    function startRenamePage (page) {
+      renamingPage = page
+      const info = getPageInfo(renamingPage)
+      const input = $('#renamePageInput')
+      input.value = info.name || `Page ${renamingPage}`
+      $('#renamePageInline').style.display = ''
+      $('#addPageInline').style.display = 'none'
+      focusPageNameInput(input)
+    }
+
     $('#pageTree').addEventListener('click', e => {
+      const renameBtn = e.target.closest('[data-rename-page]')
+      if (renameBtn) {
+        e.preventDefault()
+        startRenamePage(parseInt(renameBtn.dataset.renamePage))
+        return
+      }
       const node = e.target.closest('[data-tree-page]')
       if (!node) return
       currentPage = parseInt(node.dataset.treePage)
       applyPageSize(); renderPageTree(); renderGrid(); closeEditPanel()
     })
 
-    let renamingPage = null
-
     $('#pageTree').addEventListener('dblclick', async e => {
       const node = e.target.closest('[data-tree-page]')
       if (!node) return
-      renamingPage = parseInt(node.dataset.treePage)
-      const info = getPageInfo(renamingPage)
-      $('#renamePageInput').value = info.name || `Page ${renamingPage}`
-      $('#renamePageInline').style.display = ''
-      $('#addPageInline').style.display = 'none'
-      $('#renamePageInput').focus()
-      $('#renamePageInput').select()
+      startRenamePage(parseInt(node.dataset.treePage))
     })
 
     $('#renamePageConfirmBtn').addEventListener('click', async () => {
@@ -7357,22 +7392,25 @@
       if (e.key === 'Enter') $('#renamePageConfirmBtn').click()
       if (e.key === 'Escape') $('#renamePageCancelBtn').click()
     })
+    protectPageNameTyping($('#renamePageInput'))
 
     $('#addPageBtn').addEventListener('click', () => {
-      $('#addPageNameInput').value = 'New Page'
+      const input = $('#addPageNameInput')
+      input.value = 'New Page'
       $('#addPageInline').style.display = ''
       $('#renamePageInline').style.display = 'none'
-      $('#addPageNameInput').focus()
-      $('#addPageNameInput').select()
+      focusPageNameInput(input)
     })
 
     $('#addPageConfirmBtn').addEventListener('click', async () => {
-      const name = $('#addPageNameInput').value.trim() || 'New Page'
+      const rawName = $('#addPageNameInput').value.trim()
+      const name = rawName || 'New Page'
       $('#addPageInline').style.display = 'none'
       const res = await window.pos.createPage({ name, cols: gridCols, rows: gridRows })
       allPages.push(res)
       currentPage = res.page
       applyPageSize(); renderPageTree(); renderGrid()
+      if (!rawName || name === 'New Page') startRenamePage(res.page)
       showToast(`"${res.name}" created`, 'success')
     })
 
@@ -7384,6 +7422,7 @@
       if (e.key === 'Enter') $('#addPageConfirmBtn').click()
       if (e.key === 'Escape') $('#addPageCancelBtn').click()
     })
+    protectPageNameTyping($('#addPageNameInput'))
 
     $('#sendToRegistersBtn').addEventListener('click', async () => {
       try {
@@ -7832,9 +7871,7 @@
     }
 
     function kbDisplayLabel (btn) {
-      let label = (['product', 'fixed_price', 'open_price', 'weighed_open'].includes(btn.type) && btn.product_name)
-        ? btn.product_name
-        : labelFromDb(btn.label)
+      let label = labelFromDb(btn.label) || btn.product_name || ''
       if (btn.type === 'price_change' && label.replace(/\s+/g, '').toUpperCase() === 'PRICEMODE') label = 'PRICE\nCHANGE'
       if (kbIsOpenPrice(btn)) label = label.replace(/\n\$[\d.]+.*$/i, '')
       return label
@@ -7863,7 +7900,7 @@
         const r = b.grid_row || 0, c = b.grid_col || 0, cs = b.col_span || 1, rs = b.row_span || 1
         const imgSrc = kbImageSrc(b)
         const imgHtml = imgSrc ? `<img src="${esc(imgSrc)}" alt="" style="--kb-img-scale:${kbImageScale(b) / 100}">` : ''
-        return `<div class="${kbCellClass(b)}" style="grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs};background:${esc(b.bg_color || '#1f2937')};color:${esc(b.color || '#fff')}">${imgHtml}<span>${esc(kbDisplayLabel(b)).replace(/\n/g, '<br>')}</span>${kbButtonBadges(b)}</div>`
+        return `<div class="${kbCellClass(b)}" style="grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs};background:${esc(b.bg_color || KB_DEFAULT_BG)};color:${esc(b.color || KB_DEFAULT_TEXT)}">${imgHtml}<span>${esc(kbDisplayLabel(b)).replace(/\n/g, '<br>')}</span>${kbButtonBadges(b)}</div>`
       }).join('')
       panel.querySelector('#kbPreviewClose').addEventListener('click', () => overlay.remove())
       overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
@@ -7910,7 +7947,7 @@
             const imgSrc = kbImageSrc(btn)
             const imgHtml = imgSrc ? `<img src="${esc(imgSrc)}" alt="" style="--kb-img-scale:${kbImageScale(btn) / 100}">` : ''
             html += `<div class="${kbCellClass(btn, btn.id === selectedBtnId)}" data-id="${esc(btn.id)}" data-row="${r}" data-col="${c}" draggable="true"
-              style="background:${esc(btn.bg_color)};color:${esc(btn.color)};grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs}">
+              style="background:${esc(btn.bg_color || KB_DEFAULT_BG)};color:${esc(btn.color || KB_DEFAULT_TEXT)};grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs}">
               ${imgHtml}
               <span class="kb-main-label">${esc(kbDisplayLabel(btn)).replace(/\n/g, '<br>')}</span>
               ${extra}
@@ -7970,7 +8007,7 @@
           $('#kbPrice').value = kbSelectedProduct.price
           $('#kbProductPrice').value = kbSelectedProduct.price
           $('#kbProductUnit').value = kbSelectedProduct.unit || 'each'
-          $('#kbOpenPrice').checked = !!kbSelectedProduct.open_price
+          $('#kbOpenPrice').checked = false
           $('#kbProductId').value = kbSelectedProduct.id
           const unitTag = kbSelectedProduct.unit === 'kg' ? ' /kg' : kbSelectedProduct.unit === '100g' ? ' /100g' : ''
           showLinkedProduct(`${kbSelectedProduct.name}${unitTag}`, kbSelectedProduct.plu || '')
@@ -8340,6 +8377,42 @@
       return await window.pos.getProductById(ref) || await window.pos.getProductByBarcode(ref)
     }
 
+    function kbProductCode (product) {
+      return String(product?.plu || product?.barcode || '').trim()
+    }
+
+    function kbFillProductFields (product, opts = {}) {
+      if (!product) return
+      const code = kbProductCode(product)
+      const unit = product.unit || 'each'
+      const unitTag = unit === 'kg' ? ' /kg' : unit === '100g' ? ' /100g' : ''
+      $('#kbProductId').value = product.id || ''
+      showLinkedProduct(`${product.name || 'Product'}${unitTag}`, code)
+      const price = Number(product.price ?? product.active_price ?? 0) || 0
+      $('#kbProductPrice').value = price
+      $('#kbPrice').value = price
+      $('#kbProductUnit').value = unit
+      $('#kbOpenPrice').checked = opts.keepOpenPrice === true ? !!product.open_price : false
+      if (opts.fillLabel && !$('#kbLabel').value.trim()) $('#kbLabel').value = product.name || ''
+      updateLivePreview()
+    }
+
+    async function kbResolveTypedPlu (opts = {}) {
+      const code = $('#kbProductPlu').value.trim()
+      if (!code) return null
+      const product = await window.pos.getProductByBarcode(code)
+      if (product) {
+        const previousId = $('#kbProductId').value
+        kbFillProductFields(product, { fillLabel: opts.fillLabel })
+        if (!opts.silent && previousId && previousId !== product.id) {
+          showToast(`Linked to ${product.name}`, 'success')
+        }
+        return product
+      }
+      if (!opts.silent) showToast(`No product found for PLU ${code}`, 'error')
+      return null
+    }
+
     function openNewButton (row, col) {
       selectedBtnId = null
       $('#kbEditId').value = ''
@@ -8350,8 +8423,8 @@
       $('#kbProductUnit').value = 'each'
       $('#kbCatFilter').value = ''
       $('#kbAlphaRange').value = ''
-      $('#kbColor').value = '#ffffff'
-      $('#kbBgColor').value = '#409850'
+      $('#kbColor').value = KB_DEFAULT_TEXT
+      $('#kbBgColor').value = KB_DEFAULT_BG
       $('#kbColSpan').value = 1
       $('#kbRowSpan').value = 1
       $('#kbImageData').value = ''
@@ -8375,7 +8448,7 @@
 
     function openEditPanel (btn) {
       $('#kbEditId').value = btn.id
-      $('#kbLabel').value = btn.product_name || labelFromDb(btn.label)
+      $('#kbLabel').value = labelFromDb(btn.label) || btn.product_name || ''
       // Linked sellable keys are database products; standalone fixed/open keys keep their own type.
       const effectiveProductId = btn.matched_product_id || btn.product_id || ''
       const editType = effectiveProductId && ['product', 'open_price', 'fixed_price', 'weighed_open'].includes(btn.type)
@@ -8387,8 +8460,8 @@
       $('#kbProductUnit').value = btn.product_unit || 'each'
       $('#kbCatFilter').value = btn.category_filter || ''
       $('#kbAlphaRange').value = btn.alpha_range || ''
-      $('#kbColor').value = btn.color || '#ffffff'
-      $('#kbBgColor').value = btn.bg_color || '#1B4332'
+      $('#kbColor').value = btn.color || KB_DEFAULT_TEXT
+      $('#kbBgColor').value = btn.bg_color || KB_DEFAULT_BG
       $('#kbColSpan').value = btn.col_span || 1
       $('#kbRowSpan').value = btn.row_span || 1
       $('#kbImageData').value = btn.image || ''
@@ -8406,16 +8479,7 @@
       if (linkedProductRef) {
         window.pos.getProductById(linkedProductRef).then(async p => p || await window.pos.getProductByBarcode(linkedProductRef)).then(p => {
           if (p) {
-            $('#kbProductId').value = p.id
-            $('#kbLabel').value = p.name || $('#kbLabel').value
-            const unitTag = p.unit === 'kg' ? ' /kg' : p.unit === '100g' ? ' /100g' : ''
-            showLinkedProduct(`${p.name}${unitTag}`, p.plu || p.barcode || btn.product_plu || btn.category_filter || '')
-            const dbPrice = p.price ?? btn.price ?? 0
-            $('#kbProductPrice').value = dbPrice
-            $('#kbPrice').value = dbPrice
-            $('#kbProductUnit').value = p.unit || 'each'
-            $('#kbOpenPrice').checked = !!p.open_price
-            updateLivePreview()
+            kbFillProductFields(p, { keepOpenPrice: Number(btn.product_open_price || 0) === 1 })
           } else {
             $('#kbProductId').value = effectiveProductId
             $('#kbProductPlu').value = btn.product_plu || btn.category_filter || ''
@@ -8424,7 +8488,7 @@
         }).catch(() => {})
       }
       $('#kbDeleteBtn').style.display = 'inline-block'
-      const cleanLabel = (btn.product_name || labelFromDb(btn.label)).split('\n')[0]
+      const cleanLabel = (labelFromDb(btn.label) || btn.product_name || '').split('\n')[0]
       $('#kbEditTitle').textContent = `Edit: ${cleanLabel}`
       $('#kbCellInfo').textContent = `Row ${btn.grid_row}, Col ${btn.grid_col} — ${btn.col_span||1}×${btn.row_span||1} — Page ${btn.page||1}`
       $('#kbEditPanel').classList.add('active')
@@ -8485,6 +8549,24 @@
 
     ;['kbLabel', 'kbBgColor', 'kbColor', 'kbPrice', 'kbProductPrice', 'kbProductPlu'].forEach(id => {
       $(`#${id}`).addEventListener('input', updateLivePreview)
+    })
+    const kbProductPluLookup = debounce(() => { kbResolveTypedPlu({ silent: true, fillLabel: kbShouldFillLabelFromProduct() }).catch(() => {}) }, 300)
+    function kbShouldFillLabelFromProduct () {
+      return !$('#kbEditId').value || !$('#kbLabel').value.trim()
+    }
+    $('#kbProductPlu').addEventListener('input', () => {
+      if ($('#kbType').value !== 'product') return
+      if ($('#kbProductPlu').value.trim().length < 3) return
+      kbProductPluLookup()
+    })
+    $('#kbProductPlu').addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return
+      e.preventDefault()
+      kbResolveTypedPlu({ silent: false, fillLabel: kbShouldFillLabelFromProduct() }).catch(() => showToast('Could not look up that PLU', 'error'))
+    })
+    $('#kbProductPlu').addEventListener('blur', () => {
+      if ($('#kbType').value !== 'product') return
+      kbResolveTypedPlu({ silent: true, fillLabel: kbShouldFillLabelFromProduct() }).catch(() => {})
     })
     $('#kbProductUnit').addEventListener('change', updateLivePreview)
     $('#kbOpenPrice').addEventListener('change', updateLivePreview)
@@ -8553,19 +8635,17 @@
     $('#kbProductResults').addEventListener('click', e => {
       const item = e.target.closest('.kb-prod-pick')
       if (!item) return
-      const id = item.dataset.id, name = item.dataset.name
-      const price = parseFloat(item.dataset.price) || 0
-      const unit = item.dataset.unit
-      $('#kbProductId').value = id
       $('#kbProductResults').style.display = 'none'
-      const unitTag = unit === 'kg' ? ' /kg' : unit === '100g' ? ' /100g' : ''
-      showLinkedProduct(`${name}${unitTag}`, item.dataset.plu || '')
-      $('#kbLabel').value = name
-      $('#kbProductPrice').value = price
-      $('#kbPrice').value = price
-      $('#kbProductUnit').value = unit || 'each'
-      $('#kbOpenPrice').checked = item.dataset.open === '1'
-      updateLivePreview()
+      const fillLabel = !$('#kbEditId').value || !$('#kbLabel').value.trim()
+      kbFillProductFields({
+        id: item.dataset.id,
+        name: item.dataset.name,
+        price: parseFloat(item.dataset.price) || 0,
+        unit: item.dataset.unit || 'each',
+        plu: item.dataset.plu || '',
+        barcode: item.dataset.plu || '',
+        open_price: item.dataset.open === '1'
+      }, { fillLabel })
     })
 
     // Keep kbPrice in sync when product price is edited
@@ -8660,13 +8740,27 @@
       const btnType = $('#kbType').value
       const isDatabaseProduct = btnType === 'product'
       const isOpenPrice = $('#kbOpenPrice').checked
-      const linkedProduct = $('#kbProductId').value || null
-      const productPlu = $('#kbProductPlu').value.trim()
+      let linkedProduct = $('#kbProductId').value || null
+      let productPlu = $('#kbProductPlu').value.trim()
       const productPrice = parseFloat($('#kbProductPrice').value || '0') || 0
       const productUnit = $('#kbProductUnit').value || 'each'
-      const productName = rawLabel.replace(/\s*\n\s*/g, ' ').trim()
+      let linkedProductRow = null
+      if (isDatabaseProduct && productPlu) {
+        linkedProductRow = await window.pos.getProductByBarcode(productPlu)
+        if (linkedProductRow) linkedProduct = linkedProductRow.id
+      }
       if (isDatabaseProduct && !linkedProduct) {
-        showToast('Product buttons must be linked to a database product so price/open-price changes are saved', 'error'); return
+        showToast('Product buttons must be linked to a database product. Search a product or type its PLU.', 'error'); return
+      }
+      if (isDatabaseProduct && !linkedProductRow) {
+        linkedProductRow = await window.pos.getProductById(linkedProduct)
+      }
+      if (isDatabaseProduct && !linkedProductRow) {
+        showToast('Linked product was not found in the database', 'error'); return
+      }
+      if (isDatabaseProduct && !productPlu) {
+        productPlu = kbProductCode(linkedProductRow)
+        $('#kbProductPlu').value = productPlu
       }
       if (isDatabaseProduct && !productPlu) {
         showToast('PLU is required for product keys', 'error'); $('#kbProductPlu').focus(); return
@@ -8686,7 +8780,7 @@
         : (parseFloat($('#kbPrice').value) || 0)
       const btn = {
         id: editId || undefined,
-        label: isDatabaseProduct ? labelToDb(productName) : label,
+        label,
         type: btnType,
         price: keyPrice,
         category_filter: catFilter,
@@ -8707,14 +8801,10 @@
       }
       pushUndo()
       if (isDatabaseProduct) {
-        const p = await window.pos.getProductById(linkedProduct)
-        if (!p) {
-          showToast('Linked product was not found in the database', 'error'); return
-        }
+        const p = linkedProductRow
         const nextOpenPrice = isOpenPrice ? 1 : 0
         const nextPrice = nextOpenPrice ? 0 : productPrice
         const productChanged =
-          (p.name || '') !== productName ||
           String(p.plu || p.barcode || '') !== productPlu ||
           Number(p.open_price || 0) !== nextOpenPrice ||
           Math.abs(Number(p.price || 0) - nextPrice) > 0.001 ||
@@ -8722,7 +8812,7 @@
         if (productChanged) {
           const productResult = await window.pos.upsertProduct({
             ...p,
-            name: productName,
+            name: p.name || rawLabel.replace(/\s*\n\s*/g, ' ').trim(),
             open_price: !!nextOpenPrice,
             price: nextPrice,
             active_price: nextPrice,
@@ -10018,7 +10108,7 @@
           if (!$('#productEditPanel')?.classList.contains('modal-open')) loadProducts()
         } else if (active === 'staff') loadStaff()
         else if (active === 'deals') loadDeals()
-        else if (active === 'keyboard') loadKeyboard()
+        else if (active === 'keyboard') loadKeyboard({ preserveEditor: true })
         else if (active === 'labels') initLabelsTab()
       }, 700)
     })
