@@ -432,12 +432,14 @@ async function initDatabase() {
   const SQL = await initSqlJs()
 
   const dbExists = fs.existsSync(DB_PATH)
+  let seededFromBundled = false
   if (dbExists) {
     const buf = fs.readFileSync(DB_PATH)
     db = new SQL.Database(buf)
   } else if (fs.existsSync(BUNDLED_DB_PATH)) {
     const buf = fs.readFileSync(BUNDLED_DB_PATH)
     db = new SQL.Database(buf)
+    seededFromBundled = true
     appLog('info', 'database', 'Seeded from bundled database')
   } else {
     db = new SQL.Database()
@@ -1396,56 +1398,33 @@ async function initDatabase() {
     }
   } catch (e) { appLog('error', 'migration', 'Register utility keyboard migration failed', e.message) }
 
-  // Merge products from bundled DB if local is missing any
-  if (dbExists && fs.existsSync(BUNDLED_DB_PATH)) {
+  // Existing live databases own their catalog and keyboard contents. Seed files
+  // are only allowed to help a brand-new database get off the ground.
+  if (dbExists || seededFromBundled) {
     try {
-      const initSqlJs2 = require('sql.js')
-      const SQL2 = await initSqlJs2()
-      const bundledBuf = fs.readFileSync(BUNDLED_DB_PATH)
-      const bundledDb = new SQL2.Database(bundledBuf)
-      // Import categories
-      const cats = bundledDb.exec("SELECT id, name, sort_order, colour, active FROM categories")
-      if (cats.length) {
-        for (const row of cats[0].values) {
-          db.run("INSERT OR IGNORE INTO categories (id, name, sort_order, colour, active, updated_at) VALUES (?1,?2,?3,?4,?5,datetime('now'))", row)
-        }
-      }
-      // Import products
-      const prods = bundledDb.exec("SELECT id, barcode, plu, name, category_id, price, cost_price, unit, tax_rate, track_stock, stock_qty, active FROM products")
-      let merged = 0
-      if (prods.length) {
-        for (const row of prods[0].values) {
-          const res = db.exec("SELECT 1 FROM products WHERE id = ?1", [row[0]])
-          if (!res.length || !res[0].values.length) {
-            db.run("INSERT INTO products (id, barcode, plu, name, category_id, price, cost_price, unit, tax_rate, track_stock, stock_qty, active, updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,datetime('now'))", row)
-            merged++
-          }
-        }
-      }
-      bundledDb.close()
-      if (merged > 0) appLog('info', 'database', `Merged ${merged} products from bundled database`)
-    } catch (e) { appLog('warn', 'database', 'Bundled DB merge failed', e.message) }
-  }
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_skip_bundled_import_layers_v1', '1')")
+      const reason = dbExists ? 'live SQLite database is authoritative' : 'bundled seed database already supplied startup data'
+      appLog('info', 'database', `Skipped bundled product/keyboard imports; ${reason}`)
+    } catch (e) { appLog('warn', 'database', 'Failed to record bundled import skip', e.message) }
+  } else {
+    // Populate keyboard category pages (2-5) from bundled JS data on first launch only.
+    try {
+      const kbCatpages = require('./db/keyboard-catpages')
+      const applied = kbCatpages.apply(db)
+      if (applied > 0) appLog('info', 'database', `Applied ${applied} keyboard category-page buttons (v${kbCatpages.VERSION})`)
+    } catch (e) { appLog('error', 'database', 'Keyboard category-page apply failed', e.message) }
 
-  // Populate keyboard category pages (2-5) from bundled JS data
-  try {
-    const kbCatpages = require('./db/keyboard-catpages')
-    const applied = kbCatpages.apply(db)
-    if (applied > 0) appLog('info', 'database', `Applied ${applied} keyboard category-page buttons (v${kbCatpages.VERSION})`)
-  } catch (e) { appLog('error', 'database', 'Keyboard category-page apply failed', e.message) }
+    // Populate keyboard sub-pages from bundled JS data on first launch only.
+    try {
+      const kbSubpages = require('./db/keyboard-subpages')
+      const applied = kbSubpages.apply(db)
+      if (applied > 0) appLog('info', 'database', `Applied ${applied} keyboard sub-page buttons (v${kbSubpages.VERSION})`)
+    } catch (e) { appLog('error', 'database', 'Keyboard sub-page apply failed', e.message) }
 
-  // Populate keyboard sub-pages from bundled JS data (no SQLite-to-SQLite merge needed)
-  try {
-    const kbSubpages = require('./db/keyboard-subpages')
-    const applied = kbSubpages.apply(db)
-    if (applied > 0) appLog('info', 'database', `Applied ${applied} keyboard sub-page buttons (v${kbSubpages.VERSION})`)
-  } catch (e) { appLog('error', 'database', 'Keyboard sub-page apply failed', e.message) }
-
-  // Copy the current bundled register subpage layout into existing runtime DBs.
-  // Pages 1-5 are deliberately excluded: main and top fruit/veg menu pages are touchy.
-  try {
-    const layoutDone = dbGet("SELECT value FROM settings WHERE key = 'register_subpage_layout_v1'")
-    if (!layoutDone && fs.existsSync(BUNDLED_DB_PATH)) {
+    // Copy the current bundled register subpage layout into a brand-new DB.
+    try {
+      const layoutDone = dbGet("SELECT value FROM settings WHERE key = 'register_subpage_layout_v1'")
+      if (!layoutDone && fs.existsSync(BUNDLED_DB_PATH)) {
       const initSqlJs3 = require('sql.js')
       const SQL3 = await initSqlJs3()
       const bundledDb = new SQL3.Database(fs.readFileSync(BUNDLED_DB_PATH))
@@ -1472,8 +1451,9 @@ async function initDatabase() {
       bundledDb.close()
       db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('register_subpage_layout_v1', '1')")
       appLog('info', 'database', 'Applied bundled register subpage layout; pages 1-5 left unchanged')
-    }
-  } catch (e) { appLog('error', 'database', 'Register subpage layout migration failed', e.message) }
+      }
+    } catch (e) { appLog('error', 'database', 'Register subpage layout migration failed', e.message) }
+  }
 
   // â”€â”€ Multi-buy deals (one-time) â”€â”€
   try {
@@ -1500,7 +1480,12 @@ async function initDatabase() {
   // â”€â”€ Price & unit update (May 2026 price list) â”€â”€
   try {
     const pricesDone = dbAll("SELECT value FROM settings WHERE key = 'migration_prices_may2026_v1'")
-    if (!pricesDone.length) {
+    if (dbExists || seededFromBundled) {
+      if (!pricesDone.length) {
+        db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_prices_may2026_v1', '1')")
+        appLog('info', 'migration', 'Skipped embedded May 2026 price import; live SQLite database is authoritative')
+      }
+    } else if (!pricesDone.length) {
       const { v4: genuuid } = require('uuid')
 
       // Price & unit updates for existing products (match by name)
@@ -1659,7 +1644,12 @@ async function initDatabase() {
 
   try {
     const applesDone = dbAll("SELECT value FROM settings WHERE key = 'migration_apple_keyboard_repair_v1'")
-    if (!applesDone.length) {
+    if (dbExists || seededFromBundled) {
+      if (!applesDone.length) {
+        db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_apple_keyboard_repair_v1', '1')")
+        appLog('info', 'migration', 'Skipped embedded apple keyboard repair; live SQLite database is authoritative')
+      }
+    } else if (!applesDone.length) {
       const apples = [
         ['pg7-btn0', 'BRAVO KG', 'Bravo Apple', 7.99, 'kg', '20260', 0, 0],
         ['pg7-btn12', 'FUJI APPLE KG', 'Fuji Apple', 5.99, 'kg', '20261', 0, 2],
@@ -1699,7 +1689,12 @@ async function initDatabase() {
 
   try {
     const spokenDone = dbAll("SELECT value FROM settings WHERE key = 'spoken_shop_prices_20260521_v4'")
-    if (!spokenDone.length) {
+    if (dbExists || seededFromBundled) {
+      if (!spokenDone.length) {
+        db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('spoken_shop_prices_20260521_v4', '1')")
+        appLog('info', 'migration', 'Skipped embedded spoken shop price import; live SQLite database is authoritative')
+      }
+    } else if (!spokenDone.length) {
       const spokenPrices = require('./scripts/apply-spoken-shop-prices')
       const result = spokenPrices.applyToSqlJsDb(db)
       appLog('info', 'migration', `Applied spoken shop prices (${result.products} products, ${result.deals} deals)`)
@@ -1846,7 +1841,12 @@ async function initDatabase() {
   // â”€â”€ Migration: Import all products from products.json â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   try {
     const importDone = dbAll("SELECT value FROM settings WHERE key = 'migration_import_products_v1'")
-    if (!importDone.length || !importDone[0].value) {
+    if (dbExists || seededFromBundled) {
+      if (!importDone.length || !importDone[0].value) {
+        db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_import_products_v1', '1')")
+        appLog('info', 'migration', 'Skipped products.json import; live SQLite database is authoritative')
+      }
+    } else if (!importDone.length || !importDone[0].value) {
       const jsonPath = path.join(__dirname, 'products.json')
       if (fs.existsSync(jsonPath)) {
         const raw = fs.readFileSync(jsonPath, 'utf-8')
@@ -1886,7 +1886,12 @@ async function initDatabase() {
   // â”€â”€ Migration: Import keyboard layout from keyboard-layout.json â”€â”€â”€â”€â”€â”€
   try {
     const kbDone = dbAll("SELECT value FROM settings WHERE key = 'migration_import_keyboard_v2'")
-    if (!kbDone.length || !kbDone[0].value) {
+    if (dbExists || seededFromBundled) {
+      if (!kbDone.length || !kbDone[0].value) {
+        db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_import_keyboard_v2', '1')")
+        appLog('info', 'migration', 'Skipped keyboard-layout.json import; live SQLite database is authoritative')
+      }
+    } else if (!kbDone.length || !kbDone[0].value) {
       const kbPath = path.join(__dirname, 'keyboard-layout.json')
       if (fs.existsSync(kbPath)) {
         const raw = fs.readFileSync(kbPath, 'utf-8')
@@ -2637,6 +2642,87 @@ async function initDatabase() {
     }
   } catch (e) { appLog('error', 'migration', 'Register main keyboard colour repair failed', e.message) }
 
+  // Register keyboard palette v15: fix lingering dark-on-dark product buttons and one stale product link.
+  try {
+    const contrastRepairDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_product_contrast_v1'")
+    if (!contrastRepairDone.length) {
+      const creamTextIds = [
+        'pg16-btn1', 'pg16-btn2', 'pg16-btn4', 'pg16-btn5',
+        'pg24-broccoli-kg', 'pg24-broccolini',
+        'pg27-green-sweet', 'pg27-green-chilli', 'pg27-red-chilli',
+        'pg35-truss-kg', 'pg35-heirloom', 'pg35-roma-egg-kg',
+        'pg36-btn0'
+      ]
+      const darkTextIds = [
+        'pg17-btn3', 'pg17-btn4',
+        'pg33-btn6', 'pg33-btn7',
+        'pg34-btn3'
+      ]
+      for (const id of creamTextIds) {
+        db.run("UPDATE keyboard_buttons SET color = '#f8f4ea', updated_at = datetime('now') WHERE id = ?1", [id])
+      }
+      for (const id of darkTextIds) {
+        db.run("UPDATE keyboard_buttons SET color = '#0b2418', updated_at = datetime('now') WHERE id = ?1", [id])
+      }
+      db.run("UPDATE keyboard_buttons SET product_id = 'p-kb-pg20-btn1', category_filter = '5037', updated_at = datetime('now') WHERE id = 'pg20-btn1' AND label LIKE '%GOLDEN QUEEN%'")
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_product_contrast_v1', '1')")
+      appLog('info', 'migration', 'Repaired register product button contrast')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register product contrast repair failed', e.message) }
+
+  // Deals should never be active unless every linked product has a real PLU.
+  try {
+    const activeDealPluRepairDone = dbAll("SELECT value FROM settings WHERE key = 'migration_deactivate_active_deals_missing_plu_v1'")
+    if (!activeDealPluRepairDone.length) {
+      db.run(`
+        UPDATE deals
+        SET active = 0, updated_at = datetime('now')
+        WHERE active = 1
+          AND (
+            NOT EXISTS (
+              SELECT 1 FROM deal_products dp
+              WHERE dp.deal_id = deals.id
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM deal_products dp
+              LEFT JOIN products p ON p.id = dp.product_id
+              WHERE dp.deal_id = deals.id
+                AND (p.id IS NULL OR p.plu IS NULL OR TRIM(p.plu) = '')
+            )
+          )
+      `)
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_deactivate_active_deals_missing_plu_v1', '1')")
+      appLog('info', 'migration', 'Deactivated active deals with missing PLUs')
+    }
+  } catch (e) { appLog('error', 'migration', 'Active deal PLU repair failed', e.message) }
+
+  // Flowers must stay open-price. This fixes older DBs where the main Flowers
+  // key was linked to a normal product priced at $400.
+  try {
+    const flowersOpenPriceDone = dbAll("SELECT value FROM settings WHERE key = 'migration_flowers_open_price_v2'")
+    if (!flowersOpenPriceDone.length) {
+      const flowerButton = dbGet("SELECT product_id FROM keyboard_buttons WHERE id = 'btn-flowers'")
+      const flowerProductId = flowerButton?.product_id || dbGet("SELECT id FROM products WHERE plu = '9265' OR barcode = '9265' LIMIT 1")?.id
+      if (flowerProductId) {
+        db.run(`
+          UPDATE products
+          SET price = 0, open_price = 1, active = 1, updated_at = datetime('now')
+          WHERE id = ?1
+        `, [flowerProductId])
+        db.run(`
+          UPDATE keyboard_buttons
+          SET type = 'product', price = 0, product_id = ?1, category_filter = COALESCE(category_filter, '9265'),
+              active = 1, updated_at = datetime('now')
+          WHERE id = 'btn-flowers'
+        `, [flowerProductId])
+      }
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_flowers_open_price_v1', '1')")
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_flowers_open_price_v2', '1')")
+      appLog('info', 'migration', 'Pinned Flowers to open-price product behaviour')
+    }
+  } catch (e) { appLog('error', 'migration', 'Flowers open-price repair failed', e.message) }
+
   try {
     const categoryButtonFixDone = dbAll("SELECT value FROM settings WHERE key = 'migration_department_category_buttons_v1'")
     if (!categoryButtonFixDone.length) {
@@ -3027,37 +3113,15 @@ function applyBundledDatabaseContent(SQL) {
   const existingHash = dbGet("SELECT value FROM settings WHERE key = 'startup_bundled_db_content_hash_v1'")?.value
   if (existingHash === hash) return
 
-  let sourceDb = null
+  // The live SQLite database is the source of truth. The bundled database is
+  // only a seed for first launch; it must not overwrite products, prices,
+  // keyboard layout, open-price flags, staff, deals, or settings on startup.
   try {
-    sourceDb = new SQL.Database(fs.readFileSync(BUNDLED_DB_PATH))
-    db.run('BEGIN TRANSACTION')
-    const results = []
-    results.push(syncBundledTable(sourceDb, 'categories', { deactivateMissing: true }))
-    results.push(syncBundledTable(sourceDb, 'products', { deactivateMissing: true, clearProductCodes: true }))
-    results.push(syncBundledTable(sourceDb, 'specials', { deactivateMissing: true }))
-    results.push(syncBundledTable(sourceDb, 'deals', { deactivateMissing: true }))
-    results.push(syncBundledTable(sourceDb, 'deal_products', { clearFirst: true }))
-    results.push(syncBundledTable(sourceDb, 'staff', { deactivateMissing: true }))
-    if (hasUserCustomizedKeyboard()) {
-      results.push({ table: 'keyboard_pages', rows: 0, missing: 0, skipped: 'keyboard_user_customized' })
-      results.push({ table: 'keyboard_buttons', rows: 0, missing: 0, skipped: 'keyboard_user_customized' })
-    } else {
-      results.push(syncBundledTable(sourceDb, 'keyboard_pages', { deleteMissing: true }))
-      results.push(syncBundledTable(sourceDb, 'keyboard_buttons', { deactivateMissing: true }))
-    }
-    results.push(syncBundledTable(sourceDb, 'settings', {
-      filter: row => shouldSyncBundledSetting(row.key)
-    }))
     db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_bundled_db_content_hash_v1', ?1)", [hash])
-    db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_keyboard_theme_source', 'bundled-db')")
-    db.run('COMMIT')
-    appLog('info', 'database', 'Applied bundled DB catalog/keyboard content on startup', results)
+    db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_database_source_of_truth_v1', 'live-sqlite')")
+    appLog('info', 'database', 'Skipped bundled DB content sync; live SQLite database is authoritative')
   } catch (e) {
-    try { db.run('ROLLBACK') } catch (_) {}
-    appLog('error', 'database', 'Failed to apply bundled DB content', e.message)
-    try { applyBundledKeyboardDatabaseTheme(SQL) } catch (_) {}
-  } finally {
-    if (sourceDb) try { sourceDb.close() } catch (_) {}
+    appLog('error', 'database', 'Failed to record bundled DB hash', e.message)
   }
 }
 
@@ -4321,8 +4385,9 @@ if (Test-Path -LiteralPath $LauncherPath) {
       }, 800)
       return {
         updated: !alreadyLatest,
+        upToDate: alreadyLatest,
         staged: true,
-        log: `${alreadyLatest ? 'Already on latest code; database refresh staged.' : 'Git update staged.'}\nRepo: ${repoRoot}\nRemote: ${remote}\nCurrent: ${before.slice(0, 7)}\n\nYieldPOS will close, apply the bundled database to this PC, then relaunch ${mode}.`
+        log: `${alreadyLatest ? 'Already on latest code; restart staged to refresh the running app.' : 'Git update staged.'}\nRepo: ${repoRoot}\nRemote: ${remote}\nCurrent: ${before.slice(0, 7)}\n\nYieldPOS will close, apply the update process, then relaunch ${mode}.`
       }
     } catch (e) {
       const msg = (e.stderr || e.message || String(e)).trim()
@@ -4972,7 +5037,21 @@ if (Test-Path -LiteralPath $LauncherPath) {
   // â”€â”€ Deals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   ipcMain.handle('db:deals:getAll', () => {
-    return dbAll("SELECT * FROM deals ORDER BY active DESC, name")
+    return dbAll(`
+      SELECT d.*,
+        COUNT(dp.product_id) as product_count,
+        SUM(CASE WHEN p.id IS NULL OR p.plu IS NULL OR TRIM(p.plu) = '' THEN 1 ELSE 0 END) as missing_plu_count,
+        CASE
+          WHEN COUNT(dp.product_id) > 0
+            AND SUM(CASE WHEN p.id IS NULL OR p.plu IS NULL OR TRIM(p.plu) = '' THEN 1 ELSE 0 END) = 0
+          THEN 1 ELSE 0
+        END as is_valid
+      FROM deals d
+      LEFT JOIN deal_products dp ON dp.deal_id = d.id
+      LEFT JOIN products p ON p.id = dp.product_id
+      GROUP BY d.id
+      ORDER BY active DESC, name
+    `)
   })
 
   function validateDealProductPlus (productIds) {

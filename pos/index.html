@@ -278,9 +278,67 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 .search-kb-key.secondary{background:linear-gradient(180deg,#475569,#334155);color:#fff;min-width:122px;font-size:18px}
 .search-kb-key.del{background:linear-gradient(180deg,#fee2e2,#fecaca);color:#991b1b;font-size:18px}
 
-.modal{background:#fff;border:none;border-radius:16px;padding:clamp(20px,2.8vw,32px);width:clamp(380px,42vw,560px);min-width:min(92vw,380px);max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.05);animation:modalIn .25s ease-out}
+/* Register theme pass: modal, search, payment, and product key polish */
+.modal-overlay{background:rgba(2,6,4,.62)}
+.modal{background:#fffdf7;border:1px solid rgba(205,167,95,.28);color:#0b2418;box-shadow:0 24px 70px rgba(0,0,0,.32),0 0 0 1px rgba(255,255,255,.5)}
+.modal h2{color:#0b2418}
+.modal p{color:#4a321f}
+.modal-cancel,#cashCancel{background:linear-gradient(180deg,#fffdf7,#efe6d2)!important;color:#4a321f!important;border:1px solid rgba(107,74,50,.18)!important;box-shadow:0 2px 8px rgba(74,50,31,.12),inset 0 1px 0 rgba(255,255,255,.7)}
+.modal-confirm{background:linear-gradient(180deg,#2e6b45,#123c27)!important;color:#f8f4ea!important;border:1px solid rgba(240,216,156,.22)!important;box-shadow:0 6px 16px rgba(18,60,39,.22),inset 0 1px 0 rgba(255,255,255,.16)}
+.numpad button,.cash-numpad button,.quick-cash button{box-shadow:0 3px 9px rgba(74,50,31,.12),inset 0 1px 0 rgba(255,255,255,.75)}
+.numpad button{background:linear-gradient(180deg,#fffdf7,#efe6d2);color:#0b2418;border-color:rgba(107,74,50,.18)}
+
+.section-view{background:radial-gradient(circle at 50% 0%,rgba(240,216,156,.13),transparent 24%),linear-gradient(180deg,#102418 0%,#07150d 100%)}
+.product-btn,.pos-grid-btn.dept-key,.pos-grid-btn.cat-key,.pos-grid-btn.img-contain.has-img{border-radius:clamp(8px,1vw,14px);box-shadow:0 7px 16px rgba(0,0,0,.34),0 2px 5px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.14),inset 0 -1px 0 rgba(0,0,0,.12)}
+.pos-grid-btn.dept-key.has-img,.pos-grid-btn.cat-key.has-img,.pos-grid-btn.img-contain.has-img{box-shadow:0 7px 16px rgba(0,0,0,.34),0 2px 5px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.14),inset 0 -1px 0 rgba(0,0,0,.12)}
+.product-btn{background:linear-gradient(180deg,#fffdf7 0%,#efe6d2 100%);border:1px solid rgba(205,167,95,.3);color:#0b2418}
+.product-btn:active{transform:scale(.95) translateY(2px);box-shadow:0 2px 6px rgba(0,0,0,.28),inset 0 2px 5px rgba(0,0,0,.12)}
+.product-btn img{box-shadow:0 7px 12px rgba(0,0,0,.24),0 2px 4px rgba(0,0,0,.18)}
+.product-btn .p-placeholder{background:linear-gradient(135deg,#123c27,#07150d);color:#f8f4ea;border-color:rgba(205,167,95,.24)}
+.product-btn .p-name{color:#0b2418;font-weight:800}
+.product-btn .p-price{color:#2e6b45}
+.product-btn.group-btn{background:linear-gradient(180deg,#2e6b45 0%,#123c27 100%);border:1px solid rgba(240,216,156,.22);color:#f8f4ea}
+.product-btn.group-btn .p-name{color:#f8f4ea}
+.product-btn.group-btn:active{border-color:rgba(240,216,156,.45);box-shadow:0 2px 7px rgba(0,0,0,.3),inset 0 2px 5px rgba(0,0,0,.2)}
+
+.search-modal{background:radial-gradient(circle at 50% 0%,rgba(240,216,156,.16),transparent 28%),linear-gradient(180deg,rgba(16,36,24,.98),rgba(2,6,4,.98));}
+.search-modal-inner{padding:clamp(12px,1.8vw,22px);gap:10px}
+.search-modal-input{background:#fffdf7;color:#0b2418;border:2px solid rgba(205,167,95,.34);box-shadow:0 3px 12px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.75)}
+.search-modal-input:focus{border-color:#cda75f;box-shadow:0 0 0 3px rgba(205,167,95,.2),0 3px 12px rgba(0,0,0,.28)}
+.search-modal-close{background:linear-gradient(135deg,#6b4a32,#4a321f);color:#f8f4ea;box-shadow:0 4px 12px rgba(0,0,0,.24)}
+.search-filter-row select{background:#fffdf7;color:#0b2418;border:1px solid rgba(205,167,95,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.65)}
+.search-filter-row .result-count{color:#f0d89c}
+.search-modal-item{background:linear-gradient(180deg,#fffdf7,#f8f4ea);border:1px solid rgba(205,167,95,.24);border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.7)}
+.search-modal-item:active{background:#efe6d2;box-shadow:0 1px 4px rgba(0,0,0,.22)}
+.search-modal-item .sr-name{color:#0b2418;font-weight:800}
+.search-modal-item .sr-price{color:#2e6b45}
+.search-modal-item .sr-unit{color:#6b4a32}
+.search-input-preview{background:#fffdf7;border:2px solid rgba(205,167,95,.34);border-radius:12px;min-height:58px;display:flex;align-items:center;padding:0 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:clamp(20px,2.5vw,32px);font-weight:900;color:#0b2418;box-shadow:0 3px 12px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.75);overflow:hidden}
+.search-input-preview.has-value{border-color:#cda75f;box-shadow:0 0 0 3px rgba(205,167,95,.18),0 3px 12px rgba(0,0,0,.28)}
+.search-input-preview span{display:block;min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-input-preview:not(.has-value)::before{content:' ';white-space:pre}
+.search-kb{background:linear-gradient(180deg,#efe6d2,#d9cda9);border:1px solid rgba(107,74,50,.18);box-shadow:0 -2px 18px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.5)}
+.search-kb-key{background:linear-gradient(180deg,#fffdf7,#f0eadc);color:#0b2418;box-shadow:0 3px 8px rgba(74,50,31,.18),inset 0 1px 0 rgba(255,255,255,.85)}
+.search-kb-key:active{background:#e6dcc7}
+.search-kb-key.action{background:linear-gradient(180deg,#2e6b45,#123c27);color:#f8f4ea}
+.search-kb-key.secondary{background:linear-gradient(180deg,#6b4a32,#4a321f);color:#f8f4ea}
+.search-kb-key.del{background:linear-gradient(180deg,#fff1e8,#ffd8c8);color:#7f1d1d}
+
+#cashModal .modal{background:#fffdf7!important;border:1px solid rgba(205,167,95,.28);box-shadow:0 24px 70px rgba(0,0,0,.34),0 0 0 1px rgba(255,255,255,.5)}
+#payHeader{background:linear-gradient(180deg,#2e6b45 0%,#123c27 62%,#07150d 100%)!important;border-bottom:1px solid rgba(240,216,156,.24)}
+#splitRemaining,#changeBreakdown{color:#6b4a32!important}
+#payOptCard{background:linear-gradient(135deg,#2e6b45,#123c27)!important;color:#f8f4ea!important;border:1px solid rgba(240,216,156,.2)!important;box-shadow:0 5px 14px rgba(18,60,39,.22)}
+#payOptEftposManual{background:linear-gradient(135deg,#6b4a32,#4a321f)!important;color:#f8f4ea!important;border:1px solid rgba(240,216,156,.2)!important;box-shadow:0 5px 14px rgba(74,50,31,.22)}
+#splitCardBtn{background:linear-gradient(135deg,#f0d89c,#cda75f)!important;color:#0b2418!important;border:1px solid rgba(107,74,50,.18)!important;box-shadow:0 5px 14px rgba(205,167,95,.22)}
+#cashTendered{background:#fffdf7!important;color:#0b2418!important;border-color:rgba(205,167,95,.38)!important;box-shadow:inset 0 2px 6px rgba(74,50,31,.08),0 2px 8px rgba(0,0,0,.08)}
+#quickCash button[data-amt]:not(#payExact),#cashNumpad button[data-cv]{background:linear-gradient(180deg,#fffdf7,#efe6d2)!important;color:#0b2418!important;border:1px solid rgba(107,74,50,.18)!important}
+#payExact,#cashNumpad button[data-cv="OK"]{background:linear-gradient(180deg,#2e6b45,#123c27)!important;color:#f8f4ea!important;border:1px solid rgba(240,216,156,.22)!important}
+#cashNumpad button[data-cv="C"]{background:linear-gradient(135deg,#7f1d1d,#4a321f)!important;color:#f8f4ea!important;border:1px solid rgba(255,255,255,.08)!important}
+#cashNumpad button[data-cv="back"],#cashNumpad button[data-cv="00"]{background:linear-gradient(180deg,#f8f4ea,#e6dcc7)!important;color:#0b2418!important}
+
+.modal{background:#fffdf7;border:1px solid rgba(205,167,95,.28);border-radius:16px;padding:clamp(20px,2.8vw,32px);width:clamp(380px,42vw,560px);min-width:min(92vw,380px);max-width:94vw;color:#0b2418;box-shadow:0 24px 70px rgba(0,0,0,.32),0 0 0 1px rgba(255,255,255,.5);animation:modalIn .25s ease-out}
 @keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.modal h2{font-weight:700;font-size:20px;color:#1a1a2e;margin-bottom:18px;text-align:center;letter-spacing:-.3px}
+.modal h2{font-weight:700;font-size:20px;color:#0b2418;margin-bottom:18px;text-align:center;letter-spacing:-.3px}
 .modal-total{font-family:'Inter',sans-serif;font-size:2rem;font-weight:800;color:#1a1a2e;text-align:center;margin-bottom:16px;letter-spacing:-1px}
 .tendered-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .tendered-row label{font-size:12px;width:60px;color:#8891a5;font-weight:600}
@@ -301,8 +359,8 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 .modal-overlay .modal input,.modal-overlay .modal select{min-height:52px;touch-action:manipulation}
 
 .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:16px}
-.numpad button{padding:18px;border-radius:12px;border:1px solid #e2e4e8;background:#fafbfc;color:#1a1a2e;font-size:1.55rem;font-weight:800;cursor:pointer;font-family:inherit;min-height:76px;transition:all .1s;touch-action:manipulation}
-.numpad button:active{background:#e2e4e8;transform:scale(.97)}
+.numpad button{padding:18px;border-radius:12px;border:1px solid rgba(107,74,50,.18);background:linear-gradient(180deg,#fffdf7,#efe6d2);color:#0b2418;font-size:1.55rem;font-weight:800;cursor:pointer;font-family:inherit;min-height:76px;transition:all .1s;touch-action:manipulation;box-shadow:0 3px 9px rgba(74,50,31,.12),inset 0 1px 0 rgba(255,255,255,.75)}
+.numpad button:active{background:#e6dcc7;transform:scale(.97)}
 .price-display{font-family:'Inter',sans-serif;font-size:2.4rem;font-weight:800;text-align:center;color:#1a1a2e;margin-bottom:4px;letter-spacing:-1px}
 .price-subtitle{text-align:center;color:#8891a5;margin-bottom:14px;font-size:12px}
 .weight-input{font-family:'Inter',sans-serif;font-size:2rem;font-weight:800;text-align:center;color:#1a1a2e;margin-bottom:4px}
@@ -383,10 +441,10 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 
 /* Cash modal numpad */
 .cash-numpad{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:12px}
-.cash-numpad button{padding:14px;border-radius:10px;border:1px solid #e2e4e8;background:#fafbfc;color:#1a1a2e;font-size:1.25rem;font-weight:700;cursor:pointer;font-family:inherit;min-height:60px;transition:all .1s;touch-action:manipulation}
-.cash-numpad button:active{background:#e2e4e8;transform:scale(.97)}
-.cash-numpad button.cash-np-clear{background:#fef2f2;color:#ef4444;border-color:#fecaca}
-.cash-numpad button.cash-np-enter{background:#3a9c5e;color:#fff;border-color:#3a9c5e;box-shadow:0 2px 6px rgba(58,156,94,.2)}
+.cash-numpad button{padding:14px;border-radius:10px;border:1px solid rgba(107,74,50,.18);background:linear-gradient(180deg,#fffdf7,#efe6d2);color:#0b2418;font-size:1.25rem;font-weight:700;cursor:pointer;font-family:inherit;min-height:60px;transition:all .1s;touch-action:manipulation;box-shadow:0 3px 9px rgba(74,50,31,.12),inset 0 1px 0 rgba(255,255,255,.75)}
+.cash-numpad button:active{background:#e6dcc7;transform:scale(.97)}
+.cash-numpad button.cash-np-clear{background:#fff1e8;color:#7f1d1d;border-color:#ffd8c8}
+.cash-numpad button.cash-np-enter{background:#2e6b45;color:#f8f4ea;border-color:#123c27;box-shadow:0 2px 6px rgba(18,60,39,.2)}
 .total-row.discount-row span{color:#ef4444;font-weight:600}
 .recall-list{overflow-y:auto}
 .recall-item{padding:12px 16px;border-bottom:1px solid #f4f5f7;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .1s;gap:12px}
@@ -1116,8 +1174,9 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
     <span id="isResultCount" class="result-count"></span>
   </div>
   <div class="search-modal-results" id="itemSearchResults">
-    <div style="grid-column:1/-1;text-align:center;padding:40px;color:#888;font-size:15px;">Search by product name, barcode or code number</div>
+    <div style="grid-column:1/-1;text-align:center;padding:40px;color:#d9cda9;font-size:15px;">Search by product name, barcode or code number</div>
   </div>
+  <div class="search-input-preview" id="itemSearchPreview"><span id="itemSearchPreviewText"></span></div>
   <div class="search-kb" id="itemSearchKb">
     <div class="search-kb-row">
       <button class="search-kb-key" data-k="1">1</button><button class="search-kb-key" data-k="2">2</button><button class="search-kb-key" data-k="3">3</button><button class="search-kb-key" data-k="4">4</button><button class="search-kb-key" data-k="5">5</button><button class="search-kb-key" data-k="6">6</button><button class="search-kb-key" data-k="7">7</button><button class="search-kb-key" data-k="8">8</button><button class="search-kb-key" data-k="9">9</button><button class="search-kb-key" data-k="0">0</button><button class="search-kb-key del xwide" data-k="BKSP">BKSP</button>
@@ -1148,7 +1207,7 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 <script type="module">
 import { Cart } from './js/cart.js'
 import { esc, $, $$, money, showToast, debounce } from './js/ui.js'
-import { initSync, pullAll, pushPending, pushKeyboard, startAutoSync, subscribeToChanges } from './js/sync.js'
+import { initSync, pushPending, startAutoSync } from './js/sync.js'
 
 const cart = new Cart()
 let currentStaff = null, pendingWeightProduct = null
@@ -1308,13 +1367,21 @@ function clearCompletedSaleViewForNewInput () {
   if (!completedSaleViewActive && !viewingSaleId) return false
   completedSaleViewActive = false
   viewingSaleId = null
+  numBuf = ''
+  qtyMultiplier = 1
+  qtyExplicit = false
   cart.clear()
   clearCartLocal()
   hideViewSaleBanner()
   pendingPayments = []
   lastEftposReceipt = []
   lastEftposSurcharge = 0
+  $('#saleComplete')?.classList.remove('show')
   window.pos.customerUpdate({ items: [], total: 0, tax: 0, count: 0, storeName: null })
+  renderCart()
+  updateTotals()
+  updateQtyBadge()
+  updateNumDisplay()
   return true
 }
 
@@ -2131,9 +2198,11 @@ $('#posGrid').addEventListener('click', async e => {
   // Numpad actions
   if (action && NUMPAD_TYPES.has(action) && !type) {
     if (action === 'clear') {
+      const clearedCompleted = clearCompletedSaleViewForNewInput()
       numBuf = ''; qtyMultiplier = 1; qtyExplicit = false
       if (returnMode) { returnMode = false; $('#returnBanner').classList.remove('active') }
       updateNumDisplay(); updateQtyBadge()
+      if (clearedCompleted) { refocus(); return }
     } else if (action === 'qtyx') {
       clearCompletedSaleViewForNewInput()
       const qty = parseInt(numBuf)
@@ -4991,7 +5060,8 @@ function showItemSearchModal () {
   $('#isFilterUnit').value = ''
   $('#isFilterPrice').value = ''
   $('#isResultCount').textContent = ''
-  $('#itemSearchResults').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#888;font-size:15px;">Search by product name, barcode or code number</div>'
+  $('#itemSearchResults').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#d9cda9;font-size:15px;">Search by product name, barcode or code number</div>'
+  updateItemSearchPreview()
   $('#itemSearchModal').classList.add('show')
   // Populate category filter
   const catSel = $('#isFilterCat')
@@ -5001,10 +5071,28 @@ function showItemSearchModal () {
 
 function closeItemSearch () {
   $('#itemSearchModal').classList.remove('show')
+  $('#itemSearchInput').value = ''
+  updateItemSearchPreview()
+  updateRegisterInputPreview()
   refocus()
 }
 
 $('#itemSearchClose').addEventListener('click', closeItemSearch)
+
+function updateItemSearchPreview () {
+  const input = $('#itemSearchInput')
+  const preview = $('#itemSearchPreview')
+  const textEl = $('#itemSearchPreviewText')
+  const value = input ? String(input.value || '') : ''
+  if (textEl) textEl.textContent = value
+  if (preview) preview.classList.toggle('has-value', !!value)
+  updateRegisterInputPreview(value)
+}
+
+function queueItemSearch () {
+  updateItemSearchPreview()
+  runItemSearch()
+}
 
 // QWERTY keyboard in search modal
 $('#itemSearchKb').addEventListener('click', async (e) => {
@@ -5014,16 +5102,17 @@ $('#itemSearchKb').addEventListener('click', async (e) => {
   const k = key.dataset.k
   const input = $('#itemSearchInput')
   if (k === 'ENTER') {
+    updateItemSearchPreview()
     await runItemSearchNow()
     const firstResult = $('#itemSearchResults .search-modal-item')
     if (firstResult) firstResult.click()
     return
   }
-  applyRegisterQwertyKey(input, k, runItemSearch)
+  applyRegisterQwertyKey(input, k, queueItemSearch)
 })
 
 // Physical keyboard typing
-$('#itemSearchInput').addEventListener('input', () => runItemSearch())
+$('#itemSearchInput').addEventListener('input', queueItemSearch)
 
 // Filter changes trigger search
 $('#isFilterCat').addEventListener('change', () => runItemSearch())
@@ -5036,6 +5125,7 @@ $('#itemSearchModal').addEventListener('keydown', (e) => {
 })
 
 async function runItemSearchNow () {
+  updateItemSearchPreview()
   const query = $('#itemSearchInput').value.trim()
   const catFilter = $('#isFilterCat').value
   const unitFilter = $('#isFilterUnit').value
@@ -5043,7 +5133,7 @@ async function runItemSearchNow () {
   const results = $('#itemSearchResults')
 
   if (!query && !catFilter && !unitFilter && !priceFilter) {
-    results.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#888;font-size:15px;">Search by product name, barcode or code number</div>'
+    results.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#d9cda9;font-size:15px;">Search by product name, barcode or code number</div>'
     $('#isResultCount').textContent = ''
     return
   }
@@ -5064,7 +5154,7 @@ async function runItemSearchNow () {
   $('#isResultCount').textContent = `${products.length} result${products.length !== 1 ? 's' : ''}`
 
   if (!products.length) {
-    results.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#888;font-size:15px;">No products found</div>`
+    results.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#d9cda9;font-size:15px;">No products found</div>`
     return
   }
 
@@ -5076,7 +5166,7 @@ async function runItemSearchNow () {
     </div>
   `).join('')
 }
-const runItemSearch = debounce(runItemSearchNow, 150)
+const runItemSearch = debounce(runItemSearchNow, 40)
 
 // Click a search result to add to cart
 $('#itemSearchResults').addEventListener('click', async (e) => {
@@ -5157,16 +5247,7 @@ async function init () {
           if (ok) {
             startAutoSync()
             updateSync()
-            try {
-              const { categories: catCount, products: prodCount } = await pullAll()
-              if (catCount || prodCount) {
-                allCategories = await window.pos.getCategories()
-                await renderPosKeyboard()
-                console.log(`Synced ${catCount} categories, ${prodCount} products from Supabase`)
-              }
-            } catch (e) { console.warn('Initial Supabase pull failed:', e.message) }
-            try { const kbCount = await pushKeyboard(); if (kbCount) console.log(`Pushed ${kbCount} keyboard buttons to Supabase`) } catch (_) {}
-            subscribeToChanges(() => { window.pos.getCategories().then(c => { allCategories = c }) })
+            console.log('Supabase push sync ready; live SQLite DB remains the catalog source of truth')
           }
         }
       }

@@ -397,7 +397,9 @@ export async function pushKeyboardPages() {
 export async function pullAll() {
   if (!isOnline()) return { categories: 0, products: 0, keyboard: 0, keyboard_pages: 0, settings: 0, staff: 0, deals: 0, deal_products: 0, specials: 0, cash_drawer: 0 }
 
-  // Push local deletes/changes first so they take priority over incoming data
+  // Push local deletes/changes first so they take priority over incoming data.
+  // Pulling is explicit/admin-driven; register auto-sync is push-only so the
+  // live SQLite DB remains the source of truth for catalog and keyboard data.
   await pushPending()
 
   const since = await getLastPull()
@@ -451,67 +453,13 @@ export async function pullFull() {
 let realtimeChannel = null
 
 export function subscribeToChanges(onProductChange) {
-  if (!isOnline()) return
-
+  // Realtime catalog pulls used to overwrite local product/keyboard edits.
+  // Keep the local SQLite database authoritative; explicit Pull Now still uses
+  // pullAll() when an admin intentionally wants remote data.
   if (realtimeChannel) {
     supabase.removeChannel(realtimeChannel)
     realtimeChannel = null
   }
-
-  realtimeChannel = supabase
-    .channel('pos-updates')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
-      if (payload.eventType === 'DELETE' && payload.old?.id) {
-        window.pos.deleteProduct(payload.old.id)
-      } else if (payload.new) {
-        window.pos.upsertProduct(payload.new)
-      }
-      if (onProductChange) onProductChange(payload.new || payload.old)
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, (payload) => {
-      if (payload.new) {
-        window.pos.upsertCategory(payload.new)
-      }
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'specials' }, (payload) => {
-      if (payload.eventType === 'DELETE' && payload.old?.id) {
-        window.pos.deleteSpecial(payload.old.id)
-      } else if (payload.new) {
-        window.pos.bulkUpsertSpecials([payload.new])
-      }
-      if (onProductChange) onProductChange()
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'keyboard_buttons' }, (payload) => {
-      if (payload.eventType === 'DELETE' && payload.old?.id) {
-        window.pos.deleteButton(payload.old.id)
-      } else if (payload.new) {
-        window.pos.upsertButton(payload.new)
-      }
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'keyboard_pages' }, (payload) => {
-      if (payload.new && window.pos.bulkUpsertKeyboardPages) {
-        window.pos.bulkUpsertKeyboardPages([payload.new])
-      }
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'staff' }, (payload) => {
-      if (payload.new) {
-        window.pos.bulkUpsertStaff([payload.new])
-      }
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'deals' }, (payload) => {
-      if (payload.eventType === 'DELETE' && payload.old?.id) {
-        window.pos.deleteDeal(payload.old.id)
-      } else if (payload.new) {
-        const deal = { ...payload.new, config: typeof payload.new.config === 'object' ? JSON.stringify(payload.new.config) : payload.new.config }
-        window.pos.bulkUpsertDeals([deal])
-      }
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, (payload) => {
-      if (payload.new) {
-        window.pos.setSetting(payload.new.key, payload.new.value)
-      }
-    })
-    .subscribe()
 }
 
 // ─── Auto sync loop ─────────────────────────────────────────────────────────
@@ -522,10 +470,9 @@ export function startAutoSync(intervalMs = 30000) {
   if (syncInterval) clearInterval(syncInterval)
   syncInterval = setInterval(async () => {
     try {
-      // Push pending transactions/changes to Supabase
+      // Push pending transactions/changes to Supabase. Do not pull catalog
+      // data automatically: the live SQLite database is authoritative.
       await pushPending()
-      // Delta pull any product/category updates
-      await pullAll()
     } catch (e) {
       console.error('Auto sync error:', e.message)
     }

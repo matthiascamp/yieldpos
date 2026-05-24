@@ -3460,7 +3460,7 @@
 
   <script type="module">
     import { esc, $, $$, money, showToast, debounce } from './js/ui.js'
-    import { initSync, pullAll, pullFull } from './js/sync.js'
+    import { initSync, pullAll } from './js/sync.js'
 
     let appModeInfo = { mode: 'admin', isRegisterApp: false }
 
@@ -5122,10 +5122,9 @@
       try {
         const ok = await initSync(url, key)
         if (ok) {
-          showToast('Connected! Syncing products...', 'info')
-          const { categories: catCount, products: prodCount } = await pullFull()
-          showToast(`Synced ${catCount} categories, ${prodCount} products`, 'success')
+          showToast('Connected. Local database remains the source of truth.', 'success')
           $('#pullNowBtn').style.display = 'inline-block'
+          $('#supaStatus').textContent = 'Connected'
           loadProducts()
         } else {
           showToast('Credentials saved but connection failed', 'error')
