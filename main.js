@@ -4237,196 +4237,22 @@ function setupIPC() {
     }
   })
 
-  // App Update (GitHub ZIP + PowerShell)
+  // App Update
 
   ipcMain.handle('app:update', async () => {
-    const https = require('https')
-    const os = require('os')
-    const appDir = __dirname
-    const portableExeFile = process.env.PORTABLE_EXECUTABLE_FILE || ''
-    const cwdPortableDir = fs.existsSync(path.join(process.cwd(), 'YieldPOS-Client-1.0.0.exe')) ? process.cwd() : ''
-    const portableExeDir = process.env.PORTABLE_EXECUTABLE_DIR || (portableExeFile ? path.dirname(portableExeFile) : '') || cwdPortableDir
-    const updateRoot = app.isPackaged ? (portableExeDir || path.dirname(process.execPath)) : appDir
-    const updateMode = isRegisterApp ? 'register' : 'admin'
-    const updateLauncherPath = path.join(updateRoot, isRegisterApp ? 'YieldPOS Register.exe' : 'YieldPOS Admin.exe')
-    const updateClientExe = path.join(updateRoot, 'YieldPOS-Client-1.0.0.exe')
-    const looksLikeAppRoot = dir => !!dir && fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'main.js'))
-    const resolveZipSourceRoot = tmpDir => {
-      const skip = new Set(['node_modules', '.git', 'dist', 'dist2', 'backups'])
-      const queue = [{ dir: tmpDir, depth: 0 }]
-      while (queue.length) {
-        const { dir, depth } = queue.shift()
-        if (looksLikeAppRoot(dir)) return dir
-        if (depth >= 3) continue
-        let entries = []
-        try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch (_) {}
-        for (const entry of entries) {
-          if (!entry.isDirectory() || skip.has(entry.name)) continue
-          queue.push({ dir: path.join(dir, entry.name), depth: depth + 1 })
-        }
-      }
-      return tmpDir
-    }
-    const { spawn } = require('child_process')
-    const psQuote = value => `'${String(value).replace(/'/g, "''")}'`
-    const run = (cmd, args, opts = {}) => new Promise((resolve, reject) => {
-      const child = spawn(cmd, args, { windowsHide: true, ...opts })
-      let stdout = ''
-      let stderr = ''
-      child.stdout?.on('data', d => { stdout += d.toString() })
-      child.stderr?.on('data', d => { stderr += d.toString() })
-      child.on('error', reject)
-      child.on('close', code => {
-        if (code === 0) resolve({ stdout, stderr })
-        else reject(new Error(stderr || stdout || `${cmd} exited with code ${code}`))
-      })
-    })
-    const cmdQuote = value => `"${String(value).replace(/"/g, '""')}"`
-    const launchVisibleUpdater = (scriptPath, args) => {
-      const psArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-NoExit', '-File', scriptPath, ...args]
-      let child
-      if (process.platform === 'win32') {
-        const commandLine = `start "YieldPOS Updater" powershell.exe ${psArgs.map(cmdQuote).join(' ')}`
-        child = spawn('cmd.exe', ['/d', '/s', '/c', commandLine], {
-          detached: true,
-          stdio: 'ignore',
-          windowsHide: false
-        })
-      } else {
-        child = spawn('powershell.exe', psArgs, {
-          detached: true,
-          stdio: 'ignore',
-          windowsHide: false
-        })
-      }
-      child.unref()
-      return child
-    }
-
-    // Dependency-free updater: use GitHub's source ZIP and apply it after
-    // YieldPOS exits so hardware handlers are not holding files.
+    const updateUrl = 'https://github.com/matthiascamp/yieldpos/archive/refs/heads/main.zip'
     try {
-      const zipUrl = 'https://github.com/matthiascamp/yieldpos/archive/refs/heads/main.zip'
-      const tmpZip = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}.zip`)
-      const tmpDir = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}`)
-
-      await new Promise((resolve, reject) => {
-        const follow = (url) => {
-          https.get(url, { headers: { 'User-Agent': SOFTWARE_NAME } }, res => {
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) return follow(res.headers.location)
-            if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`))
-            const ws = fs.createWriteStream(tmpZip)
-            res.pipe(ws)
-            ws.on('finish', () => ws.close(resolve))
-            ws.on('error', reject)
-          }).on('error', reject)
-        }
-        follow(zipUrl)
-      })
-
-      if (os.platform() !== 'win32') {
-        return { error: 'The dependency-free updater currently supports Windows installs only.' }
+      await shell.openExternal(updateUrl)
+      appLog('info', 'update', `Opened manual update download: ${updateUrl}`)
+      return {
+        manual: true,
+        opened: true,
+        url: updateUrl,
+        log: 'Opened the latest YieldPOS download from GitHub. Close YieldPOS before replacing the app files.'
       }
-      await run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
-        `Expand-Archive -LiteralPath ${psQuote(tmpZip)} -DestinationPath ${psQuote(tmpDir)} -Force`])
-
-      const extracted = resolveZipSourceRoot(tmpDir)
-      if (!looksLikeAppRoot(extracted)) return { error: 'Download succeeded but extraction failed - folder not found' }
-      try { fs.unlinkSync(tmpZip) } catch (_) {}
-
-      saveDBSync()
-      createBackup('pre-update')
-
-      const updaterScript = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}.ps1`)
-      const logPath = path.join(updateRoot, 'yieldpos-update-last.log')
-      const script = `
-param(
-  [string]$Source,
-  [string]$Destination,
-  [int]$ParentPid,
-  [string]$Mode,
-  [string]$LauncherPath,
-  [string]$ClientExe,
-  [string]$TempRoot,
-  [string]$LogPath
-)
-$ErrorActionPreference = 'Stop'
-function Log([string]$Message) {
-  $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-  Add-Content -LiteralPath $LogPath -Value "[$stamp] $Message"
-}
-Set-Content -LiteralPath $LogPath -Value "YieldPOS ZIP update started $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-Write-Host 'YieldPOS updater running...'
-Write-Host "Log: $LogPath"
-try { Wait-Process -Id $ParentPid -Timeout 60 } catch { Start-Sleep -Seconds 4 }
-Get-Process | Where-Object {
-  $_.Id -ne $PID -and (
-    $_.ProcessName -like '*YieldPOS*' -or
-    $_.ProcessName -like '*scanner-bridge*' -or
-    $_.ProcessName -like '*opos*'
-  )
-} | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-$excludeDirs = @('node_modules', '.git', 'dist', 'dist2', 'backups')
-$excludeFiles = @('package-lock.json')
-$preserveRelative = @()
-function Copy-BoundTree([string]$src, [string]$dst) {
-  if (!(Test-Path -LiteralPath $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
-  Get-ChildItem -LiteralPath $src -Force | ForEach-Object {
-    if ($_.PSIsContainer -and $excludeDirs -contains $_.Name) { return }
-    if (!$_.PSIsContainer -and $excludeFiles -contains $_.Name) { return }
-    $relative = $_.FullName.Substring($Source.Length).TrimStart('\\', '/')
-    if ($preserveRelative -contains $relative) { return }
-    $target = Join-Path $dst $_.Name
-    if ($_.PSIsContainer) {
-      Copy-BoundTree $_.FullName $target
-    } else {
-      Copy-Item -LiteralPath $_.FullName -Destination $target -Force
-    }
-  }
-}
-try {
-  Log "Copying update from $Source to $Destination"
-  Copy-BoundTree $Source $Destination
-  Log 'Copy completed'
-  Log 'Runtime database reset skipped; app startup sync will apply bundled content without overwriting customized keyboard styling'
-} catch {
-  Log "Copy failed: $($_.Exception.Message)"
-  Write-Host "Update failed: $($_.Exception.Message)"
-  throw
-}
-try { Remove-Item -LiteralPath $TempRoot -Recurse -Force } catch {}
-if (Test-Path -LiteralPath $LauncherPath) {
-  Log "Starting launcher $LauncherPath"
-  Start-Process -FilePath $LauncherPath -WorkingDirectory $Destination
-} elseif (Test-Path -LiteralPath $ClientExe) {
-  $arg = if ($Mode -eq 'admin') { 'admin' } else { 'register' }
-  Log "Starting client $ClientExe $arg"
-  Start-Process -FilePath $ClientExe -ArgumentList $arg -WorkingDirectory $Destination
-} else {
-  Log 'Could not find launcher or client exe after update'
-}
-Log 'Updater script finished. You can close this window.'
-Write-Host ''
-Write-Host 'YieldPOS updater finished. You can close this window.'
-`
-      fs.writeFileSync(updaterScript, script, 'utf-8')
-      launchVisibleUpdater(updaterScript, [
-        extracted, updateRoot, String(process.pid), updateMode, updateLauncherPath, updateClientExe, tmpDir, logPath
-      ])
-
-      appLog('info', 'update', `Staged GitHub ZIP update into ${updateRoot}; app will quit before files are replaced`)
-      setTimeout(() => {
-        try { lanSync.stopAll() } catch (_) {}
-        runHardwareCleanup('zip-update')
-        app.quit()
-        setTimeout(() => app.exit(0), 10000)
-      }, 1500)
-      return { updated: true, staged: true, log: `Downloaded update from GitHub ZIP.\nDestination: ${updateRoot}\nYieldPOS will close, open an updater terminal, apply the update after hardware handlers stop, and relaunch.` }
     } catch (e) {
-      return { error: `Download update failed: ${e.message}`, log: e.message }
+      return { error: `Could not open update download: ${e.message}`, url: updateUrl, log: e.message }
     }
-
   })
 
   // â”€â”€ Backups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
