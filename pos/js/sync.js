@@ -242,7 +242,7 @@ export async function pullKeyboard(since) {
     const deletedRows = await window.pos.getDeletedRecords('keyboard_buttons')
     const deletedIds = new Set(deletedRows.map(r => r.record_id))
     const filtered = data.filter(d => !deletedIds.has(d.id))
-    if (filtered.length) await window.pos.bulkUpsertKeyboard(filtered, { replace: true })
+    if (filtered.length) await window.pos.bulkUpsertKeyboard(filtered)
   }
   return data ? data.length : 0
 }
@@ -257,7 +257,7 @@ export async function pullKeyboardPages() {
   if (error) { console.error('Pull keyboard_pages failed:', error.message); return false }
 
   if (data && data.length && window.pos.bulkUpsertKeyboardPages) {
-    await window.pos.bulkUpsertKeyboardPages(data, { replace: true })
+    await window.pos.bulkUpsertKeyboardPages(data)
   }
   return data ? data.length : 0
 }

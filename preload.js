@@ -92,13 +92,13 @@ contextBridge.exposeInMainWorld('pos', {
   deleteButton:       (id)    => ipcRenderer.invoke('db:keyboard:delete', id),
   deletePage:         (page)  => ipcRenderer.invoke('db:keyboard:deletePage', page),
 
-  bulkUpsertKeyboard: (btns, opts) => ipcRenderer.invoke('db:keyboard:bulkUpsert', btns, opts),
+  bulkUpsertKeyboard: (btns) => ipcRenderer.invoke('db:keyboard:bulkUpsert', btns),
 
   // Keyboard Pages
   createPage:         (opts)      => ipcRenderer.invoke('db:keyboard:createPage', opts),
   renamePage:         (page, name) => ipcRenderer.invoke('db:keyboard:renamePage', page, name),
   updatePageSize:     (page, cols, rows) => ipcRenderer.invoke('db:keyboard:updatePageSize', page, cols, rows),
-  bulkUpsertKeyboardPages: (pages, opts) => ipcRenderer.invoke('db:keyboard:bulkUpsertPages', pages, opts),
+  bulkUpsertKeyboardPages: (pages) => ipcRenderer.invoke('db:keyboard:bulkUpsertPages', pages),
 
   // Keyboard Extended
   copyPage:           (src, dest) => ipcRenderer.invoke('db:keyboard:copyPage', src, dest),
@@ -174,8 +174,6 @@ contextBridge.exposeInMainWorld('pos', {
   setMode:            (mode, role)  => ipcRenderer.invoke('window:setMode', mode, role),
   printHTML:           (html, title) => ipcRenderer.invoke('window:printHTML', html, title),
 
-  // App Update
-  updateApp:          ()      => ipcRenderer.invoke('app:update'),
   getVersion:         ()      => ipcRenderer.invoke('app:version'),
 
   // LAN Sync

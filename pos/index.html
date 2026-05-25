@@ -438,40 +438,7 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 .mode-banner.return-mode{background:#ef4444;color:#fff}
 .mode-banner.supervisor-mode{background:#fbbf24;color:#1a1a2e}
 .mode-banner.price-change-mode{background:#0f766e;color:#fff}
-.mode-banner.keyboard-edit-mode{background:#3b2f13;color:#f8f4ea;border-top:1px solid rgba(240,216,156,.24);border-bottom:1px solid rgba(240,216,156,.24)}
 .func-key.price-change-active{outline:4px solid rgba(20,184,166,.55);box-shadow:0 0 0 2px rgba(255,255,255,.8) inset}
-.status-tool-btn{background:none;border:1px solid rgba(255,255,255,.3);color:#f0d89c;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;min-height:26px;white-space:nowrap}
-.status-tool-btn.active{background:rgba(240,216,156,.18);border-color:rgba(240,216,156,.65);color:#fffdf7}
-.keyboard-panel.keyboard-editing{background:radial-gradient(circle at 50% 0%,rgba(240,216,156,.16),transparent 24%),linear-gradient(180deg,#182015 0%,#08150f 58%,#020604 100%)}
-.keyboard-panel.keyboard-editing .keyboard-home{padding-bottom:0}
-.keyboard-panel.keyboard-editing .pos-grid-btn:not(.empty-cell):not(.num-display-cell){outline:2px solid rgba(240,216,156,.42);outline-offset:-3px}
-.keyboard-panel.keyboard-editing .pos-grid-btn.kb-edit-selected{outline:5px solid #f0d89c!important;outline-offset:-5px;box-shadow:0 0 0 3px rgba(7,21,13,.9),0 0 24px rgba(240,216,156,.55),inset 0 1px 0 rgba(255,255,255,.18)!important;filter:brightness(1.08)}
-.keyboard-panel.keyboard-editing .empty-cell{background:rgba(240,216,156,.06);border:1px dashed rgba(240,216,156,.22);border-radius:10px}
-.keyboard-panel.keyboard-editing .empty-cell.kb-edit-empty-selected{background:rgba(79,189,119,.18);border-color:rgba(191,230,194,.7)}
-.register-kb-editor{display:none;grid-template-columns:minmax(190px,1.35fr) repeat(8,minmax(58px,1fr));gap:6px;padding:8px;background:linear-gradient(180deg,#102418,#07150d);border-top:1px solid rgba(240,216,156,.24);box-shadow:0 -6px 24px rgba(0,0,0,.28);flex-shrink:0}
-.keyboard-panel.keyboard-editing .register-kb-editor{display:grid}
-.register-kb-editor-info{background:rgba(255,253,247,.08);border:1px solid rgba(240,216,156,.22);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;justify-content:center;min-width:0}
-.register-kb-editor-title{color:#fffdf7;font-weight:900;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.register-kb-editor-meta{color:rgba(248,244,234,.64);font-size:10px;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.register-kb-editor button{min-height:50px;border-radius:10px;border:1px solid rgba(240,216,156,.2);background:#fffdf7;color:#0b2418;font-family:inherit;font-weight:900;font-size:12px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.7);touch-action:manipulation}
-.register-kb-editor button:active{transform:scale(.96);filter:brightness(.9)}
-.register-kb-editor button:disabled{opacity:.38;cursor:not-allowed;transform:none;filter:none}
-.register-kb-editor button.primary{background:linear-gradient(180deg,#2e6b45,#123c27);color:#f8f4ea}
-.register-kb-editor button.warn{background:linear-gradient(180deg,#6b4a32,#4a321f);color:#f8f4ea}
-.register-kb-editor button.danger{background:linear-gradient(180deg,#b91c1c,#7f1d1d);color:#fff}
-.register-kb-edit-modal{width:min(740px,94vw);max-height:92vh;overflow:auto;text-align:left;padding:22px}
-.register-kb-edit-modal h2{font-size:22px;margin-bottom:14px;color:#1a1a2e}
-.register-kb-edit-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.register-kb-edit-form label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:800;color:#4a5068;text-transform:uppercase;letter-spacing:.3px}
-.register-kb-edit-form input,.register-kb-edit-form select,.register-kb-edit-form textarea{width:100%;min-height:52px;border:1px solid #d5d8df;border-radius:10px;padding:10px 12px;font-family:inherit;font-size:17px;font-weight:800;color:#1a1a2e;background:#fff}
-.register-kb-edit-form textarea{min-height:92px;resize:vertical;text-transform:none}
-.register-kb-edit-form .full{grid-column:1/-1}
-.register-kb-edit-form input[type="color"]{padding:4px}
-.register-kb-edit-help{font-size:12px;color:#6b7280;line-height:1.35;margin-top:4px;text-transform:none;letter-spacing:0;font-weight:600}
-@media (max-width:1000px){
-  .register-kb-editor{grid-template-columns:1fr repeat(4,minmax(60px,1fr))}
-  .register-kb-editor-info{grid-column:1/-1}
-}
 .meta-deal{color:#3a9c5e;font-weight:700;font-size:9px;background:rgba(58,156,94,.08);padding:1px 4px;border-radius:3px}
 
 /* QTY multiplier floating badge */
@@ -597,8 +564,6 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
       <span><span class="health-dot" id="dotDrawer"></span>Drawer</span>
     </div>
     <button id="receiptToggle" style="background:none;border:1px solid rgba(255,255,255,.3);color:#4fbd77;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;min-height:26px;white-space:nowrap" title="Toggle auto-receipt printing">RECEIPT: ON</button>
-    <button id="registerKbEditBtn" class="status-tool-btn" title="Edit the register keyboard layout">EDIT KEYS</button>
-    <button id="registerUpdateBtn" style="background:none;border:1px solid rgba(255,255,255,.3);color:#93c5fd;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;min-height:26px;white-space:nowrap" title="Open the latest YieldPOS download">UPDATE</button>
     <button id="closeYieldPosBtn" style="background:#3b1114;border:1px solid rgba(248,113,113,.55);color:#fecaca;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;min-height:26px;white-space:nowrap" title="Close YieldPOS">CLOSE YIELDPOS</button>
     <span id="numBufDisplay" style="display:none;background:#111;color:#0c0;font-family:'Courier New',monospace;font-size:16px;font-weight:700;padding:2px 10px;border-radius:3px;margin-right:8px;min-width:50px;text-align:right"></span>
     <span class="subtotal-label">Sub Total</span>
@@ -610,7 +575,6 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 <div class="mode-banner return-mode" id="returnBanner">RETURN MODE — Items will be refunded</div>
 <div class="mode-banner supervisor-mode" id="supervisorBanner">SUPERVISOR MODE</div>
 <div class="mode-banner price-change-mode" id="priceChangeModeBanner">PRICE CHANGE MODE - Tap a product key to edit price/unit/open price</div>
-<div class="mode-banner keyboard-edit-mode" id="keyboardEditBanner">KEYBOARD EDIT MODE - Tap a key, then use the large controls to move, resize, edit, duplicate, or delete it.</div>
 
 <!-- ═══ Main Row ═══════════════════════════════════════════════════ -->
 <div class="main-row">
@@ -636,29 +600,6 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
     <!-- Keyboard Home View — dynamic grid from DB -->
     <div class="keyboard-home" id="keyboardView">
       <div class="pos-grid" id="posGrid"></div>
-    </div>
-
-    <div class="register-kb-editor" id="registerKbEditorPanel" aria-hidden="true">
-      <div class="register-kb-editor-info">
-        <div class="register-kb-editor-title" id="registerKbEditorTitle">No key selected</div>
-        <div class="register-kb-editor-meta" id="registerKbEditorMeta">Tap any key to edit it.</div>
-      </div>
-      <button type="button" class="primary" data-kb-edit-act="edit">Edit</button>
-      <button type="button" data-kb-edit-act="add">Add</button>
-      <button type="button" data-kb-edit-act="page-prev">Page -</button>
-      <button type="button" data-kb-edit-act="page-next">Page +</button>
-      <button type="button" data-kb-edit-act="up">Up</button>
-      <button type="button" data-kb-edit-act="left">Left</button>
-      <button type="button" data-kb-edit-act="right">Right</button>
-      <button type="button" data-kb-edit-act="down">Down</button>
-      <button type="button" data-kb-edit-act="width-minus">Width -</button>
-      <button type="button" data-kb-edit-act="width-plus">Width +</button>
-      <button type="button" data-kb-edit-act="height-minus">Height -</button>
-      <button type="button" data-kb-edit-act="height-plus">Height +</button>
-      <button type="button" data-kb-edit-act="duplicate">Duplicate</button>
-      <button type="button" data-kb-edit-act="follow">Go Link</button>
-      <button type="button" class="danger" data-kb-edit-act="delete">Delete</button>
-      <button type="button" class="warn" data-kb-edit-act="exit">Exit</button>
     </div>
 
     <!-- Section View (products) -->
@@ -690,77 +631,6 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
     <div style="display:flex;gap:10px">
       <button id="closeYieldPosCancel" style="flex:1;padding:12px;border-radius:10px;border:1px solid #d5d8df;background:#fff;color:#4a5068;font-size:14px;font-weight:700;cursor:pointer">Cancel</button>
       <button id="closeYieldPosConfirm" style="flex:1.2;padding:12px;border-radius:10px;border:none;background:#dc2626;color:#fff;font-size:14px;font-weight:800;cursor:pointer">Close YieldPOS</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="registerKbEditModal">
-  <div class="modal register-kb-edit-modal">
-    <h2>Edit Keyboard Key</h2>
-    <div class="register-kb-edit-form">
-      <label class="full">Label
-        <textarea id="regKbLabel" autocomplete="off" spellcheck="false"></textarea>
-        <span class="register-kb-edit-help">Use a new line for two-line keys.</span>
-      </label>
-      <label>Key Type
-        <select id="regKbType">
-          <option value="product">Product</option>
-          <option value="open_price">Open Price</option>
-          <option value="fixed_price">Fixed Price</option>
-          <option value="weighed_open">Weighed Open</option>
-          <option value="section">Category</option>
-          <option value="page_link">Page Link</option>
-          <option value="back_home">Back</option>
-          <option value="item_search">Item Search</option>
-          <option value="price_change">Price Change</option>
-          <option value="discount">Discount</option>
-          <option value="return">Return</option>
-          <option value="hold">Hold Sale</option>
-          <option value="recall">Recall Sale</option>
-          <option value="reprint">Reprint Receipt</option>
-          <option value="nosale">Open Drawer</option>
-          <option value="movedrawer">Log Out</option>
-          <option value="pay_cash">Cash Payment</option>
-          <option value="pay_card">Card Payment</option>
-          <option value="park">Park Sale</option>
-          <option value="subtotal">Subtotal</option>
-          <option value="digit">Numpad Digit</option>
-          <option value="clear">Clear</option>
-          <option value="qtyx">Qty X</option>
-          <option value="codeenter">Code Enter</option>
-        </select>
-      </label>
-      <label>Product PLU / Barcode
-        <input id="regKbProductRef" autocomplete="off" inputmode="search" placeholder="Optional">
-        <span class="register-kb-edit-help">For product keys, enter a PLU, barcode, or exact product name.</span>
-      </label>
-      <label>Price
-        <input id="regKbPrice" autocomplete="off" inputmode="decimal" placeholder="0.00">
-      </label>
-      <label>Category / Value
-        <input id="regKbCategory" autocomplete="off" placeholder="Fruit, 7, etc.">
-      </label>
-      <label>Page Link Target
-        <select id="regKbPageLink"></select>
-      </label>
-      <label>Image Fit
-        <select id="regKbImageFit">
-          <option value="">Default</option>
-          <option value="cover">Cover</option>
-          <option value="contain">Contain</option>
-          <option value="none">No Image</option>
-        </select>
-      </label>
-      <label>Text Colour
-        <input id="regKbTextColor" type="color">
-      </label>
-      <label>Button Colour
-        <input id="regKbBgColor" type="color">
-      </label>
-    </div>
-    <div class="modal-actions" style="margin-top:16px">
-      <button class="modal-cancel" id="registerKbEditCancel">Cancel</button>
-      <button class="modal-confirm" id="registerKbEditSave">Save Key</button>
     </div>
   </div>
 </div>
@@ -1485,37 +1355,6 @@ function openDrawerAfterSale () {
     .catch(de => showToast('Drawer: ' + de.message, 'error'))
 }
 
-$('#registerUpdateBtn').addEventListener('click', async () => {
-  if (!confirm('Open the latest YieldPOS download in your browser? Close YieldPOS before replacing the app files.')) return
-  const btn = $('#registerUpdateBtn')
-  btn.disabled = true
-  btn.textContent = 'OPENING'
-  try {
-    const result = await window.pos.updateApp()
-    if (result?.manual || result?.opened) {
-      showToast('Latest download opened in your browser', 'success')
-      btn.disabled = false
-      btn.textContent = 'UPDATE'
-    } else if (result?.updated) {
-      showToast('Update ready', 'success')
-      btn.disabled = false
-      btn.textContent = 'UPDATE'
-    } else if (result?.upToDate) {
-      showToast('Already on the latest version', 'info')
-      btn.disabled = false
-      btn.textContent = 'UPDATE'
-    } else {
-      showToast(result?.error || 'Update failed', 'error')
-      btn.disabled = false
-      btn.textContent = 'UPDATE'
-    }
-  } catch (e) {
-    showToast(`Update failed: ${e.message}`, 'error')
-    btn.disabled = false
-    btn.textContent = 'UPDATE'
-  }
-})
-
 $('#closeYieldPosBtn').addEventListener('click', () => {
   $('#closeYieldPosModal').classList.add('show')
 })
@@ -2207,371 +2046,6 @@ function togglePriceChangeMode () {
   showToast(priceChangeMode ? 'Price change mode ON' : 'Price change mode OFF', priceChangeMode ? 'success' : 'info')
 }
 
-let keyboardEditMode = false
-let registerKbSelectedId = null
-let registerKbEmptyCell = null
-let registerKbEditingId = null
-
-function registerKbPageOrder () {
-  const pages = new Set([
-    ...Object.keys(posPageNames).map(Number),
-    ...Object.keys(posPageSizes).map(Number),
-    ...posAllButtons.map(b => Number(b.page || 1))
-  ].filter(Number.isFinite))
-  return [...pages].sort((a, b) => a - b)
-}
-
-function registerKbGridSize () {
-  const ps = posPageSizes[String(posCurrentPage)] || {}
-  return {
-    cols: ps.cols || KEYBOARD_GRID_DEFAULT.columns,
-    rows: ps.rows || KEYBOARD_GRID_DEFAULT.rows
-  }
-}
-
-function registerKbSelectedButton () {
-  if (!registerKbSelectedId) return null
-  return posAllButtons.find(b => b.id === registerKbSelectedId) || null
-}
-
-function registerKbLabel (btn) {
-  return String(posButtonLabel(btn) || btn?.id || 'Key').replace(/\\n/g, ' ').replace(/\n/g, ' ').trim()
-}
-
-function registerKbRect (btn, row = btn.grid_row || 0, col = btn.grid_col || 0, colSpan = btn.col_span || 1, rowSpan = btn.row_span || 1) {
-  return { id: btn.id, row, col, colSpan, rowSpan, right: col + colSpan - 1, bottom: row + rowSpan - 1 }
-}
-
-function registerKbRectsOverlap (a, b) {
-  return a.col <= b.right && a.right >= b.col && a.row <= b.bottom && a.bottom >= b.row
-}
-
-function registerKbCanPlace (btn, row, col, colSpan = btn.col_span || 1, rowSpan = btn.row_span || 1) {
-  const size = registerKbGridSize()
-  if (row < 0 || col < 0 || row + rowSpan > size.rows || col + colSpan > size.cols) return false
-  const nextRect = registerKbRect(btn, row, col, colSpan, rowSpan)
-  return !posAllButtons.some(other => {
-    if (!other || other.id === btn.id || !other.active) return false
-    if (Number(other.page || 1) !== posCurrentPage) return false
-    return registerKbRectsOverlap(nextRect, registerKbRect(other))
-  })
-}
-
-function registerKbFindFreeCell (colSpan = 1, rowSpan = 1, preferred = null) {
-  const probe = { id: `new-${Date.now()}`, col_span: colSpan, row_span: rowSpan }
-  if (preferred && registerKbCanPlace(probe, preferred.row, preferred.col, colSpan, rowSpan)) return preferred
-  const size = registerKbGridSize()
-  for (let row = 0; row <= size.rows - rowSpan; row++) {
-    for (let col = 0; col <= size.cols - colSpan; col++) {
-      if (registerKbCanPlace(probe, row, col, colSpan, rowSpan)) return { row, col }
-    }
-  }
-  return null
-}
-
-function registerKbSaveShape (btn, patch) {
-  return {
-    ...btn,
-    ...patch,
-    page: Number(patch.page ?? btn.page ?? posCurrentPage),
-    grid_row: Number(patch.grid_row ?? btn.grid_row ?? 0),
-    grid_col: Number(patch.grid_col ?? btn.grid_col ?? 0),
-    col_span: Number(patch.col_span ?? btn.col_span ?? 1),
-    row_span: Number(patch.row_span ?? btn.row_span ?? 1),
-    active: patch.active ?? (btn.active !== false && btn.active !== 0)
-  }
-}
-
-async function registerKbPersistButton (btn, toastText = 'Keyboard updated') {
-  const result = await window.pos.upsertButton(btn)
-  if (result?.error) {
-    showToast(result.error, 'error')
-    return false
-  }
-  if (result?.skipped) {
-    showToast('This key was deleted on another register. Pull sync before editing it.', 'error')
-    return false
-  }
-  registerKbSelectedId = result?.id || btn.id || registerKbSelectedId
-  registerKbEmptyCell = null
-  await renderPosKeyboard()
-  updateRegisterKbEditorPanel()
-  if (toastText) showToast(toastText, 'success')
-  try {
-    await window.pos.logAudit({ staff_id: currentStaff?.id, staff_name: currentStaff?.name, action: 'keyboard_edit', detail: toastText })
-  } catch (_) {}
-  return true
-}
-
-function setKeyboardEditMode (on) {
-  if (on && !cart.isEmpty) {
-    showToast('Clear or park the current sale before editing keys', 'error')
-    return
-  }
-  keyboardEditMode = !!on
-  if (keyboardEditMode) {
-    setPriceChangeMode(false)
-    showKeyboardView()
-  } else {
-    registerKbSelectedId = null
-    registerKbEmptyCell = null
-  }
-  $('.keyboard-panel')?.classList.toggle('keyboard-editing', keyboardEditMode)
-  $('#keyboardEditBanner')?.classList.toggle('active', keyboardEditMode)
-  $('#registerKbEditBtn')?.classList.toggle('active', keyboardEditMode)
-  $('#registerKbEditorPanel')?.setAttribute('aria-hidden', keyboardEditMode ? 'false' : 'true')
-  renderPosGrid()
-  updateRegisterKbEditorPanel()
-  if (!keyboardEditMode && dataRefreshQueued) {
-    dataRefreshQueued = false
-    scheduleDataRefresh('keyboard-edit')
-  }
-}
-
-function toggleKeyboardEditMode () {
-  setKeyboardEditMode(!keyboardEditMode)
-  showToast(keyboardEditMode ? 'Keyboard edit mode ON' : 'Keyboard edit mode OFF', keyboardEditMode ? 'success' : 'info')
-}
-
-function updateRegisterKbEditorPanel () {
-  const btn = registerKbSelectedButton()
-  const title = $('#registerKbEditorTitle')
-  const meta = $('#registerKbEditorMeta')
-  const pageName = posPageNames[String(posCurrentPage)] || `Page ${posCurrentPage}`
-  if (title) {
-    if (btn) title.textContent = registerKbLabel(btn)
-    else if (registerKbEmptyCell) title.textContent = `Empty cell R${registerKbEmptyCell.row + 1} C${registerKbEmptyCell.col + 1}`
-    else title.textContent = 'No key selected'
-  }
-  if (meta) {
-    if (btn) meta.textContent = `${pageName} - Row ${Number(btn.grid_row || 0) + 1}, Col ${Number(btn.grid_col || 0) + 1}, ${btn.col_span || 1} x ${btn.row_span || 1}`
-    else meta.textContent = `${pageName} - Tap a key or empty cell.`
-  }
-  const needsSelection = new Set(['edit', 'up', 'left', 'right', 'down', 'width-minus', 'width-plus', 'height-minus', 'height-plus', 'duplicate', 'delete'])
-  $$('#registerKbEditorPanel [data-kb-edit-act]').forEach(control => {
-    const act = control.dataset.kbEditAct
-    let disabled = false
-    if (needsSelection.has(act)) disabled = !btn
-    if (act === 'follow') disabled = !(btn && btn.type === 'page_link' && btn.parent_id)
-    control.disabled = disabled
-  })
-}
-
-function handleRegisterKbGridTap (cell) {
-  if (cell.classList.contains('empty-cell')) {
-    registerKbSelectedId = null
-    registerKbEmptyCell = {
-      page: posCurrentPage,
-      row: Number(cell.dataset.kbRow || 0),
-      col: Number(cell.dataset.kbCol || 0)
-    }
-  } else {
-    registerKbSelectedId = cell.dataset.buttonId || null
-    registerKbEmptyCell = null
-  }
-  renderPosGrid()
-  updateRegisterKbEditorPanel()
-}
-
-async function moveRegisterKbSelection (dr, dc) {
-  const btn = registerKbSelectedButton()
-  if (!btn) return
-  const nextRow = Number(btn.grid_row || 0) + dr
-  const nextCol = Number(btn.grid_col || 0) + dc
-  if (!registerKbCanPlace(btn, nextRow, nextCol)) {
-    showToast('That position is not available', 'error')
-    return
-  }
-  await registerKbPersistButton(registerKbSaveShape(btn, { grid_row: nextRow, grid_col: nextCol }), 'Key moved')
-}
-
-async function resizeRegisterKbSelection (dCols, dRows) {
-  const btn = registerKbSelectedButton()
-  if (!btn) return
-  const nextCols = Math.max(1, Number(btn.col_span || 1) + dCols)
-  const nextRows = Math.max(1, Number(btn.row_span || 1) + dRows)
-  if (!registerKbCanPlace(btn, Number(btn.grid_row || 0), Number(btn.grid_col || 0), nextCols, nextRows)) {
-    showToast('That size will not fit here', 'error')
-    return
-  }
-  await registerKbPersistButton(registerKbSaveShape(btn, { col_span: nextCols, row_span: nextRows }), 'Key resized')
-}
-
-async function addRegisterKbButton () {
-  const target = registerKbFindFreeCell(1, 1, registerKbEmptyCell)
-  if (!target) {
-    showToast('No free space on this page', 'error')
-    return
-  }
-  await registerKbPersistButton({
-    label: 'NEW KEY',
-    type: 'open_price',
-    price: 0,
-    color: '#fffdf7',
-    bg_color: '#2e6b45',
-    page: posCurrentPage,
-    grid_row: target.row,
-    grid_col: target.col,
-    col_span: 1,
-    row_span: 1,
-    position: 'grid',
-    active: true
-  }, 'Key added')
-}
-
-async function duplicateRegisterKbSelection () {
-  const btn = registerKbSelectedButton()
-  if (!btn) return
-  const target = registerKbFindFreeCell(btn.col_span || 1, btn.row_span || 1)
-  if (!target) {
-    showToast('No free space for that key size', 'error')
-    return
-  }
-  const copy = {
-    ...btn,
-    id: null,
-    label: btn.label || registerKbLabel(btn),
-    page: posCurrentPage,
-    grid_row: target.row,
-    grid_col: target.col,
-    position: 'grid',
-    active: true
-  }
-  await registerKbPersistButton(copy, 'Key duplicated')
-}
-
-async function deleteRegisterKbSelection () {
-  const btn = registerKbSelectedButton()
-  if (!btn) return
-  if (!confirm(`Delete "${registerKbLabel(btn)}" from the keyboard?`)) return
-  await window.pos.deleteButton(btn.id)
-  registerKbSelectedId = null
-  registerKbEmptyCell = null
-  await renderPosKeyboard()
-  updateRegisterKbEditorPanel()
-  showToast('Key deleted', 'success')
-}
-
-function navigateRegisterKbEditPage (direction) {
-  const pages = registerKbPageOrder()
-  if (!pages.length) return
-  const idx = Math.max(0, pages.indexOf(posCurrentPage))
-  const next = pages[Math.max(0, Math.min(pages.length - 1, idx + direction))]
-  if (next === posCurrentPage) return
-  posCurrentPage = next
-  registerKbSelectedId = null
-  registerKbEmptyCell = null
-  renderPosGrid()
-  updateRegisterKbEditorPanel()
-}
-
-function openRegisterKbEditModal () {
-  const btn = registerKbSelectedButton()
-  if (!btn) return
-  registerKbEditingId = btn.id
-  $('#regKbLabel').value = String(btn.label || posButtonLabel(btn) || '').replace(/\\n/g, '\n')
-  $('#regKbType').value = posButtonEffectiveType(btn) || 'product'
-  $('#regKbProductRef').value = btn.product_plu || btn.product_barcode || btn.category_filter || btn.product_id || ''
-  $('#regKbPrice').value = Number(btn.price || 0) > 0 ? Number(btn.price || 0).toFixed(2) : ''
-  $('#regKbCategory').value = btn.category_filter || ''
-  $('#regKbTextColor').value = /^#[0-9a-f]{6}$/i.test(btn.color || '') ? btn.color : '#ffffff'
-  $('#regKbBgColor').value = /^#[0-9a-f]{6}$/i.test(btn.bg_color || '') ? btn.bg_color : '#2e6b45'
-  const pageOptions = registerKbPageOrder().map(page => `<option value="${page}">${esc(posPageNames[String(page)] || 'Page ' + page)}</option>`).join('')
-  $('#regKbPageLink').innerHTML = pageOptions
-  $('#regKbPageLink').value = btn.parent_id || '1'
-  $('#regKbImageFit').value = btn.alpha_range === 'image:cover' ? 'cover' : btn.alpha_range === 'image:contain' ? 'contain' : btn.alpha_range === 'image:none' ? 'none' : ''
-  $('#registerKbEditModal').classList.add('show')
-}
-
-function closeRegisterKbEditModal () {
-  registerKbEditingId = null
-  $('#registerKbEditModal').classList.remove('show')
-  refocus()
-}
-
-async function resolveRegisterKbProduct (value) {
-  const ref = String(value || '').trim()
-  if (!ref) return null
-  let product = await window.pos.getProductById(ref)
-  if (!product) product = await window.pos.getProductByBarcode(ref)
-  if (!product) {
-    const results = await window.pos.searchProducts(ref)
-    const wanted = ref.toUpperCase()
-    product = results.find(p => String(p.name || '').toUpperCase() === wanted) || results[0] || null
-  }
-  return product
-}
-
-async function saveRegisterKbEditModal () {
-  const btn = posAllButtons.find(b => b.id === registerKbEditingId)
-  if (!btn) return
-  const type = $('#regKbType').value || 'product'
-  const imageFit = $('#regKbImageFit').value
-  const isProductType = ['product', 'fixed_price', 'open_price', 'weighed_open'].includes(type)
-  const productRef = $('#regKbProductRef').value.trim()
-  let product = null
-  if (isProductType && productRef) {
-    product = await resolveRegisterKbProduct(productRef)
-    if (!product) {
-      showToast('No product matched that PLU, barcode, or name', 'error')
-      return
-    }
-  }
-  const label = $('#regKbLabel').value.trim().replace(/\r\n/g, '\n').replace(/\n/g, '\\n') || product?.name || 'KEY'
-  const price = Math.max(0, Number($('#regKbPrice').value || 0) || 0)
-  const next = registerKbSaveShape(btn, {
-    label,
-    type,
-    price,
-    color: $('#regKbTextColor').value || '#fffdf7',
-    bg_color: $('#regKbBgColor').value || '#2e6b45',
-    parent_id: type === 'page_link' ? ($('#regKbPageLink').value || null) : null,
-    category_filter: product
-      ? (product.plu || product.barcode || product.id)
-      : (type === 'page_link' ? null : ($('#regKbCategory').value.trim() || null)),
-    product_id: product ? product.id : null,
-    alpha_range: imageFit === 'cover' ? 'image:cover' : imageFit === 'contain' ? 'image:contain' : imageFit === 'none' ? 'image:none' : null,
-    active: true
-  })
-  const saved = await registerKbPersistButton(next, 'Key saved')
-  if (saved) closeRegisterKbEditModal()
-}
-
-$('#registerKbEditBtn')?.addEventListener('click', toggleKeyboardEditMode)
-$('#registerKbEditorPanel')?.addEventListener('click', e => {
-  const control = e.target.closest('[data-kb-edit-act]')
-  if (!control || control.disabled) return
-  const act = control.dataset.kbEditAct
-  if (act === 'exit') { setKeyboardEditMode(false); showToast('Keyboard edit mode OFF', 'info'); return }
-  if (act === 'edit') { openRegisterKbEditModal(); return }
-  if (act === 'add') { addRegisterKbButton(); return }
-  if (act === 'duplicate') { duplicateRegisterKbSelection(); return }
-  if (act === 'delete') { deleteRegisterKbSelection(); return }
-  if (act === 'page-prev') { navigateRegisterKbEditPage(-1); return }
-  if (act === 'page-next') { navigateRegisterKbEditPage(1); return }
-  if (act === 'follow') {
-    const btn = registerKbSelectedButton()
-    if (btn?.parent_id) {
-      posCurrentPage = Number(btn.parent_id) || posCurrentPage
-      registerKbSelectedId = null
-      renderPosGrid()
-      updateRegisterKbEditorPanel()
-    }
-    return
-  }
-  if (act === 'up') moveRegisterKbSelection(-1, 0)
-  else if (act === 'down') moveRegisterKbSelection(1, 0)
-  else if (act === 'left') moveRegisterKbSelection(0, -1)
-  else if (act === 'right') moveRegisterKbSelection(0, 1)
-  else if (act === 'width-minus') resizeRegisterKbSelection(-1, 0)
-  else if (act === 'width-plus') resizeRegisterKbSelection(1, 0)
-  else if (act === 'height-minus') resizeRegisterKbSelection(0, -1)
-  else if (act === 'height-plus') resizeRegisterKbSelection(0, 1)
-})
-$('#registerKbEditCancel')?.addEventListener('click', closeRegisterKbEditModal)
-$('#registerKbEditSave')?.addEventListener('click', () => saveRegisterKbEditModal().catch(e => showToast('Key save failed: ' + e.message, 'error')))
-$('#registerKbEditModal')?.addEventListener('click', e => { if (e.target === $('#registerKbEditModal')) closeRegisterKbEditModal() })
-
 function updateNumDisplay () {
   // Status bar numpad display
   const nb = $('#numBufDisplay')
@@ -2654,8 +2128,7 @@ function renderPosGrid () {
         const gridStyle = `grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs}`
         html += renderPosButton(btn, gridStyle)
       } else if (!occupied.has(key)) {
-        const emptySelected = keyboardEditMode && registerKbEmptyCell && registerKbEmptyCell.page === posCurrentPage && registerKbEmptyCell.row === r && registerKbEmptyCell.col === c ? ' kb-edit-empty-selected' : ''
-        html += `<div class="pos-grid-btn empty-cell${emptySelected}" data-kb-row="${r}" data-kb-col="${c}" style="grid-column:${c+1};grid-row:${r+1}"></div>`
+        html += `<div class="pos-grid-btn empty-cell" style="grid-column:${c+1};grid-row:${r+1}"></div>`
       }
     }
   }
@@ -2682,10 +2155,6 @@ function renderPosGrid () {
 
 function posButtonProductId (btn) {
   return btn.matched_product_id || btn.product_id || ''
-}
-
-function posButtonEditAttrs (btn) {
-  return `data-button-id="${esc(btn?.id || '')}" data-kb-row="${Number(btn?.grid_row || 0)}" data-kb-col="${Number(btn?.grid_col || 0)}"`
 }
 
 function posButtonEffectiveType (btn) {
@@ -2732,8 +2201,7 @@ function renderPosButton (btn, gridStyle) {
 
   // Numpad display — not a button but an indicator cell
   if (type === 'num_display') {
-    const selectedClass = keyboardEditMode && btn.id === registerKbSelectedId ? ' kb-edit-selected' : ''
-    return `<div class="pos-grid-btn num-display-cell${selectedClass}" ${posButtonEditAttrs(btn)} style="${gridStyle};background:${bg};color:${color}">${numBuf || ''}</div>`
+    return `<div class="pos-grid-btn num-display-cell" style="${gridStyle};background:${bg};color:${color}">${numBuf || ''}</div>`
   }
 
   // Numpad digit/action buttons — let CSS handle colors
@@ -2743,22 +2211,19 @@ function renderPosButton (btn, gridStyle) {
     if (type === 'qtyx') extra += ' num-action num-orange'
     const digitVal = btn.category_filter || btn.label || ''
     const dataAttr = type === 'digit' ? `data-val="${esc(digitVal)}"` : `data-action="${type}"`
-    const selectedClass = keyboardEditMode && btn.id === registerKbSelectedId ? ' kb-edit-selected' : ''
-    return `<div class="pos-grid-btn ${extra}${selectedClass}" ${posButtonEditAttrs(btn)} ${dataAttr} style="${gridStyle};background:${bg};color:${color}">${label.replace(/\\n/g,'<br>')}</div>`
+    return `<div class="pos-grid-btn ${extra}" ${dataAttr} style="${gridStyle};background:${bg};color:${color}">${label.replace(/\\n/g,'<br>')}</div>`
   }
 
   // Function buttons — small utility keys with DB color
   if (FUNC_TYPES.has(type)) {
     const activeClass = type === 'price_change' && priceChangeMode ? ' price-change-active' : ''
-    const selectedClass = keyboardEditMode && btn.id === registerKbSelectedId ? ' kb-edit-selected' : ''
-    return `<div class="pos-grid-btn func-key${activeClass}${selectedClass}" ${posButtonEditAttrs(btn)} data-type="${esc(type)}" data-action="${esc(type)}"
+    return `<div class="pos-grid-btn func-key${activeClass}" data-type="${esc(type)}" data-action="${esc(type)}"
       style="${gridStyle};background:${bg};color:${color}">${label.replace(/\\n/g,'<br>')}</div>`
   }
 
   // Payment buttons
   if (PAY_TYPES.has(type) || type === 'subtotal') {
-    const selectedClass = keyboardEditMode && btn.id === registerKbSelectedId ? ' kb-edit-selected' : ''
-    return `<div class="pos-grid-btn pay-key${selectedClass}" ${posButtonEditAttrs(btn)} data-type="${esc(type)}" data-action="${esc(type)}"
+    return `<div class="pos-grid-btn pay-key" data-type="${esc(type)}" data-action="${esc(type)}"
       style="${gridStyle};background:${bg};color:${color}">${label.replace(/\\n/g,'<br>')}</div>`
   }
 
@@ -2768,8 +2233,7 @@ function renderPosButton (btn, gridStyle) {
   // Back/home navigation button — matches section-nav-btn style
   if (type === 'back_home') {
     const backLabel = label.includes('\u2190') ? label : '\u2190 ' + label
-    const selectedClass = keyboardEditMode && btn.id === registerKbSelectedId ? ' kb-edit-selected' : ''
-    return `<div class="pos-grid-btn back-key${selectedClass}" ${posButtonEditAttrs(btn)} data-type="back_home" data-action="back_home"
+    return `<div class="pos-grid-btn back-key" data-type="back_home" data-action="back_home"
       style="${gridStyle}">${backLabel.replace(/\\n/g,'<br>')}</div>`
   }
 
@@ -2777,15 +2241,13 @@ function renderPosButton (btn, gridStyle) {
   if (type === 'page_link' && btn.parent_id) {
     let dispLabel = label.replace(/\\n/g,'<br>')
     dispLabel = dispLabel.replace(/<br>\$[\d.]+.*$/, '')
-    const selectedClass = keyboardEditMode && btn.id === registerKbSelectedId ? ' kb-edit-selected' : ''
-    return `<div class="pos-grid-btn dept-key cat-key${imgClass}${selectedClass}" ${posButtonEditAttrs(btn)} data-type="${esc(type)}" data-page-link="${btn.parent_id}"
+    return `<div class="pos-grid-btn dept-key cat-key${imgClass}" data-type="${esc(type)}" data-page-link="${btn.parent_id}"
       style="${gridStyle};background:${bg};color:${color}${catColorStyle}">${imgHtml}<span>${dispLabel}</span><span class="btn-cat-badge">CAT</span></div>`
   }
 
   if (type === 'weighed_open') {
     const dispLabel = label.replace(/(?:\\n|\n)\/?KG\b/i, '').replace(/(?:\\n|\n)/g, '<br>')
-    const selectedClass = keyboardEditMode && btn.id === registerKbSelectedId ? ' kb-edit-selected' : ''
-    return `<div class="pos-grid-btn dept-key cat-key${imgClass}${selectedClass}" ${posButtonEditAttrs(btn)} data-type="${esc(type)}" data-action="${esc(type)}"
+    return `<div class="pos-grid-btn dept-key cat-key${imgClass}" data-type="${esc(type)}" data-action="${esc(type)}"
       style="${gridStyle};background:${bg};color:${color}${catColorStyle}">${imgHtml}<span>${dispLabel}</span><span class="btn-cat-badge">KG</span></div>`
   }
 
@@ -2815,8 +2277,7 @@ function renderPosButton (btn, gridStyle) {
   const itemClass = `${isOpenPriceButton ? ' open-price-key' : ''}${standardMerchClass}`
   const catBadge = type === 'section' ? '<span class="btn-cat-badge">CAT</span>' : ''
   const productRef = btn.category_filter || ''
-  const selectedClass = keyboardEditMode && btn.id === registerKbSelectedId ? ' kb-edit-selected' : ''
-  return `<div class="pos-grid-btn dept-key${imgClass}${itemClass}${selectedClass}" ${posButtonEditAttrs(btn)} data-type="${esc(type)}" data-cat="${esc(productRef)}"
+  return `<div class="pos-grid-btn dept-key${imgClass}${itemClass}" data-type="${esc(type)}" data-cat="${esc(productRef)}"
     data-alpha="${esc(btn.alpha_range || '')}" data-label2="${label}" data-price="${priceVal}"
     data-action="${esc(type)}" data-page-link="${btn.parent_id || ''}" data-product-id="${esc(matchedProductId)}"
     style="${gridStyle};background:${bg};color:${color}${catColorStyle}">${imgHtml}${labelHtml}${catBadge}</div>`
@@ -2825,12 +2286,7 @@ function renderPosButton (btn, gridStyle) {
 // ═══ Unified Grid Click Handler ════════════════════════════════════
 $('#posGrid').addEventListener('click', async e => {
   const btn = e.target.closest('.pos-grid-btn')
-  if (!btn) return
-  if (keyboardEditMode) {
-    handleRegisterKbGridTap(btn)
-    return
-  }
-  if (btn.classList.contains('empty-cell') || btn.classList.contains('num-display-cell')) return
+  if (!btn || btn.classList.contains('empty-cell') || btn.classList.contains('num-display-cell')) return
   const type = btn.dataset.type
   const action = btn.dataset.action
   const val = btn.dataset.val
@@ -6275,16 +5731,12 @@ let dataRefreshTimer = null
 let dataRefreshRunning = false
 let dataRefreshQueued = false
 document.addEventListener('pointerdown', e => {
-  if (e.target.closest('.pos-grid-btn, .product-btn, .cart-panel, .modal, .register-kb-editor')) {
+  if (e.target.closest('.pos-grid-btn, .product-btn, .cart-panel, .modal')) {
     lastRegisterInteractionAt = Date.now()
   }
 }, true)
 
 async function runDataRefresh (source = 'sync') {
-  if (keyboardEditMode) {
-    dataRefreshQueued = true
-    return
-  }
   if (dataRefreshRunning) {
     dataRefreshQueued = true
     return

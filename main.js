@@ -4237,24 +4237,6 @@ function setupIPC() {
     }
   })
 
-  // App Update
-
-  ipcMain.handle('app:update', async () => {
-    const updateUrl = 'https://github.com/matthiascamp/yieldpos/archive/refs/heads/main.zip'
-    try {
-      await shell.openExternal(updateUrl)
-      appLog('info', 'update', `Opened manual update download: ${updateUrl}`)
-      return {
-        manual: true,
-        opened: true,
-        url: updateUrl,
-        log: 'Opened the latest YieldPOS download from GitHub. Close YieldPOS before replacing the app files.'
-      }
-    } catch (e) {
-      return { error: `Could not open update download: ${e.message}`, url: updateUrl, log: e.message }
-    }
-  })
-
   // â”€â”€ Backups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   ipcMain.handle('db:backup:create', () => {
@@ -5650,43 +5632,14 @@ function setupIPC() {
     return dbAll("SELECT kp.page, kp.name, kp.cols, kp.rows FROM keyboard_pages kp ORDER BY kp.page")
   })
 
-  function insertSyncQueueRow (table, recordId, action, payload) {
-    dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
-      [table, String(recordId), action, JSON.stringify(payload || {})])
-    scheduleLanQueueFlush(`${table}:${action}`)
-  }
-
-  function clearDeletedRecord (table, recordId) {
-    dbRun("DELETE FROM deleted_records WHERE table_name = ?1 AND record_id = ?2", [table, String(recordId)])
-  }
-
-  function queueKeyboardPageSync (page, action = 'update') {
-    const pageRow = dbGet("SELECT page, name, cols, rows FROM keyboard_pages WHERE page = ?1", [page])
-    if (!pageRow) return
-    clearDeletedRecord('keyboard_pages', page)
-    insertSyncQueueRow('keyboard_pages', String(page), action, pageRow)
-    lanSync.bumpVersion()
-  }
-
-  function queueKeyboardPageDelete (page) {
-    dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES ('keyboard_pages', ?1)", [String(page)])
-    insertSyncQueueRow('keyboard_pages', String(page), 'delete', { page: Number(page) })
-    lanSync.bumpVersion()
-  }
-
-  function queueKeyboardButtonDelete (id) {
-    dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES ('keyboard_buttons', ?1)", [String(id)])
-    insertSyncQueueRow('keyboard_buttons', String(id), 'delete', { id: String(id) })
-    lanSync.bumpVersion()
-  }
-
   ipcMain.handle('db:keyboard:createPage', (_e, opts) => {
     const existing = dbAll("SELECT page FROM keyboard_pages ORDER BY page DESC LIMIT 1")
     const nextPage = (existing.length ? existing[0].page : 0) + 1
     const pageRow = { page: nextPage, name: opts?.name || 'Untitled', cols: opts?.cols || 13, rows: opts?.rows || 7 }
     dbRun("INSERT INTO keyboard_pages (page, name, cols, rows) VALUES (?1, ?2, ?3, ?4)",
       [pageRow.page, pageRow.name, pageRow.cols, pageRow.rows])
-    queueKeyboardPageSync(nextPage, 'insert')
+    dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
+      ['keyboard_pages', String(nextPage), 'insert', JSON.stringify(pageRow)])
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
     lanSync.bumpVersion()
@@ -5695,7 +5648,9 @@ function setupIPC() {
 
   ipcMain.handle('db:keyboard:renamePage', (_e, page, name) => {
     dbRun("UPDATE keyboard_pages SET name = ?2 WHERE page = ?1", [page, name])
-    queueKeyboardPageSync(page, 'update')
+    const pageRow = dbGet("SELECT page, name, cols, rows FROM keyboard_pages WHERE page = ?1", [page])
+    if (pageRow) dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
+      ['keyboard_pages', String(page), 'update', JSON.stringify(pageRow)])
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
     lanSync.bumpVersion()
@@ -5704,28 +5659,22 @@ function setupIPC() {
 
   ipcMain.handle('db:keyboard:updatePageSize', (_e, page, cols, rows) => {
     dbRun("INSERT OR REPLACE INTO keyboard_pages (page, name, cols, rows) VALUES (?1, COALESCE((SELECT name FROM keyboard_pages WHERE page = ?1), 'Untitled'), ?2, ?3)", [page, cols, rows])
-    queueKeyboardPageSync(page, 'update')
+    const pageRow = dbGet("SELECT page, name, cols, rows FROM keyboard_pages WHERE page = ?1", [page])
+    if (pageRow) dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
+      ['keyboard_pages', String(page), 'update', JSON.stringify(pageRow)])
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
     lanSync.bumpVersion()
     return true
   })
 
-  ipcMain.handle('db:keyboard:bulkUpsertPages', (_e, pages, opts = {}) => {
+  ipcMain.handle('db:keyboard:bulkUpsertPages', (_e, pages) => {
     let count = 0
-    const incomingPages = new Set()
     for (const pg of pages || []) {
       if (!pg.page) continue
-      incomingPages.add(String(pg.page))
       dbRun("INSERT OR REPLACE INTO keyboard_pages (page, name, cols, rows) VALUES (?1, ?2, ?3, ?4)",
         [pg.page, pg.name || ('Page ' + pg.page), pg.cols || 13, pg.rows || 7])
       count++
-    }
-    if (opts?.replace && incomingPages.size) {
-      const existing = dbAll("SELECT page FROM keyboard_pages")
-      for (const row of existing) {
-        if (!incomingPages.has(String(row.page))) dbRun("DELETE FROM keyboard_pages WHERE page = ?1", [row.page])
-      }
     }
     if (count) {
       saveDBSync()
@@ -5778,19 +5727,16 @@ function setupIPC() {
     dbRun("DELETE FROM keyboard_buttons WHERE parent_id = ?1", [id])
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
-    lanSync.bumpVersion()
     return true
   })
 
   ipcMain.handle('db:keyboard:deletePage', (_e, page) => {
-    const pageButtons = dbAll("SELECT id FROM keyboard_buttons WHERE page = ?1", [page])
-    for (const btn of pageButtons) queueKeyboardButtonDelete(btn.id)
     dbRun("DELETE FROM keyboard_buttons WHERE page = ?1", [page])
     dbRun("DELETE FROM keyboard_pages WHERE page = ?1", [page])
-    const affectedLinks = dbAll("SELECT id FROM keyboard_buttons WHERE type = 'page_link' AND parent_id = ?1", [String(page)])
     dbRun("UPDATE keyboard_buttons SET active = 0 WHERE type = 'page_link' AND parent_id = ?1", [String(page)])
-    for (const link of affectedLinks) queueSync('keyboard_buttons', link.id, 'update')
-    queueKeyboardPageDelete(page)
+    dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES ('keyboard_pages', ?1)", [String(page)])
+    dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
+      ['keyboard_pages', String(page), 'delete', JSON.stringify({ page })])
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
     lanSync.bumpVersion()
@@ -5803,15 +5749,13 @@ function setupIPC() {
       ORDER BY kb.page, kb.sort_order`)
   })
 
-  ipcMain.handle('db:keyboard:bulkUpsert', (_e, buttons, opts = {}) => {
+  ipcMain.handle('db:keyboard:bulkUpsert', (_e, buttons) => {
     const deletedRows = dbAll("SELECT record_id FROM deleted_records WHERE table_name = 'keyboard_buttons'")
     const deletedIds = new Set(deletedRows.map(r => r.record_id))
-    const incomingIds = new Set()
     let count = 0
     for (const b of buttons) {
       if (!b.id || !b.label) continue
       if (deletedIds.has(b.id)) continue
-      incomingIds.add(String(b.id))
       db.run(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,datetime('now'))
         ON CONFLICT(id) DO UPDATE SET
@@ -5829,12 +5773,6 @@ function setupIPC() {
          b.product_id || null, b.active !== false ? 1 : 0])
       count++
     }
-    if (opts?.replace && incomingIds.size) {
-      const existing = dbAll("SELECT id FROM keyboard_buttons")
-      for (const row of existing) {
-        if (!incomingIds.has(String(row.id))) dbRun("DELETE FROM keyboard_buttons WHERE id = ?1", [row.id])
-      }
-    }
     if (count) dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     if (count) normalizeKeyboardProductRefs()
     saveDBSync()
@@ -5850,12 +5788,8 @@ function setupIPC() {
       newPage = (last.length ? last[0].page : 0) + 1
       dbRun("INSERT INTO keyboard_pages (page, name, cols, rows) VALUES (?1, ?2, ?3, ?4)",
         [newPage, (srcInfo?.name || 'Page') + ' (copy)', srcInfo?.cols || 13, srcInfo?.rows || 7])
-      queueKeyboardPageSync(newPage, 'insert')
-    } else {
-      queueKeyboardPageSync(newPage, 'update')
     }
     const buttons = dbAll("SELECT * FROM keyboard_buttons WHERE page = ?1 AND active = 1", [srcPage])
-    const copiedButtonIds = []
     for (const btn of buttons) {
       const newId = uuid()
       dbRun(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
@@ -5863,13 +5797,10 @@ function setupIPC() {
         [newId, btn.label, btn.type, btn.price, btn.image, btn.image_scale || 100, btn.color, btn.bg_color,
          btn.parent_id, btn.category_filter, btn.alpha_range, btn.sort_order, btn.position || 'grid',
          newPage, btn.grid_row, btn.grid_col, btn.col_span, btn.row_span, btn.product_id || null])
-      copiedButtonIds.push(newId)
     }
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     normalizeKeyboardProductRefs()
-    for (const id of copiedButtonIds) queueSync('keyboard_buttons', id, 'insert')
     saveDBSync()
-    lanSync.bumpVersion()
     return { count: buttons.length, newPage }
   })
 
@@ -5901,25 +5832,15 @@ function setupIPC() {
     if (!data || !data.buttons || !Array.isArray(data.buttons)) {
       return { error: 'Invalid keyboard layout data' }
     }
-    const previousButtons = dbAll("SELECT id FROM keyboard_buttons").map(r => String(r.id))
-    const previousPages = dbAll("SELECT page FROM keyboard_pages").map(r => String(r.page))
-    const nextButtonIds = new Set()
-    const nextPageIds = new Set()
     dbRun("DELETE FROM keyboard_buttons")
     dbRun("DELETE FROM keyboard_pages")
     if (data.pages && Array.isArray(data.pages)) {
       for (const pg of data.pages) {
-        nextPageIds.add(String(pg.page))
-        clearDeletedRecord('keyboard_pages', pg.page)
         dbRun("INSERT OR REPLACE INTO keyboard_pages (page, name, cols, rows) VALUES (?1, ?2, ?3, ?4)",
           [pg.page, pg.name || 'Untitled', pg.cols || 13, pg.rows || 7])
-        queueKeyboardPageSync(pg.page, previousPages.includes(String(pg.page)) ? 'update' : 'insert')
       }
     } else {
       dbRun("INSERT INTO keyboard_pages (page, name, cols, rows) VALUES (1, 'Main Register', 13, 7)")
-      nextPageIds.add('1')
-      clearDeletedRecord('keyboard_pages', '1')
-      queueKeyboardPageSync(1, previousPages.includes('1') ? 'update' : 'insert')
     }
     let count = 0
     let skipped = 0
@@ -5931,8 +5852,6 @@ function setupIPC() {
         skipped++; continue
       }
       const id = btn.id || uuid()
-      nextButtonIds.add(String(id))
-      clearDeletedRecord('keyboard_buttons', id)
       dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,datetime('now'))`,
         [id, btn.label, btn.type, btn.price || 0, btn.image || null, Number(btn.image_scale || 100) || 100,
@@ -5941,12 +5860,6 @@ function setupIPC() {
          btn.page || 1, row, col, cs, rs, btn.active !== undefined ? btn.active : 1,
          btn.product_id || null])
       count++
-    }
-    for (const oldId of previousButtons) {
-      if (!nextButtonIds.has(oldId)) queueKeyboardButtonDelete(oldId)
-    }
-    for (const oldPage of previousPages) {
-      if (!nextPageIds.has(oldPage)) queueKeyboardPageDelete(oldPage)
     }
     // Restore linked products if included in export
     let productsRestored = 0
@@ -5963,17 +5876,11 @@ function setupIPC() {
     }
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     normalizeKeyboardProductRefs()
-    for (const id of nextButtonIds) {
-      queueSync('keyboard_buttons', id, previousButtons.includes(String(id)) ? 'update' : 'insert')
-    }
     saveDBSync()
-    lanSync.bumpVersion()
     return { count, skipped, productsRestored }
   })
 
   ipcMain.handle('db:keyboard:reset', () => {
-    const previousButtons = dbAll("SELECT id FROM keyboard_buttons").map(r => String(r.id))
-    const previousPages = dbAll("SELECT page FROM keyboard_pages").map(r => String(r.page))
     dbRun("DELETE FROM keyboard_buttons")
     dbRun("DELETE FROM keyboard_pages")
     const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8')
@@ -5985,30 +5892,9 @@ function setupIPC() {
         try { db.run(stmt); count++ } catch (_) {}
       }
     }
-    const nextButtons = dbAll("SELECT id FROM keyboard_buttons").map(r => String(r.id))
-    const nextPages = dbAll("SELECT page FROM keyboard_pages").map(r => String(r.page))
-    const nextButtonIds = new Set(nextButtons)
-    const nextPageIds = new Set(nextPages)
-    for (const id of nextButtons) {
-      clearDeletedRecord('keyboard_buttons', id)
-    }
-    for (const page of nextPages) {
-      clearDeletedRecord('keyboard_pages', page)
-      queueKeyboardPageSync(Number(page), previousPages.includes(page) ? 'update' : 'insert')
-    }
-    for (const id of previousButtons) {
-      if (!nextButtonIds.has(id)) queueKeyboardButtonDelete(id)
-    }
-    for (const page of previousPages) {
-      if (!nextPageIds.has(page)) queueKeyboardPageDelete(page)
-    }
     dbRun("DELETE FROM settings WHERE key = 'keyboard_user_customized'")
     normalizeKeyboardProductRefs()
-    for (const id of nextButtons) {
-      queueSync('keyboard_buttons', id, previousButtons.includes(id) ? 'update' : 'insert')
-    }
     saveDBSync()
-    lanSync.bumpVersion()
     return { count }
   })
 
