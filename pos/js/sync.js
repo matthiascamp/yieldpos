@@ -32,6 +32,65 @@ function isLocalOnlySetting (key) {
   return LOCAL_ONLY_SETTINGS.has(key)
 }
 
+function toBool (value) {
+  return value === true || value === 1 || value === '1'
+}
+
+function activeBool (value) {
+  return value === undefined || value === null ? true : toBool(value)
+}
+
+function cleanDate (value) {
+  return value || null
+}
+
+function jsonConfig (value) {
+  if (!value) return {}
+  if (typeof value === 'object') return value
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch (_) {
+    return {}
+  }
+}
+
+async function upsertChunked (table, payload, options = {}) {
+  if (!payload || !payload.length) return 0
+  const chunkSize = options.chunkSize || 500
+  const upsertOptions = options.onConflict ? { onConflict: options.onConflict } : undefined
+  for (let i = 0; i < payload.length; i += chunkSize) {
+    const chunk = payload.slice(i, i + chunkSize)
+    const { error } = await supabase.from(table).upsert(chunk, upsertOptions)
+    if (error) throw error
+  }
+  return payload.length
+}
+
+async function applyDeletedRecords () {
+  const deleted = await window.pos.getDeletedRecords()
+  let count = 0
+  for (const row of deleted || []) {
+    if (!row.table_name || !row.record_id) continue
+    let query = supabase.from(row.table_name).delete()
+    if (row.table_name === 'settings') {
+      query = query.eq('key', row.record_id)
+    } else if (row.table_name === 'keyboard_pages') {
+      query = query.eq('page', Number(row.record_id))
+    } else if (row.table_name === 'deal_products') {
+      const [dealId, productId] = String(row.record_id).split(':')
+      if (!dealId || !productId) continue
+      query = query.eq('deal_id', dealId).eq('product_id', productId)
+    } else {
+      query = query.eq('id', row.record_id)
+    }
+    const { error } = await query
+    if (error) throw error
+    count++
+  }
+  return count
+}
+
 // ─── Push: transactions + items + payments to Supabase ──────────────────────
 
 export async function pushPending() {
@@ -366,7 +425,7 @@ export async function pushKeyboard() {
     col_span: b.col_span || 1,
     row_span: b.row_span || 1,
     product_id: b.product_id || null,
-    active: b.active !== 0,
+    active: activeBool(b.active),
     updated_at: new Date().toISOString()
   }))
 
@@ -392,6 +451,141 @@ export async function pushKeyboardPages() {
   const { error } = await supabase.from('keyboard_pages').upsert(payload)
   if (error) { console.error('Push keyboard_pages failed:', error.message); return false }
   return payload.length
+}
+
+export async function pushLocalSnapshot () {
+  if (!isOnline()) return false
+
+  const now = new Date().toISOString()
+  const result = {}
+
+  result.categories = await upsertChunked('categories', (await window.pos.getAllCategories()).map(c => ({
+    id: c.id,
+    name: c.name,
+    sort_order: c.sort_order || 0,
+    colour: c.colour || '#4fbd77',
+    active: activeBool(c.active),
+    updated_at: cleanDate(c.updated_at) || now,
+    family: c.family || ''
+  })))
+
+  result.products = await upsertChunked('products', (await window.pos.getAllProducts()).map(p => ({
+    id: p.id,
+    barcode: p.barcode || null,
+    plu: p.plu || null,
+    name: p.name,
+    category_id: p.category_id || null,
+    price: p.price || 0,
+    cost_price: p.cost_price || 0,
+    unit: p.unit || 'each',
+    tax_rate: p.tax_rate ?? 0.10,
+    track_stock: toBool(p.track_stock),
+    stock_qty: p.stock_qty || 0,
+    active: activeBool(p.active),
+    image_url: p.image_url || null,
+    updated_at: cleanDate(p.updated_at) || now,
+    open_price: toBool(p.open_price)
+  })))
+
+  result.staff = await upsertChunked('staff', (await window.pos.getStaff()).map(s => ({
+    id: s.id,
+    name: s.name,
+    pin_hash: s.pin_hash || s.pin || '',
+    role: s.role || 'cashier',
+    active: activeBool(s.active),
+    updated_at: cleanDate(s.updated_at) || now
+  })))
+
+  result.deals = await upsertChunked('deals', (await window.pos.getDeals()).map(d => ({
+    id: d.id,
+    name: d.name,
+    type: d.type,
+    config: jsonConfig(d.config),
+    start_date: d.start_date || null,
+    end_date: d.end_date || null,
+    active: activeBool(d.active),
+    updated_at: cleanDate(d.updated_at) || now
+  })))
+
+  result.deal_products = await upsertChunked('deal_products', (await window.pos.getAllDealProducts()).map(dp => ({
+    deal_id: dp.deal_id,
+    product_id: dp.product_id,
+    role: dp.role || 'trigger'
+  })), { onConflict: 'deal_id,product_id' })
+
+  result.specials = await upsertChunked('specials', (await window.pos.getSpecials()).map(s => ({
+    id: s.id,
+    product_id: s.product_id,
+    special_price: s.special_price || 0,
+    start_date: s.start_date || null,
+    end_date: s.end_date || null,
+    active: activeBool(s.active),
+    updated_at: cleanDate(s.updated_at) || now
+  })))
+
+  result.keyboard_pages = await upsertChunked('keyboard_pages', (await window.pos.getPages()).map(pg => ({
+    page: pg.page,
+    name: pg.name || ('Page ' + pg.page),
+    cols: pg.cols || 13,
+    rows: pg.rows || 7,
+    updated_at: now
+  })), { onConflict: 'page' })
+
+  result.keyboard_buttons = await pushKeyboard()
+
+  const settings = await window.pos.getAllSettings()
+  result.settings = await upsertChunked('settings', Object.entries(settings || {})
+    .filter(([key]) => !isLocalOnlySetting(key))
+    .map(([key, value]) => ({ key, value, updated_at: now })), { onConflict: 'key' })
+
+  result.transactions = await upsertChunked('transactions', (await window.pos.getAllTransactions()).map(t => ({
+    id: t.id,
+    register_id: t.register_id || 'REG1',
+    staff_id: t.staff_id || null,
+    customer_name: t.customer_name || null,
+    subtotal: t.subtotal || 0,
+    tax: t.tax || 0,
+    discount: t.discount || 0,
+    total: t.total || 0,
+    status: t.status || 'completed',
+    created_at: cleanDate(t.created_at) || now
+  })))
+
+  result.transaction_items = await upsertChunked('transaction_items', (await window.pos.getAllTransactionItems()).map(item => ({
+    id: item.id,
+    transaction_id: item.transaction_id,
+    product_id: item.product_id || null,
+    name: item.name,
+    qty: item.qty || 0,
+    unit_price: item.unit_price || 0,
+    discount: item.discount || 0,
+    line_total: item.line_total || 0,
+    tax: item.tax || 0,
+    deal_id: item.deal_id || null
+  })))
+
+  result.payments = await upsertChunked('payments', (await window.pos.getAllTransactionPayments()).map(p => ({
+    id: p.id,
+    transaction_id: p.transaction_id,
+    method: p.method,
+    amount: p.amount || 0,
+    reference: p.reference || null,
+    created_at: cleanDate(p.created_at) || now
+  })))
+
+  result.cash_drawer = await upsertChunked('cash_drawer', (await window.pos.getAllCashDrawer()).map(entry => ({
+    id: entry.id,
+    register_id: entry.register_id || 'REG1',
+    staff_id: entry.staff_id || null,
+    action: entry.action,
+    amount: entry.amount || 0,
+    note: entry.note || null,
+    created_at: cleanDate(entry.created_at) || now
+  })))
+
+  result.pending = await pushPending()
+  result.deleted = await applyDeletedRecords()
+  return result
 }
 
 export async function pullAll() {

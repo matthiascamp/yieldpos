@@ -98,9 +98,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:#020604;color:#1a1a2e;d
 
 /* ═══ Keyboard Panel (RIGHT — all buttons) ════════════════════════ */
 .keyboard-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;background:radial-gradient(circle at 50% 0%,rgba(240,216,156,.14),transparent 24%),radial-gradient(circle at 18% 0%,rgba(120,145,107,.12),transparent 30%),linear-gradient(180deg,#102418 0%,#08150f 56%,#020604 100%)}
-.register-input-preview{margin:clamp(4px,0.6vw,8px) clamp(4px,0.6vw,8px) 0;background:#f8f4ea;border:2px solid rgba(205,167,95,.34);border-radius:10px;min-height:clamp(38px,5.5vh,52px);display:flex;align-items:center;padding:0 clamp(12px,1.4vw,18px);font-family:'JetBrains Mono','Courier New',monospace;font-size:clamp(18px,2.2vw,28px);font-weight:800;color:#0b2418;box-shadow:0 3px 12px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.75);overflow:hidden}
-.register-input-preview.has-value{border-color:var(--bound-gold);box-shadow:0 0 0 3px rgba(205,167,95,.18),0 3px 12px rgba(0,0,0,.35)}
-.register-input-preview span{display:block;min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .keyboard-home{flex:1;display:flex;flex-direction:column;padding:clamp(3px,0.5vw,6px);gap:clamp(2px,0.4vw,5px);min-height:0}
 
@@ -248,6 +245,34 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 .osk-key.action:active{background:#1b4332}
 .osk-key.secondary{background:linear-gradient(180deg,#475569,#334155);color:#fff;min-width:116px;font-size:17px}
 .osk-key.del{background:linear-gradient(180deg,#fee2e2,#fecaca);color:#991b1b;font-size:17px}
+.osk-numeric-pad{display:none}
+.osk-overlay.numeric-mode .osk-container{width:min(430px,96vw)}
+.osk-overlay.numeric-mode .osk-input-preview{text-align:right;font-family:"Cascadia Mono","Consolas",monospace;font-size:32px;letter-spacing:0}
+.osk-overlay.numeric-mode .osk-container>.osk-row{display:none}
+.osk-overlay.numeric-mode .osk-numeric-pad{display:grid;grid-template-columns:repeat(3,minmax(84px,1fr));gap:10px}
+.osk-overlay.numeric-mode .osk-numeric-pad .osk-key{display:block;width:100%;min-width:0;height:72px;font-size:28px}
+.osk-overlay.numeric-mode .osk-numeric-pad .osk-key.action,.osk-overlay.numeric-mode .osk-numeric-pad .osk-key.del{font-size:17px}
+.osk-overlay.numeric-mode .osk-numeric-pad .osk-key.double{font-size:22px}
+
+#priceChangeModal .modal{width:min(760px,96vw);max-height:92vh;overflow-y:auto}
+#priceChangeProductOptions{max-height:52vh;overflow-y:auto}
+.price-deal-editor{margin-top:12px;border-top:1px solid #e2e4e8;padding-top:12px}
+.price-deal-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.price-deal-title{font-size:12px;font-weight:900;color:#1f2937;text-transform:uppercase;letter-spacing:.5px}
+.price-deal-list{display:grid;gap:6px;margin-bottom:10px}
+.price-deal-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px;border-radius:9px;background:#fff;border:1px solid #e2e4e8}
+.price-deal-row strong{display:block;font-size:13px;color:#1f2937}
+.price-deal-row span{display:block;font-size:12px;color:#6b7280;margin-top:2px}
+.price-deal-empty{font-size:12px;color:#6b7280;padding:8px;border-radius:8px;background:#f8fafc;border:1px dashed #d1d5db}
+.price-deal-form{display:none;padding:10px;border-radius:10px;background:#fffdf7;border:1px solid rgba(205,167,95,.35)}
+.price-deal-form.active{display:block}
+.price-deal-tier{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}
+.price-deal-field label{display:block;font-size:11px;font-weight:800;color:#4b5563;margin-bottom:4px;text-transform:uppercase}
+.price-deal-field input{width:100%;padding:10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#111827;font-size:18px;font-weight:800;text-align:right;font-family:"Cascadia Mono","Consolas",monospace}
+.price-deal-field input:focus{outline:none;border-color:#2e6b45;box-shadow:0 0 0 3px rgba(46,107,69,.16)}
+.price-deal-small-btn{border:1px solid #d1d5db;background:#fff;color:#1f2937;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit}
+.price-deal-remove-btn{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+.price-deal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 
 /* Item Search modal */
 .search-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:3000;display:none;flex-direction:column}
@@ -573,8 +598,6 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 
   <!-- RIGHT: Keyboard Panel (all buttons) -->
   <div class="keyboard-panel">
-    <div class="register-input-preview" id="registerInputPreview"><span id="registerInputPreviewText"></span></div>
-
     <!-- Keyboard Home View — dynamic grid from DB -->
     <div class="keyboard-home" id="keyboardView">
       <div class="pos-grid" id="posGrid"></div>
@@ -743,6 +766,25 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
       </label>
     </div>
     <div style="font-size:11px;color:#6b7280;margin-top:8px">Open price saves the item as manual-price entry and clears its fixed price.</div>
+    <div class="price-deal-editor" id="priceDealEditor">
+      <div class="price-deal-header">
+        <div class="price-deal-title">Product Deals</div>
+        <button type="button" class="price-deal-small-btn" id="priceDealNewBtn">+ Add Deal</button>
+      </div>
+      <div class="price-deal-list" id="priceDealList">
+        <div class="price-deal-empty">Loading deals...</div>
+      </div>
+      <div class="price-deal-form" id="priceDealForm">
+        <div style="font-size:12px;font-weight:800;color:#1f2937;margin-bottom:8px" id="priceDealFormTitle">New deal</div>
+        <div id="priceDealTiers"></div>
+        <div class="price-deal-actions">
+          <button type="button" class="price-deal-small-btn" id="priceDealAddTierBtn">+ Tier</button>
+          <button type="button" class="price-deal-small-btn" id="priceDealSaveBtn" style="background:#2e6b45;color:#fff;border-color:#123c27">Save Deal</button>
+          <button type="button" class="price-deal-small-btn price-deal-remove-btn" id="priceDealRemoveBtn">Remove</button>
+          <button type="button" class="price-deal-small-btn" id="priceDealCancelBtn">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="numpad" id="priceChangePad">
     <button data-val="1">1</button><button data-val="2">2</button><button data-val="3">3</button>
@@ -1127,6 +1169,13 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 <div class="osk-overlay" id="oskOverlay">
 <div class="osk-container">
   <div class="osk-input-preview" id="oskPreview"></div>
+  <div class="osk-numeric-pad" aria-label="Numeric keyboard">
+    <button class="osk-key" data-k="7">7</button><button class="osk-key" data-k="8">8</button><button class="osk-key" data-k="9">9</button>
+    <button class="osk-key" data-k="4">4</button><button class="osk-key" data-k="5">5</button><button class="osk-key" data-k="6">6</button>
+    <button class="osk-key" data-k="1">1</button><button class="osk-key" data-k="2">2</button><button class="osk-key" data-k="3">3</button>
+    <button class="osk-key" data-k="0">0</button><button class="osk-key double" data-k="00">00</button><button class="osk-key secondary" data-k=".">.</button>
+    <button class="osk-key del" data-k="BKSP">BKSP</button><button class="osk-key action" data-k="ENTER">ENTER</button><button class="osk-key action" data-k="DONE">DONE</button>
+  </div>
   <div class="osk-row">
     <button class="osk-key" data-k="1">1</button><button class="osk-key" data-k="2">2</button><button class="osk-key" data-k="3">3</button><button class="osk-key" data-k="4">4</button><button class="osk-key" data-k="5">5</button><button class="osk-key" data-k="6">6</button><button class="osk-key" data-k="7">7</button><button class="osk-key" data-k="8">8</button><button class="osk-key" data-k="9">9</button><button class="osk-key" data-k="0">0</button><button class="osk-key del wide" data-k="BKSP">BKSP</button>
   </div>
@@ -1140,7 +1189,7 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
     <button class="osk-key wide secondary" data-k="SHIFT">SHIFT</button><button class="osk-key" data-k="Z">Z</button><button class="osk-key" data-k="X">X</button><button class="osk-key" data-k="C">C</button><button class="osk-key" data-k="V">V</button><button class="osk-key" data-k="B">B</button><button class="osk-key" data-k="N">N</button><button class="osk-key" data-k="M">M</button>
   </div>
   <div class="osk-row">
-    <button class="osk-key wide secondary" data-k="-">-</button><button class="osk-key wide secondary" data-k=".">.</button><button class="osk-key wide secondary" data-k=",">,</button><button class="osk-key space" data-k=" ">SPACE</button><button class="osk-key wide secondary" data-k="$">$</button><button class="osk-key action" data-k="DONE">DONE</button>
+    <button class="osk-key wide secondary" data-k="-">-</button><button class="osk-key wide secondary" data-k=".">.</button><button class="osk-key wide secondary" data-k=",">,</button><button class="osk-key space" data-k=" ">SPACE</button><button class="osk-key wide secondary" data-k="$">$</button><button class="osk-key action" data-k="ENTER">ENTER</button><button class="osk-key action" data-k="DONE">DONE</button>
   </div>
 </div>
 </div>
@@ -1385,6 +1434,12 @@ function clearCompletedSaleViewForNewInput () {
   return true
 }
 
+function clearCompletedSaleFromClearKey () {
+  const cleared = clearCompletedSaleViewForNewInput()
+  if (cleared) showToast('Ready for next sale', 'info')
+  return cleared
+}
+
 function showCompletedSaleInRegister (receiptData) {
   completedSaleViewActive = true
   viewingSaleId = receiptData?.txnId || null
@@ -1466,6 +1521,7 @@ async function processScannedCode (code) {
   if (!q) return false
   si.value = ''
   if (await recallHeldSaleFromCode(q)) return true
+  if (await viewTransactionFromReceiptCode(q)) return true
   if (await routePriceChangeScan(q)) return true
   try {
     const p = await window.pos.getProductByBarcode(q)
@@ -1500,6 +1556,79 @@ async function recallHeldSale (txnId) {
     }
   } catch (_) {}
   return false
+}
+
+function fullTransactionIdFromBarcode (code) {
+  const q = String(code || '').trim()
+  if (/^[a-f0-9-]{36}$/i.test(q)) return q.toLowerCase()
+  if (/^[a-f0-9]{32}$/i.test(q)) {
+    return q.toLowerCase().replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5')
+  }
+  const prefixed = q.match(/^T([a-f0-9]{32})$/i)
+  if (prefixed) {
+    return prefixed[1].toLowerCase().replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5')
+  }
+  return ''
+}
+
+async function viewTransactionOnRegister (txnId, forcedStatus) {
+  try {
+    const txn = await window.pos.getTransaction(txnId)
+    if (!txn) return false
+    if (txn.status === 'parked') return recallHeldSale(txnId)
+
+    const items = await window.pos.getTransactionItems(txnId)
+    const payments = await window.pos.getTransactionPayments(txnId)
+    if (!items.length) { showToast('No items in this sale', 'info'); return true }
+
+    cart.clear()
+    completedSaleViewActive = true
+    viewingSaleId = txnId
+    for (const ti of items) {
+      let unit = 'each', taxRate = 0.10
+      if (ti.product_id) {
+        const prod = await window.pos.getProductById(ti.product_id)
+        if (prod) { unit = prod.unit || 'each'; taxRate = prod.tax_rate ?? 0.10 }
+      }
+      cart.items.push({
+        product_id: ti.product_id, name: ti.name, qty: ti.qty, unit,
+        unit_price: ti.unit_price, tax_rate: taxRate, discount: ti.discount || 0,
+        line_total: ti.line_total, tax: ti.tax || 0, is_special: false, deal_id: null, deal_name: null
+      })
+    }
+    cart._notify()
+    clearCartLocal()
+
+    const s = await window.pos.getAllSettings()
+    const date = txn?.created_at ? new Date(txn.created_at + (txn.created_at.includes('Z') ? '' : 'Z')).toLocaleString('en-AU') : ''
+    const receiptData = {
+      storeName: s.store_name || 'YieldPOS', storeAddress: s.store_address || '', storeHours: s.store_hours || '',
+      storePhone: s.store_phone || '', storeAbn: s.store_abn || '',
+      header: s.receipt_header || '', date,
+      txnId, receiptNumber: txn?.receipt_number || null, barcode: txnId,
+      staffName: txn?.staff_name || currentStaff?.name || '', staffRole: currentStaff?.role || 'cashier',
+      registerId: s.register_id || 'LANE01',
+      items: cart.items, subtotal: cart.subtotal, tax: cart.tax, discount: cart.discount, total: cart.total,
+      payments: payments.map(p => ({ method: p.method, amount: p.amount, reference: p.reference })),
+      change: 0, status: forcedStatus || txn.status || 'completed',
+      footer: s.receipt_footer || 'Thank you!', eftposReceipt: [], eftposSurcharge: 0
+    }
+    lastCompletedTxns.unshift(receiptData); if (lastCompletedTxns.length > 10) lastCompletedTxns.pop()
+    showViewSaleBanner(receiptData.status, date)
+    returnToMainKeyboard()
+    showToast('Sale loaded from receipt', 'success')
+    refocus()
+    return true
+  } catch (e) {
+    showToast('Could not load receipt sale: ' + e.message, 'error')
+    return true
+  }
+}
+
+async function viewTransactionFromReceiptCode (code) {
+  const txnId = fullTransactionIdFromBarcode(code)
+  if (!txnId) return false
+  return viewTransactionOnRegister(txnId)
 }
 
 async function recallHeldSaleFromCode (code) {
@@ -2198,7 +2327,7 @@ $('#posGrid').addEventListener('click', async e => {
   // Numpad actions
   if (action && NUMPAD_TYPES.has(action) && !type) {
     if (action === 'clear') {
-      const clearedCompleted = clearCompletedSaleViewForNewInput()
+      const clearedCompleted = clearCompletedSaleFromClearKey()
       numBuf = ''; qtyMultiplier = 1; qtyExplicit = false
       if (returnMode) { returnMode = false; $('#returnBanner').classList.remove('active') }
       updateNumDisplay(); updateQtyBadge()
@@ -2984,6 +3113,214 @@ $('#weighedOpenCancel').addEventListener('click', () => { $('#weighedOpenModal')
 
 // ═══ Price Change Modal ═══════════════════════════════════════════
 let priceChangeBuf = '', priceChangeIndex = -1, priceChangeProduct = null
+let priceDealRows = [], priceDealEditingId = '', priceDealEditingProductIds = [], priceDealTiers = []
+
+function parsePriceDealConfig (deal) {
+  try { return typeof deal.config === 'string' ? JSON.parse(deal.config || '{}') : (deal.config || {}) } catch (_) { return {} }
+}
+
+function priceDealTiersFromDeal (deal) {
+  const cfg = parsePriceDealConfig(deal)
+  const tiers = Array.isArray(cfg.tiers) ? cfg.tiers : (cfg.qty ? [{ qty: cfg.qty, price: cfg.price || 0 }] : [])
+  return tiers
+    .map(t => ({ qty: parseInt(t.qty) || 1, price: Number(t.price) || 0 }))
+    .filter(t => t.qty > 0)
+}
+
+function formatPriceDealTiers (tiers) {
+  return (tiers || [])
+    .map(t => `${parseInt(t.qty) || 1} for ${money(Number(t.price) || 0)}`)
+    .join(', ')
+}
+
+function makePriceDealName (product, tiers) {
+  const cleanName = String(product?.name || 'Product').trim()
+  const validTiers = (tiers || []).filter(t => t.qty && t.price > 0)
+  if (validTiers.length === 1) return `${cleanName} ${validTiers[0].qty} for ${money(validTiers[0].price)}`
+  return `${cleanName} multi-buy`
+}
+
+function normaliseProductUnit (unit) {
+  return String(unit || 'each').trim().toLowerCase() || 'each'
+}
+
+function currentPriceDealUnits (product) {
+  const saved = normaliseProductUnit(product?.unit)
+  const unitSelect = $('#priceChangeUnit')
+  const selected = product?.id && priceChangeProduct?.id === product.id && unitSelect
+    ? normaliseProductUnit(unitSelect.value || product.unit)
+    : saved
+  return { saved, selected }
+}
+
+function priceDealBlockReason (product) {
+  if (!product?.id) return 'Choose a product to edit deals.'
+  const units = currentPriceDealUnits(product)
+  if (units.selected !== 'each') return 'Deals are only available for products sold as Each.'
+  if (units.saved !== 'each') return 'Save this product as Each before editing deals.'
+  if (!String(product.plu || '').trim()) return 'This product needs a PLU before it can be used in deals.'
+  return ''
+}
+
+function updatePriceDealNewButton () {
+  const btn = $('#priceDealNewBtn')
+  if (!btn) return
+  const reason = priceDealBlockReason(priceChangeProduct)
+  btn.disabled = !!reason
+  btn.title = reason || ''
+  btn.style.opacity = reason ? '.55' : ''
+  btn.style.cursor = reason ? 'not-allowed' : ''
+}
+
+function renderPriceDealTiers () {
+  const area = $('#priceDealTiers')
+  if (!area) return
+  area.innerHTML = priceDealTiers.map((tier, i) => `
+    <div class="price-deal-tier">
+      <div class="price-deal-field">
+        <label>Buy Qty</label>
+        <input type="text" value="${esc(String(tier.qty || ''))}" readonly inputmode="numeric" data-osk-mode="numeric" data-osk-format="integer" data-price-deal-input data-price-deal-qty="${i}">
+      </div>
+      <div class="price-deal-field">
+        <label>Deal Price</label>
+        <input type="text" value="${Number(tier.price || 0).toFixed(2)}" readonly inputmode="decimal" data-osk-mode="numeric" data-osk-format="money" data-price-deal-input data-price-deal-price="${i}">
+      </div>
+      <button type="button" class="price-deal-small-btn price-deal-remove-btn" data-price-deal-remove-tier="${i}" ${priceDealTiers.length <= 1 ? 'style="visibility:hidden"' : ''}>Remove</button>
+    </div>
+  `).join('')
+}
+
+function renderPriceDealList () {
+  const list = $('#priceDealList')
+  if (!list) return
+  updatePriceDealNewButton()
+  if (!priceChangeProduct) {
+    list.innerHTML = '<div class="price-deal-empty">Choose a product to edit deals.</div>'
+    return
+  }
+  const blockReason = priceDealBlockReason(priceChangeProduct)
+  if (blockReason) {
+    list.innerHTML = `<div class="price-deal-empty">${esc(blockReason)}</div>`
+    return
+  }
+  if (!priceDealRows.length) {
+    list.innerHTML = '<div class="price-deal-empty">No deals for this product yet.</div>'
+    return
+  }
+  list.innerHTML = priceDealRows.map(deal => {
+    const tiers = priceDealTiersFromDeal(deal)
+    const state = Number(deal.active || 0) === 1 ? 'Active' : 'Off'
+    return `<div class="price-deal-row" data-price-deal-id="${esc(deal.id)}">
+      <div><strong>${esc(deal.name)}</strong><span>${esc(formatPriceDealTiers(tiers) || 'No tiers')} &middot; ${state}</span></div>
+      <button type="button" class="price-deal-small-btn" data-price-deal-edit="${esc(deal.id)}">Edit</button>
+      <button type="button" class="price-deal-small-btn price-deal-remove-btn" data-price-deal-remove="${esc(deal.id)}">Remove</button>
+    </div>`
+  }).join('')
+}
+
+async function loadPriceDealEditor (product) {
+  priceDealRows = []
+  priceDealEditingId = ''
+  priceDealEditingProductIds = []
+  priceDealTiers = []
+  $('#priceDealForm')?.classList.remove('active')
+  if ($('#priceDealList')) $('#priceDealList').innerHTML = '<div class="price-deal-empty">Loading deals...</div>'
+  if (!product?.id) { renderPriceDealList(); return }
+  if (priceDealBlockReason(product)) { renderPriceDealList(); return }
+  try {
+    const [deals, allLinks] = await Promise.all([
+      window.pos.getDeals(),
+      window.pos.getAllDealProducts ? window.pos.getAllDealProducts() : Promise.resolve([])
+    ])
+    const linksByDeal = new Map()
+    for (const link of allLinks || []) {
+      if (!linksByDeal.has(link.deal_id)) linksByDeal.set(link.deal_id, [])
+      linksByDeal.get(link.deal_id).push(link)
+    }
+    const linked = []
+    for (const deal of deals) {
+      const products = linksByDeal.has(deal.id)
+        ? linksByDeal.get(deal.id)
+        : await window.pos.getDealProducts(deal.id).catch(() => [])
+      if (products.some(p => p.product_id === product.id)) linked.push({ ...deal, _products: products })
+    }
+    priceDealRows = linked
+  } catch (e) {
+    $('#priceDealList').innerHTML = `<div class="price-deal-empty">Could not load deals: ${esc(e.message)}</div>`
+    return
+  }
+  renderPriceDealList()
+}
+
+function beginPriceDealEdit (deal = null) {
+  if (!priceChangeProduct?.id) return
+  const blockReason = priceDealBlockReason(priceChangeProduct)
+  if (blockReason) {
+    showToast(blockReason, 'error')
+    return
+  }
+  priceDealEditingId = deal?.id || ''
+  const existingProductIds = (deal?._products || []).map(p => p.product_id).filter(Boolean)
+  priceDealEditingProductIds = [...new Set([...(existingProductIds.length ? existingProductIds : []), priceChangeProduct.id])]
+  priceDealTiers = deal ? priceDealTiersFromDeal(deal) : [{ qty: 2, price: 0 }]
+  if (!priceDealTiers.length) priceDealTiers = [{ qty: 2, price: 0 }]
+  $('#priceDealFormTitle').textContent = deal ? `Edit ${deal.name}` : 'New deal'
+  $('#priceDealRemoveBtn').style.display = deal ? '' : 'none'
+  $('#priceDealForm').classList.add('active')
+  renderPriceDealTiers()
+}
+
+async function removePriceDealFromProduct (dealId) {
+  const deal = priceDealRows.find(d => d.id === dealId)
+  if (!deal || !priceChangeProduct?.id) return
+  const remaining = (deal._products || []).map(p => p.product_id).filter(id => id && id !== priceChangeProduct.id)
+  if (!remaining.length) {
+    await window.pos.deleteDeal(deal.id)
+    showToast('Deal removed', 'success')
+  } else {
+    const res = await window.pos.setDealProducts(deal.id, remaining)
+    if (res?.error) { showToast(res.error, 'error'); return }
+    showToast('Product removed from deal', 'success')
+  }
+  await loadDeals()
+  await loadPriceDealEditor(priceChangeProduct)
+  pushPending().catch(() => {})
+}
+
+async function savePriceDealFromEditor () {
+  if (!priceChangeProduct?.id) return
+  const blockReason = priceDealBlockReason(priceChangeProduct)
+  if (blockReason) {
+    showToast(blockReason, 'error')
+    return
+  }
+  const tiers = priceDealTiers
+    .map(t => ({ qty: parseInt(t.qty) || 0, price: Number(t.price) || 0 }))
+    .filter(t => t.qty > 0 || t.price > 0)
+  if (!tiers.length || tiers.some(t => t.qty < 1 || t.price <= 0)) {
+    showToast('Each deal tier needs a quantity and price', 'error')
+    return
+  }
+  tiers.sort((a, b) => a.qty - b.qty)
+  const productIds = [...new Set([...(priceDealEditingProductIds || []), priceChangeProduct.id])]
+  const deal = {
+    id: priceDealEditingId || undefined,
+    name: makePriceDealName(priceChangeProduct, tiers),
+    type: 'multi_buy',
+    config: { tiers },
+    active: true,
+    product_ids: productIds
+  }
+  const res = await window.pos.upsertDeal(deal)
+  if (res?.error) { showToast(res.error, 'error'); return }
+  const dealId = res.id || priceDealEditingId
+  const linkRes = await window.pos.setDealProducts(dealId, productIds)
+  if (linkRes?.error) { showToast(linkRes.error, 'error'); return }
+  showToast('Deal saved', 'success')
+  await loadDeals()
+  await loadPriceDealEditor(priceChangeProduct)
+  pushPending().catch(() => {})
+}
 function showPriceChangeModal () {
   if (cart.isEmpty) { showToast('No items to change', 'info'); return }
   priceChangeIndex = cart.items.length - 1
@@ -2993,6 +3330,7 @@ function showPriceChangeModal () {
   $('#priceChangeTitle').textContent = 'Change Price'
   $('#priceChangeSub').textContent = `${item.name} — currently ${money(item.unit_price)}`
   $('#priceChangeProductOptions').style.display = 'none'
+  $('#priceDealForm')?.classList.remove('active')
   $('#priceChangeConfirm').textContent = 'Update Price'
   $('#priceChangeModal').classList.add('show')
 }
@@ -3010,6 +3348,7 @@ function showPriceChangeModalForProduct (product) {
   $('#priceChangeOpenPrice').checked = Number(product.open_price || 0) === 1
   $('#priceChangeConfirm').textContent = 'Save Product'
   $('#priceChangeModal').classList.add('show')
+  loadPriceDealEditor(product)
 }
 function updatePriceChangeDisplay () { $('#priceChangeDisplay').textContent = money(moneyInputValue(priceChangeBuf)) }
 function appendPriceChangeInput (v) {
@@ -3020,6 +3359,61 @@ $('#priceChangePad').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return
   appendPriceChangeInput(b.dataset.val)
 })
+
+$('#priceChangeUnit').addEventListener('change', () => {
+  if (!priceChangeProduct) return
+  $('#priceDealForm')?.classList.remove('active')
+  renderPriceDealList()
+})
+
+$('#priceDealNewBtn').addEventListener('click', () => beginPriceDealEdit(null))
+$('#priceDealCancelBtn').addEventListener('click', () => $('#priceDealForm').classList.remove('active'))
+$('#priceDealAddTierBtn').addEventListener('click', () => {
+  const last = priceDealTiers[priceDealTiers.length - 1] || { qty: 1, price: 0 }
+  priceDealTiers.push({ qty: (parseInt(last.qty) || 1) + 1, price: 0 })
+  renderPriceDealTiers()
+})
+$('#priceDealSaveBtn').addEventListener('click', () => savePriceDealFromEditor().catch(e => showToast('Deal save failed: ' + e.message, 'error')))
+$('#priceDealRemoveBtn').addEventListener('click', () => {
+  if (!priceDealEditingId) return
+  removePriceDealFromProduct(priceDealEditingId).catch(e => showToast('Deal remove failed: ' + e.message, 'error'))
+})
+
+$('#priceDealList').addEventListener('click', e => {
+  const edit = e.target.closest('[data-price-deal-edit]')
+  const remove = e.target.closest('[data-price-deal-remove]')
+  if (edit) {
+    const deal = priceDealRows.find(d => d.id === edit.dataset.priceDealEdit)
+    if (deal) beginPriceDealEdit(deal)
+    return
+  }
+  if (remove) {
+    removePriceDealFromProduct(remove.dataset.priceDealRemove).catch(err => showToast('Deal remove failed: ' + err.message, 'error'))
+  }
+})
+
+$('#priceDealTiers').addEventListener('input', e => {
+  const qtyIndex = e.target.dataset.priceDealQty
+  const priceIndex = e.target.dataset.priceDealPrice
+  if (qtyIndex !== undefined) priceDealTiers[parseInt(qtyIndex)].qty = parseInt(e.target.value) || 0
+  if (priceIndex !== undefined) priceDealTiers[parseInt(priceIndex)].price = parseFloat(e.target.value) || 0
+})
+
+$('#priceDealTiers').addEventListener('click', e => {
+  const remove = e.target.closest('[data-price-deal-remove-tier]')
+  if (!remove) return
+  priceDealTiers.splice(parseInt(remove.dataset.priceDealRemoveTier), 1)
+  if (!priceDealTiers.length) priceDealTiers.push({ qty: 2, price: 0 })
+  renderPriceDealTiers()
+})
+
+$('#priceChangeModal').addEventListener('focusin', e => {
+  const input = e.target.closest('[data-price-deal-input]')
+  if (!input) return
+  input.blur()
+  openOsk(input)
+})
+
 $('#priceChangeConfirm').addEventListener('click', async () => {
   const cents = moneyInputCents(priceChangeBuf)
   const newPrice = cents / 100
@@ -3068,6 +3462,7 @@ document.addEventListener('keydown', e => {
   ]
   const active = modalHandlers.find(h => $(h.modal)?.classList.contains('show'))
   if (!active || e.ctrlKey || e.altKey || e.metaKey) return
+  if ($('#oskOverlay')?.classList.contains('show') || e.target.closest?.('#priceDealEditor')) return
   if (/^\d$/.test(e.key)) {
     e.preventDefault(); e.stopPropagation()
     active.append(e.key)
@@ -3306,7 +3701,7 @@ function updateTotals () {
 
 $('#cartClear').addEventListener('click', () => {
   if (cart.isEmpty) return
-  if (completedSaleViewActive) { clearCompletedSaleViewForNewInput(); refocus(); return }
+  if (clearCompletedSaleFromClearKey()) { refocus(); return }
   $('#clearCartCount').textContent = cart.items.length
   $('#clearCartTotal').textContent = money(cart.total)
   $('#clearConfirmModal').classList.add('show')
@@ -3387,6 +3782,8 @@ function splitDealValues (value, separator = ',') {
 }
 
 function dealMatchesCartItem (deal, item) {
+  if (normaliseProductUnit(item?.unit) !== 'each') return false
+
   const ids = new Set(splitDealValues(deal.product_ids))
   if (ids.has(item.product_id)) return true
 
@@ -4967,6 +5364,9 @@ $('#eodSubmit').addEventListener('click', async () => {
 
 // ═══ On-Screen QWERTY Keyboard ═══════════════════════════════════════
 let oskShift = false
+let oskNumericFormat = ''
+let oskNumericBuffer = ''
+let oskNumericFresh = false
 
 function updateOskBottomSpace () {
   const keyboard = $('#oskOverlay .osk-container')
@@ -4992,10 +5392,67 @@ function setOskPreviewValue (value) {
   scrollOskTargetIntoView()
 }
 
+function commitOskPreviewToTarget ({ fireChange = false } = {}) {
+  if (!oskTargetInput) return null
+  oskTargetInput.value = $('#oskPreview').textContent
+  oskTargetInput.dispatchEvent(new Event('input', { bubbles: true }))
+  if (fireChange) oskTargetInput.dispatchEvent(new Event('change', { bubbles: true }))
+  return oskTargetInput
+}
+
+function numericOskPreviewValue () {
+  if (oskNumericFormat === 'money') return moneyInputValue(oskNumericBuffer).toFixed(2)
+  return oskNumericBuffer || ''
+}
+
+function initialNumericOskBuffer (inputEl, format) {
+  if (format === 'money') return moneyInputFromAmount(parseFloat(inputEl.value) || 0)
+  return String(inputEl.value || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '')
+}
+
+function handleNumericOskKey (key) {
+  if (!oskNumericFormat) return false
+  if (key === 'DONE') {
+    closeOsk()
+    return true
+  }
+  if (key === 'ENTER') {
+    pressOskEnter()
+    return true
+  }
+  if (key === 'BKSP') {
+    oskNumericBuffer = oskNumericFresh
+      ? ''
+      : (oskNumericFormat === 'money' ? appendMoneyInput(oskNumericBuffer, 'back') : oskNumericBuffer.slice(0, -1))
+    oskNumericFresh = false
+    setOskPreviewValue(numericOskPreviewValue())
+    return true
+  }
+  if (key !== '.' && !/^\d+$/.test(String(key || ''))) return false
+
+  if (oskNumericFresh) {
+    oskNumericBuffer = ''
+    oskNumericFresh = false
+  }
+  if (oskNumericFormat === 'money') {
+    oskNumericBuffer = appendMoneyInput(oskNumericBuffer, key)
+  } else if (key !== '.') {
+    oskNumericBuffer = (oskNumericBuffer + String(key)).replace(/^0+(?=\d)/, '')
+  }
+  setOskPreviewValue(numericOskPreviewValue())
+  return true
+}
+
 function openOsk (inputEl) {
   oskTargetInput = inputEl
   oskShift = false
-  $('#oskPreview').textContent = inputEl.value || ''
+  oskNumericFormat = inputEl.dataset.oskMode === 'numeric'
+    ? (inputEl.dataset.oskFormat || 'integer')
+    : ''
+  oskNumericBuffer = oskNumericFormat ? initialNumericOskBuffer(inputEl, oskNumericFormat) : ''
+  oskNumericFresh = !!oskNumericFormat
+  $('#oskOverlay').classList.toggle('numeric-mode', !!oskNumericFormat)
+  $('#oskPreview').textContent = oskNumericFormat ? numericOskPreviewValue() : (inputEl.value || '')
   $('#oskOverlay').classList.add('show')
   document.body.classList.add('osk-open')
   updateOskBottomSpace()
@@ -5004,12 +5461,34 @@ function openOsk (inputEl) {
 
 function closeOsk () {
   $('#oskOverlay').classList.remove('show')
+  $('#oskOverlay').classList.remove('numeric-mode')
   document.body.classList.remove('osk-open')
   document.documentElement.style.removeProperty('--osk-bottom-space')
-  if (oskTargetInput) {
-    oskTargetInput.value = $('#oskPreview').textContent
-    oskTargetInput = null
+  commitOskPreviewToTarget({ fireChange: true })
+  oskNumericFormat = ''
+  oskNumericBuffer = ''
+  oskNumericFresh = false
+  oskTargetInput = null
+}
+
+function pressOskEnter () {
+  const target = commitOskPreviewToTarget({ fireChange: true })
+  if (!target) return
+  const events = ['keydown', 'keypress', 'keyup'].map(type => new KeyboardEvent(type, {
+    key: 'Enter',
+    code: 'Enter',
+    bubbles: true,
+    cancelable: true
+  }))
+  const cancelled = events.map(event => !target.dispatchEvent(event)).some(Boolean)
+  if (target.tagName === 'TEXTAREA' && !cancelled) {
+    const start = target.selectionStart ?? target.value.length
+    const end = target.selectionEnd ?? target.value.length
+    target.setRangeText('\n', start, end, 'end')
+    setOskPreviewValue(target.value)
+    return
   }
+  closeOsk()
 }
 
 $$('#oskOverlay .osk-key').forEach(btn => {
@@ -5017,8 +5496,11 @@ $$('#oskOverlay .osk-key').forEach(btn => {
     e.stopPropagation()
     const k = btn.dataset.k
     const preview = $('#oskPreview')
+    if ($('#oskOverlay').classList.contains('numeric-mode') && handleNumericOskKey(k)) return
     if (k === 'DONE') {
       closeOsk()
+    } else if (k === 'ENTER') {
+      pressOskEnter()
     } else if (k === 'BKSP') {
       setOskPreviewValue(preview.textContent.slice(0, -1))
     } else if (k === 'SHIFT') {
@@ -5086,7 +5568,6 @@ function updateItemSearchPreview () {
   const value = input ? String(input.value || '') : ''
   if (textEl) textEl.textContent = value
   if (preview) preview.classList.toggle('has-value', !!value)
-  updateRegisterInputPreview(value)
 }
 
 function queueItemSearch () {

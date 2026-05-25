@@ -4733,13 +4733,35 @@ if (Test-Path -LiteralPath $LauncherPath) {
     } catch (_) { return 'dev' }
   })
 
+  function localDateKey (date = new Date()) {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
+  function normaliseDateScope (input = {}) {
+    if (typeof input === 'string') return { date: input || localDateKey(), registerId: null }
+    const opts = input && typeof input === 'object' ? input : {}
+    return {
+      date: opts.date || localDateKey(),
+      registerId: opts.register_id || opts.registerId || null
+    }
+  }
+
+  function writeAuditLog (action, detail, staff = {}) {
+    if (!action) return null
+    const id = uuid()
+    dbRun(`INSERT INTO audit_log (id, staff_id, staff_name, action, detail, created_at)
+      VALUES (?1, ?2, ?3, ?4, ?5, datetime('now', 'localtime'))`,
+      [id, staff.staff_id || staff.staffId || null, staff.staff_name || staff.staffName || null, action, detail || null])
+    return id
+  }
+
   // â”€â”€ Audit Log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   ipcMain.handle('db:audit:log', (_e, entry) => {
-    const id = uuid()
-    dbRun(`INSERT INTO audit_log (id, staff_id, staff_name, action, detail, created_at)
-      VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))`,
-      [id, entry.staff_id || null, entry.staff_name || null, entry.action, entry.detail || null])
+    const id = writeAuditLog(entry.action, entry.detail || null, entry)
     return { id }
   })
 
@@ -4752,8 +4774,21 @@ if (Test-Path -LiteralPath $LauncherPath) {
       params.push(opts.date); idx++
     }
     if (opts.action) {
-      sql += ` AND action = ?${idx}`
-      params.push(opts.action); idx++
+      const aliases = {
+        price_change: ['price_change', 'product_price_change'],
+        product_change: ['product_created', 'product_updated', 'product_deleted', 'product_price_change', 'price_change'],
+        drawer: ['float_set', 'cash_pickup', 'cash_drop', 'drawer_close', 'drawer_open', 'no_sale', 'logout'],
+        discount: ['discount_sale', 'discount_item', 'discount_items'],
+        refund: ['refund', 'refund_transaction'],
+        void: ['void_item', 'void_transaction']
+      }[opts.action]
+      if (aliases) {
+        sql += ` AND action IN (${aliases.map(() => `?${idx++}`).join(',')})`
+        params.push(...aliases)
+      } else {
+        sql += ` AND action = ?${idx}`
+        params.push(opts.action); idx++
+      }
     }
     if (opts.staff_id) {
       sql += ` AND staff_id = ?${idx}`
@@ -4846,6 +4881,10 @@ if (Test-Path -LiteralPath $LauncherPath) {
     `, [categoryId])
   })
 
+  ipcMain.handle('db:products:getAll', () => {
+    return dbAll("SELECT * FROM products ORDER BY name")
+  })
+
   ipcMain.handle('db:products:nextPlu', () => {
     const rows = dbAll(`
       SELECT CAST(plu AS INTEGER) AS n
@@ -4870,10 +4909,15 @@ if (Test-Path -LiteralPath $LauncherPath) {
     return dbAll(`SELECT * FROM categories WHERE active = 1 ORDER BY sort_order, name`)
   })
 
+  ipcMain.handle('db:categories:getAllIncludingInactive', () => {
+    return dbAll("SELECT * FROM categories ORDER BY sort_order, name")
+  })
+
   // â”€â”€ Product Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   ipcMain.handle('db:products:upsert', (_e, product) => {
     const id = product.id || uuid()
+    const previous = product.id ? dbGet("SELECT name, plu, price, open_price, active FROM products WHERE id = ?1", [id]) : null
     const isOpenPrice = !!product.open_price
     const productPrice = isOpenPrice ? 0 : (product.price || 0)
     const productPlu = String(product.plu || '').trim()
@@ -4897,6 +4941,20 @@ if (Test-Path -LiteralPath $LauncherPath) {
       dbRun("UPDATE specials SET active = 0, updated_at = datetime('now') WHERE product_id = ?1 AND active = 1", [id])
     }
     normalizeKeyboardProductRefs()
+    const priceChanged = previous && Number(previous.price || 0) !== Number(productPrice || 0)
+    const openPriceChanged = previous && Number(previous.open_price || 0) !== (isOpenPrice ? 1 : 0)
+    const action = previous ? ((priceChanged || openPriceChanged) ? 'product_price_change' : 'product_updated') : 'product_created'
+    const detailParts = [`${product.name} (PLU ${productPlu})`]
+    if (priceChanged) {
+      detailParts.push(`price ${Number(previous.price || 0).toFixed(2)} -> ${Number(productPrice || 0).toFixed(2)}`)
+    }
+    if (openPriceChanged) {
+      detailParts.push(isOpenPrice ? 'set open price' : 'set fixed price')
+    }
+    if (previous && String(previous.plu || '') !== productPlu) {
+      detailParts.push(`PLU ${previous.plu || '-'} -> ${productPlu}`)
+    }
+    writeAuditLog(action, detailParts.join(' | '))
 
     queueSync('products', id, product.id ? 'update' : 'insert')
     lanSync.bumpVersion()
@@ -4906,10 +4964,13 @@ if (Test-Path -LiteralPath $LauncherPath) {
 
   ipcMain.handle('db:categories:upsert', (_e, cat) => {
     const id = cat.id || uuid()
+    const previous = cat.id ? dbGet("SELECT name, active FROM categories WHERE id = ?1", [id]) : null
     dbRun(`
       INSERT OR REPLACE INTO categories (id, name, sort_order, colour, family, active, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'))
     `, [id, cat.name, cat.sort_order || 0, cat.colour || '#4fbd77', cat.family || '', cat.active !== false ? 1 : 0])
+    const becameInactive = previous && previous.active !== 0 && cat.active === false
+    writeAuditLog(becameInactive ? 'category_deleted' : (previous ? 'category_updated' : 'category_created'), cat.name || previous?.name || id)
 
     queueSync('categories', id, cat.id ? 'update' : 'insert')
     saveDBSync()
@@ -4962,7 +5023,9 @@ if (Test-Path -LiteralPath $LauncherPath) {
   })
 
   ipcMain.handle('db:products:delete', (_e, id) => {
+    const previous = dbGet("SELECT name, plu FROM products WHERE id = ?1", [id])
     dbRun("UPDATE products SET active = 0, updated_at = datetime('now') WHERE id = ?1", [id])
+    writeAuditLog('product_deleted', previous ? `${previous.name} (PLU ${previous.plu || '-'})` : id)
     queueSync('products', id, 'update')
     saveDBSync()
     return true
@@ -5041,9 +5104,11 @@ if (Test-Path -LiteralPath $LauncherPath) {
       SELECT d.*,
         COUNT(dp.product_id) as product_count,
         SUM(CASE WHEN p.id IS NULL OR p.plu IS NULL OR TRIM(p.plu) = '' THEN 1 ELSE 0 END) as missing_plu_count,
+        SUM(CASE WHEN LOWER(COALESCE(p.unit, 'each')) <> 'each' THEN 1 ELSE 0 END) as invalid_unit_count,
         CASE
           WHEN COUNT(dp.product_id) > 0
             AND SUM(CASE WHEN p.id IS NULL OR p.plu IS NULL OR TRIM(p.plu) = '' THEN 1 ELSE 0 END) = 0
+            AND SUM(CASE WHEN LOWER(COALESCE(p.unit, 'each')) <> 'each' THEN 1 ELSE 0 END) = 0
           THEN 1 ELSE 0
         END as is_valid
       FROM deals d
@@ -5059,7 +5124,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
     if (!ids.length) return { ok: false, error: 'Add at least one product with a PLU before saving this deal' }
 
     const placeholders = ids.map((_, i) => `?${i + 1}`).join(',')
-    const products = dbAll(`SELECT id, name, plu FROM products WHERE id IN (${placeholders})`, ids)
+    const products = dbAll(`SELECT id, name, plu, unit FROM products WHERE id IN (${placeholders})`, ids)
     const byId = new Map(products.map(p => [p.id, p]))
     const invalid = ids.map(id => byId.get(id) || { id, name: `Missing product ${id}`, plu: '' })
       .filter(p => !String(p.plu || '').trim())
@@ -5071,11 +5136,23 @@ if (Test-Path -LiteralPath $LauncherPath) {
         error: `Add PLUs before saving this deal: ${names}${invalid.length > 3 ? '...' : ''}`
       }
     }
+
+    const invalidUnits = ids.map(id => byId.get(id) || { id, name: `Missing product ${id}`, unit: '' })
+      .filter(p => String(p.unit || 'each').trim().toLowerCase() !== 'each')
+
+    if (invalidUnits.length) {
+      const names = invalidUnits.slice(0, 3).map(p => p.name || p.id).join(', ')
+      return {
+        ok: false,
+        error: `Deals can only be linked to products sold as Each: ${names}${invalidUnits.length > 3 ? '...' : ''}`
+      }
+    }
     return { ok: true, ids }
   }
 
   ipcMain.handle('db:deals:upsert', (_e, deal) => {
     const id = deal.id || uuid()
+    const previous = deal.id ? dbGet("SELECT name, active FROM deals WHERE id = ?1", [id]) : null
     if (deal.active !== false) {
       let idsToValidate = Array.isArray(deal.product_ids) ? deal.product_ids : null
       if (!idsToValidate && deal.id) {
@@ -5094,6 +5171,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))
     `, [id, deal.name, deal.type, JSON.stringify(deal.config || {}),
         deal.start_date || null, deal.end_date || null, deal.active !== false ? 1 : 0])
+    writeAuditLog(previous ? 'deal_updated' : 'deal_created', `${deal.name} (${deal.type})`)
     queueSync('deals', id, deal.id ? 'update' : 'insert')
     lanSync.bumpVersion()
     saveDBSync()
@@ -5101,6 +5179,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
   })
 
   ipcMain.handle('db:deals:delete', (_e, id) => {
+    const previous = dbGet("SELECT name FROM deals WHERE id = ?1", [id])
     const linkedProducts = dbAll("SELECT product_id FROM deal_products WHERE deal_id = ?1", [id])
     for (const row of linkedProducts) {
       dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
@@ -5111,6 +5190,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
     dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES ('deals', ?1)", [id])
     dbRun("DELETE FROM deal_products WHERE deal_id = ?1", [id])
     dbRun("DELETE FROM deals WHERE id = ?1", [id])
+    writeAuditLog('deal_deleted', previous?.name || id)
     lanSync.bumpVersion()
     saveDBSync()
     return true
@@ -5118,7 +5198,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
 
   ipcMain.handle('db:deals:getProducts', (_e, dealId) => {
     return dbAll(`
-      SELECT dp.*, p.name as product_name, p.price, p.plu
+      SELECT dp.*, p.name as product_name, p.price, p.plu, p.unit
       FROM deal_products dp
       JOIN products p ON p.id = dp.product_id
       WHERE dp.deal_id = ?1
@@ -5180,6 +5260,10 @@ if (Test-Path -LiteralPath $LauncherPath) {
     return count
   })
 
+  ipcMain.handle('db:dealProducts:getAll', () => {
+    return dbAll("SELECT * FROM deal_products ORDER BY deal_id, product_id")
+  })
+
   // â”€â”€ Transactions â”€â”€â”€â”€â”€â”€â”€â”€ï¿½ï¿½â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ï¿½ï¿½â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   ipcMain.handle('db:transaction:save', (_e, txn) => {
@@ -5238,6 +5322,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
   })
 
   ipcMain.handle('db:transaction:void', (_e, txnId) => {
+    const txn = dbGet("SELECT total FROM transactions WHERE id = ?1", [txnId])
     const items = dbAll("SELECT product_id, qty FROM transaction_items WHERE transaction_id = ?1", [txnId])
     for (const item of items) {
       if (item.product_id) {
@@ -5245,12 +5330,14 @@ if (Test-Path -LiteralPath $LauncherPath) {
       }
     }
     dbRun("UPDATE transactions SET status = 'voided' WHERE id = ?1", [txnId])
+    writeAuditLog('void_transaction', `${txnId.substring(0, 8)}${txn ? ` | ${Number(txn.total || 0).toFixed(2)}` : ''}`)
     queueSync('transactions', txnId, 'update')
     saveDBSync()
     return true
   })
 
   ipcMain.handle('db:transaction:refund', (_e, txnId) => {
+    const txn = dbGet("SELECT total FROM transactions WHERE id = ?1", [txnId])
     const items = dbAll("SELECT product_id, qty FROM transaction_items WHERE transaction_id = ?1", [txnId])
     for (const item of items) {
       if (item.product_id) {
@@ -5258,6 +5345,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
       }
     }
     dbRun("UPDATE transactions SET status = 'refunded' WHERE id = ?1", [txnId])
+    writeAuditLog('refund_transaction', `${txnId.substring(0, 8)}${txn ? ` | ${Number(txn.total || 0).toFixed(2)}` : ''}`)
     queueSync('transactions', txnId, 'update')
     saveDBSync()
     return true
@@ -5280,6 +5368,18 @@ if (Test-Path -LiteralPath $LauncherPath) {
 
   ipcMain.handle('db:transaction:getPayments', (_e, txnId) => {
     return dbAll("SELECT * FROM payments WHERE transaction_id = ?1", [txnId])
+  })
+
+  ipcMain.handle('db:transaction:getAll', () => {
+    return dbAll("SELECT * FROM transactions ORDER BY created_at, id")
+  })
+
+  ipcMain.handle('db:transaction:getAllItems', () => {
+    return dbAll("SELECT * FROM transaction_items ORDER BY transaction_id, id")
+  })
+
+  ipcMain.handle('db:transaction:getAllPayments', () => {
+    return dbAll("SELECT * FROM payments ORDER BY created_at, id")
   })
 
   ipcMain.handle('db:transaction:delete', (_e, txnId) => {
@@ -5337,6 +5437,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
       GROUP BY d.id
       HAVING COUNT(dp.product_id) > 0
         AND SUM(CASE WHEN p.plu IS NULL OR TRIM(p.plu) = '' THEN 1 ELSE 0 END) = 0
+        AND SUM(CASE WHEN LOWER(COALESCE(p.unit, 'each')) <> 'each' THEN 1 ELSE 0 END) = 0
       ORDER BY d.name
     `)
   })
@@ -5464,8 +5565,17 @@ if (Test-Path -LiteralPath $LauncherPath) {
     const registerId = entry.register_id || regRow?.value || 'LANE01'
     dbRun(`
       INSERT INTO cash_drawer (id, register_id, staff_id, action, amount, note, created_at)
-      VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'))
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now', 'localtime'))
     `, [id, registerId, entry.staff_id || null, entry.action, entry.amount || null, entry.note || null])
+    const auditActions = {
+      float: 'float_set',
+      pickup: 'cash_pickup',
+      drop: 'cash_drop',
+      close: 'drawer_close',
+      open: 'drawer_open'
+    }
+    const amountText = entry.amount != null ? `$${Number(entry.amount || 0).toFixed(2)}` : ''
+    writeAuditLog(auditActions[entry.action] || `drawer_${entry.action}`, [registerId, amountText, entry.note || ''].filter(Boolean).join(' | '), entry)
     queueSync('cash_drawer', id, 'insert')
     saveDBSync()
     return { id }
@@ -5485,33 +5595,67 @@ if (Test-Path -LiteralPath $LauncherPath) {
     return count
   })
 
-  ipcMain.handle('db:cash_drawer:getLog', (_e, date) => {
+  ipcMain.handle('db:cash_drawer:getLog', (_e, input) => {
+    const scope = normaliseDateScope(input)
+    const params = [scope.date]
+    let registerClause = ''
+    if (scope.registerId) {
+      registerClause = ' AND cd.register_id = ?2'
+      params.push(scope.registerId)
+    }
     return dbAll(`
       SELECT cd.*, s.name as staff_name
       FROM cash_drawer cd
       LEFT JOIN staff s ON s.id = cd.staff_id
-      WHERE date(cd.created_at) = ?1
+      WHERE date(cd.created_at) = ?1${registerClause}
       ORDER BY cd.created_at DESC
-    `, [date || new Date().toISOString().slice(0, 10)])
+    `, params)
   })
 
-  ipcMain.handle('db:cash_drawer:summary', (_e, date) => {
-    const d = date || new Date().toISOString().slice(0, 10)
-    const floatRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'float' AND date(created_at) = ?1`, [d])
-    const pickupRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'pickup' AND date(created_at) = ?1`, [d])
-    const dropRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'drop' AND date(created_at) = ?1`, [d])
+  ipcMain.handle('db:cash_drawer:getAll', () => {
+    return dbAll("SELECT * FROM cash_drawer ORDER BY created_at, id")
+  })
+
+  ipcMain.handle('db:cash_drawer:summary', (_e, input) => {
+    const scope = normaliseDateScope(input)
+    const d = scope.date
+    const params = [d]
+    const drawerParams = [d]
+    let drawerRegisterClause = ''
+    let txnRegisterClause = ''
+    if (scope.registerId) {
+      drawerRegisterClause = ' AND register_id = ?2'
+      txnRegisterClause = ' AND t.register_id = ?2'
+      params.push(scope.registerId)
+      drawerParams.push(scope.registerId)
+    }
+    const floatRows = dbAll(`
+      SELECT register_id, amount
+      FROM cash_drawer
+      WHERE action = 'float' AND date(created_at) = ?1${drawerRegisterClause}
+      ORDER BY register_id, datetime(created_at) DESC, id DESC
+    `, drawerParams)
+    const latestFloatByRegister = new Map()
+    for (const row of floatRows) {
+      if (!latestFloatByRegister.has(row.register_id)) latestFloatByRegister.set(row.register_id, Number(row.amount || 0))
+    }
+    const floatTotal = [...latestFloatByRegister.values()].reduce((s, v) => s + v, 0)
+    const pickupRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'pickup' AND date(created_at) = ?1${drawerRegisterClause}`, drawerParams)
+    const dropRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'drop' AND date(created_at) = ?1${drawerRegisterClause}`, drawerParams)
     const cashSalesRow = dbGet(`
-      SELECT COALESCE(SUM(p.amount), 0) as total
+      SELECT COALESCE(SUM(CASE WHEN t.status = 'refunded' THEN -ABS(p.amount) ELSE p.amount END), 0) as total
       FROM payments p
       JOIN transactions t ON t.id = p.transaction_id
-      WHERE p.method = 'cash' AND t.status = 'completed' AND date(t.created_at) = ?1
-    `, [d])
+      WHERE lower(p.method) = 'cash'
+        AND t.status IN ('completed', 'refunded')
+        AND date(t.created_at) = ?1${txnRegisterClause}
+    `, params)
     return {
-      float: floatRow?.total || 0,
+      float: floatTotal,
       pickups: pickupRow?.total || 0,
       drops: dropRow?.total || 0,
       cash_sales: cashSalesRow?.total || 0,
-      expected: (floatRow?.total || 0) + (cashSalesRow?.total || 0) + (dropRow?.total || 0) - (pickupRow?.total || 0)
+      expected: floatTotal + (cashSalesRow?.total || 0) + (dropRow?.total || 0) - (pickupRow?.total || 0)
     }
   })
 
@@ -5578,10 +5722,12 @@ if (Test-Path -LiteralPath $LauncherPath) {
 
   ipcMain.handle('db:staff:upsert', (_e, s) => {
     const id = s.id || uuid()
+    const previous = s.id ? dbGet("SELECT name, role, active FROM staff WHERE id = ?1", [id]) : null
     dbRun(`
       INSERT OR REPLACE INTO staff (id, name, pin, role, active, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))
     `, [id, s.name, s.pin, s.role || 'cashier', s.active !== false ? 1 : 0])
+    writeAuditLog(previous ? 'staff_updated' : 'staff_created', `${s.name} (${s.role || 'cashier'})`)
     queueSync('staff', id, s.id ? 'update' : 'insert')
     saveDBSync()
     return { id }
@@ -5615,12 +5761,18 @@ if (Test-Path -LiteralPath $LauncherPath) {
 
   ipcMain.handle('db:settings:set', (_e, key, value) => {
     if (key === 'lan_mode') value = coerceLanModeForThisApp(value)
+    const previous = dbGet("SELECT value FROM settings WHERE key = ?1", [key])?.value
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)", [key, value])
     const skipSync = ['supabase_last_pull', 'keyboard_page_sizes', 'keyboard_page_names', 'layout_v3_shifted', 'nav_buttons_fixed']
     if (!skipSync.includes(key)) {
       dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
             ['settings', key, 'update', JSON.stringify({ key, value })])
       lanSync.bumpVersion()
+    }
+    const skipAudit = new Set(['supabase_last_pull', 'keyboard_page_sizes', 'keyboard_page_names', 'tag_layout_config'])
+    if (!skipAudit.has(key) && String(previous ?? '') !== String(value ?? '')) {
+      const sensitive = /key|password|secret|token/i.test(key)
+      writeAuditLog('settings_change', sensitive ? `${key} changed` : `${key}: ${previous ?? '-'} -> ${value ?? '-'}`)
     }
     if (['store_name', 'store_address', 'store_hours'].includes(key) && customerWindow && !customerWindow.isDestroyed()) {
       customerWindow.webContents.send('customer:update', {
@@ -7776,6 +7928,12 @@ if (Test-Path -LiteralPath $LauncherPath) {
       if (recallCode) text(`CODE ${recallCode}`)
       emitBarcode(recallCode || receiptData.barcode, { height: 0x70, width: 0x02 })
       text('')
+    } else if (showBarcode && receiptData.barcode && receiptData.status !== 'eod') {
+      cmd(ESCPOS.BOLD_ON)
+      text('SCAN TO VIEW SALE')
+      cmd(ESCPOS.BOLD_OFF)
+      emitBarcode(receiptData.barcode, { height: 0x64, width: 0x02 })
+      text('')
     }
 
     // Header block â€” receipt_header is the primary source of store info
@@ -7881,13 +8039,6 @@ if (Test-Path -LiteralPath $LauncherPath) {
         const trimmed = line.trim()
         if (trimmed && normaliseReceiptLine(trimmed) !== hoursNorm) text(trimmed)
       }
-    }
-
-    // Transaction barcode at bottom for normal receipts. Held slips already show
-    // the recall barcode at the top where staff can scan it quickly.
-    if (showBarcode && receiptData.barcode && receiptData.status !== 'parked') {
-      text('')
-      emitBarcode(receiptData.barcode)
     }
 
     cmd(ESCPOS.FEED_3); cmd(ESCPOS.PARTIAL_CUT)

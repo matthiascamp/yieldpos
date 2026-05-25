@@ -1,0 +1,427 @@
+source_section,website_product_name,top_products_pcode_reference_only,products_json_code,status,suggested_lookup_code,candidate_lookup_code,lookup_source,match_score,matched_product_name,matched_category,matched_price,matched_unit,matched_open_price,matched_product_id,active_lookup_count,products_json_code_lookup_count,products_json_code_matches_suggested
+top_products,(S) CAPSICUM TRAY KG,8723,,safe,796,796,exact_active_db_name,1,(S) CAPSICUM TRAY KG,Vegetables,1.49,kg,0,1a815f6a-f612-4eda-aa1d-241e679d6671,1,,
+top_products,(S) CHILLI BIRDS EYE,404,,safe,742,742,exact_active_db_name,1,(S) CHILLI BIRDS EYE,Vegetables,39.99,each,0,ca320c2f-a591-43f7-b2e6-407e07b6c781,1,,
+top_products,(S) FRUIT & VEG EA,386,,safe,723,723,exact_active_db_name,1,(S) FRUIT & VEG EA,Fruit,0,each,1,c24b4a51-2a14-4eb4-9d47-0bbd96195cec,1,,
+top_products,(S) KG FRESH GALANGAL,2131,,safe,785,785,exact_active_db_name,1,(S) KG FRESH GALANGAL,Vegetables,15.5,kg,0,6ecdff66-9b3a-402b-8efe-0ffeda94c8e2,1,,
+top_products,(S) KG FRESH TUMERIC,2132,,safe,786,786,exact_active_db_name,1,(S) KG FRESH TUMERIC,Vegetables,15.9,kg,0,adb66d51-90e4-4c8a-817e-02508a56fd0b,1,,
+top_products,(S) KG HOT GREEN CHILLI,2128,,safe,782,782,exact_active_db_name,1,(S) KG HOT GREEN CHILLI,Vegetables,19.99,kg,0,478f304f-2d6c-4bc2-bc0d-2fb30161f7af,1,,
+top_products,(S) KG JALAPENO CHILLI,2129,,safe,783,783,exact_active_db_name,1,(S) KG JALAPENO CHILLI,Vegetables,29.99,kg,0,a274d148-55b8-4b10-aa2c-3695acf9cf20,1,,
+top_products,(S) OKRA KG,1285,,safe,773,773,exact_active_db_name,1,(S) OKRA KG,Vegetables,12.9,kg,0,cca1c3f9-a70f-40ff-8877-bb69c8d51597,1,,
+top_products,(S) PAW PAW CUT,372,,safe,709,709,exact_active_db_name,1,(S) PAW PAW CUT,Fruit,4.89,each,0,228fad78-6ca2-4395-afe2-c2e9c0c7ed3f,1,,
+top_products,(S) PAW PAW RED CUT KG,394,,safe,732,732,exact_active_db_name,1,(S) PAW PAW RED CUT KG,Fruit,5.99,kg,0,58be16ef-9130-4ce4-bed7-036e46e25889,1,,
+top_products,(S) RED PAPAYA KG,8722,,safe,795,795,exact_active_db_name,1,(S) RED PAPAYA KG,Fruit,5.99,kg,0,778d15c5-5d54-4337-874d-be265328b86a,1,,
+top_products,(S) SEEDLESS WATERMELON CUT KG,1834,,safe,799,799,exact_active_db_name,1,(S) SEEDLESS WATERMELON CUT KG,Fruit,1.89,kg,0,c33d8cac-f730-4078-aa5c-a61997a03e43,1,,
+top_products,(S) WATERMELON KG,377,,safe,714,714,exact_active_db_name,1,(S) WATERMELON KG,Fruit,2.29,kg,0,3c12f5fa-663f-4d45-9a76-1f6e7c797cb7,1,,
+top_products,(S)SEEDLESS WATERMELON WHOLE,9962,,safe,719,719,exact_active_db_name,1,(S)SEEDLESS WATERMELON WHOLE,Fruit,1.69,each,0,779372af-ecee-4ee6-b5bb-0be83342ad3a,1,,
+top_products,2KG BROWN ONIONS,19665,,safe,20153,20153,loose_active_db_name,1,Brown Onion Bag 2kg,Onions,3.99,each,0,p-kb-pg31-onion-bag,1,,
+top_products,AEGEAN NATURAL AUST ALMONDS,15116,,manual_review,,9317616187522,best_active_db_name_match,0.75,AEGEAN NATURAL AUST ALMONDS 500G,Dried Fruit & Nuts,9.45,each,0,a3e0df8c-c126-49aa-b639-36625d7de151,1,,
+top_products,APPLES KANZI KG,21090,,safe,20308,20308,loose_active_db_name,1,Kanzi Apple,Apples,7.99,kg,0,2b95e9d9-c52b-498a-9345-3e5aa7c89435,1,,
+top_products,ASIAN VEGETABLES ASST EA,1007370,,manual_review,,20044,best_active_db_name_match,0.5,Asian Vege,Vegetables,2.99,each,0,p-kb-pg4-asian-vege,1,,
+top_products,ASSORTED LETTUCE BAGS,22756,,safe,22756,22756,exact_active_db_name,1,ASSORTED LETTUCE BAGS,Vegetables,2.99,each,0,bf95474b-627e-49fa-86dd-74f3a69e57d8,1,,
+top_products,AUSTRALIAN D/ROAST ALMONDS,24612,,manual_review,,9315054009239,best_active_db_name_match,0.75,AUSTRALIAN D/ROAST ALMONDS 150G,Dried Fruit & Nuts,6.85,each,0,c24a557c-b001-4e9b-abed-e116a7104dff,1,,
+top_products,AUSTRALIAN RED PEANUTS 175G,24607,,safe,9315054009352,9315054009352,exact_active_db_name,1,AUSTRALIAN RED PEANUTS 175G,Dried Fruit & Nuts,5.5,each,0,d0a43ef4-a119-4014-bbf6-defa6017ce7c,1,,
+top_products,AUSTRALIAN SMOKED ALMONDS 150G,24604,,safe,9315054009253,9315054009253,exact_active_db_name,1,AUSTRALIAN SMOKED ALMONDS 150G,Dried Fruit & Nuts,6.99,each,0,7b23c829-17ee-4180-8257-3c79e363ce89,1,,
+top_products,AVOCADO GREEN SKIN LGE SHEPHER,11823,,safe,41522,41522,curated_produce_alias,1,Shepard,Fruit,0,each,1,p-kb-pg9-btn2,1,,
+top_products,AVOCADO NET BAG,9489,,safe,20081,20081,loose_active_db_name,1,Sm Avocado,Fruit,1.5,each,0,p-kb-pg9-avo-sm,1,,
+top_products,BANANAS CAVENDISH KG,1007847,,safe,20341,20341,loose_active_db_name,1,Cavendish Banana,Bananas,4.99,kg,0,9f6a5df7-9e75-4a21-9747-c2b61e6dc347,1,,
+top_products,BASIL FRESH  LGE BUNCH,1007733,,safe,3312,3312,loose_active_db_name,1,BASIL LARGE BUNCH,Fresh Herbs,3.89,each,0,5c6b98f6-cd3d-44ae-bd96-631db4267706,1,,
+top_products,BEAN SPROUTS 250G,22572,,safe,9319224400055,9319224400055,exact_active_db_name,1,BEAN SPROUTS 250G,Fruit,2.99,each,0,e29538fc-c04c-4603-a7a7-095b9608f3f5,1,,
+top_products,BROCCOLI,1007281,,safe,1161,1161,exact_active_db_name,1,Broccoli,Vegetables,5.59,kg,0,ae3a432d-bddd-4980-8a06-004df4d6afae,1,,
+top_products,CARROTS  BAG,18223,,safe,1374,1374,exact_active_db_name,1,CARROTS BAG,Vegetables,2.69,each,0,268ee582-2a32-4479-a581-d2d22fb55d1f,1,,
+top_products,CARROTS 1 KG,19524,,safe,20120,20120,loose_active_db_name,1,Carrot Bag 1kg,Vegetables,2.69,each,0,p-kb-pg4-carrot-bag,1,,
+top_products,CARROTS 1 KG BAG,27875,,safe,9332907005019,9332907005019,exact_active_db_name,1,CARROTS 1 KG BAG,Vegetables,2.69,each,0,d5b6b1ca-7b93-45ff-a94d-7921a6b298ff,1,,
+top_products,CHIVES BUNCH,10915,,safe,1922,1922,exact_active_db_name,1,CHIVES BUNCH,Fresh Herbs,3.89,each,0,960f29a5-32db-4100-863c-cb2a8d455812,1,,
+top_products,COCO THUMB SIP DRINKING,27340,,safe,8858754200052,8858754200052,loose_active_db_name,1,COCO THUMB SIP DRINKING COCONUT,Fruit,4.49,each,0,49c38d7b-0fca-42a0-8e82-55721140f9a7,1,,
+top_products,COCONUTS DRY SKIN EA,1007889,,safe,4382,4382,curated_produce_alias,1,COCONUTS EA,Fruit,6.99,each,0,6f0e865c-b66d-45d9-886a-3c609cdc7dff,1,,
+top_products,CORIANDER FRESH  LGE BUNCH,1007728,,safe,3282,3282,exact_active_db_name,1,CORIANDER FRESH LGE BUNCH,Fresh Herbs,3.89,each,0,4a57a23c-dd31-45ea-9c67-382c053f74f7,1,,
+top_products,CUCUMBER BUCKET KG,27337,,safe,9113,9113,loose_active_db_name,1,CUCUMBER BUCKET,Vegetables,1.99,each,0,e80add1e-42c3-4250-a486-b9ee69d0543a,1,,
+top_products,CURRY LEAVES 15G,22593,,safe,9329539000079,9329539000079,exact_active_db_name,1,CURRY LEAVES 15G,Fruit,3.99,each,0,4ed62a6e-e814-4f6c-83bd-3cdcda2db210,1,,
+top_products,CUSTARD APPLE KG,1007892,,safe,20332,20332,loose_active_db_name,1,Custard Apple,Fruit,12.99,kg,0,p-kb-pg2-custard-apple,1,,
+top_products,DELICIOUS MIX 160G,24601,,safe,9315054002278,9315054002278,exact_active_db_name,1,DELICIOUS MIX 160G,Dried Fruit & Nuts,7.85,each,0,1d635557-29a8-4780-921e-2c7c02f42332,1,,
+top_products,DILL LARGE BUNCH,16676,,safe,9172,9172,exact_active_db_name,1,DILL LARGE BUNCH,Fresh Herbs,3.89,each,0,98aef68a-3139-480c-9220-dd36373b5103,1,,
+top_products,FETTA,1008093,,manual_review,,9322515012417,best_active_db_name_match,0.67,FETTA PERSIAN,Deli,11.5,each,0,4c8e835c-ac37-4a89-89d2-c3e91ad6cbf1,1,,
+top_products,GARLIC AUSTRALIAN,391,,safe,20140,20140,loose_active_db_name,1,Garlic,Garlic,28.9,kg,0,p-kb-pg28-garlic-kg,1,,
+top_products,GARLIC KG,1001531,,safe,1851,1851,exact_active_db_name,1,GARLIC KG,Vegetables,28.9,kg,0,0c86ef83-ca6b-4839-9f10-123885c08ecf,1,,
+top_products,GINGER CRYSTALISED 200G,24613,,safe,9315054009550,9315054009550,exact_active_db_name,1,GINGER CRYSTALISED 200G,Dried Fruit & Nuts,6.85,each,0,c9c272e7-7779-469f-9e22-a39c7587544d,1,,
+top_products,GOLDEN QUEEN,1008116,,safe,4044,4044,exact_active_db_name,1,Golden Queen,Fruit,0,kg,1,p-open-pg20-btn1,1,,
+top_products,GRANNY SMITH SMALL KG,1007806,,safe,4075,4075,curated_produce_alias,1,APPLE GRANNY SMITH SML KG,Fruit,4.99,kg,0,price-list-4075,1,,
+top_products,GRAPES,1007906,,safe,20090,20090,loose_active_db_name,1,Grape Punnet,Fruit,6.99,each,0,p-kb-pg11-grapes-bag,1,,
+top_products,GREEN CHILLI SWEET KG,1007364,,safe,1541,1541,curated_produce_alias,1,Green Sweet (Banana),Vegetables,9.99,kg,0,a85cef40-a7a9-420b-9eaf-db946a9a7ea6,1,,
+top_products,JAP PUMPKIN OUTSIDE KG,7318,,safe,20226,20226,loose_active_db_name,1,Jap Pumpkin,Pumpkins,2.49,kg,0,p-kb-pg33-jap,1,,
+top_products,JAZZ APPLE KG,19000,,safe,3812,3812,exact_active_db_name,1,JAZZ  APPLE  KG,Fruit,7.99,kg,0,price-list-3812,1,,
+top_products,KAFFIR LIME LEAF,22626,,safe,9329539000314,9329539000314,exact_active_db_name,1,KAFFIR LIME LEAF,Fruit,3.99,each,0,68a8f9e5-d1e2-4753-8c47-7bd8578323fa,1,,
+top_products,KG LYCHEE,1007971,,safe,20032,20032,loose_active_db_name,1,Lychee,Fruit,14.99,kg,0,p-kb-pg2-lychee,1,,
+top_products,KIWI FRUIT GOLD EA,1008295,,safe,5984,5984,loose_active_db_name,1,KIWI FRUIT GOLD EACH,Fruit,2.89,each,0,7e113f6f-3c65-49b2-9280-235659c394df,1,,
+top_products,LARGE HERB BUNCH,16674,,safe,9152,9152,exact_active_db_name,1,LARGE HERB BUNCH,Fresh Herbs,3.89,each,0,1304f4e8-fe06-4afc-8ef6-3ca88d90460f,1,,
+top_products,LEMON GRASS,27167,,safe,7233,7233,exact_active_db_name,1,LEMON GRASS,Fresh Herbs,3.89,each,0,d85bffca-ded8-472e-868c-ea3e5acb3986,1,,
+top_products,LETTUCE ICEBERG EA.,1007472,,safe,2252,2252,exact_active_db_name,1,LETTUCE ICEBERG EA,Vegetables,1.49,each,0,d2279c07-edc1-439b-85d2-67d703e029e3,1,,
+top_products,LITTLE DARLINGS BLUEBERRIES,27876,,safe,9421007560242,9421007560242,curated_produce_alias,1,LITTLE DARLINGS BLUEBERRIES 125G,Fruit,7.99,each,0,5ad7dbab-6aca-4431-a7bd-7fc52780fdba,1,,
+top_products,MANDARINES AFROURER KG,1008281,,safe,5791,5791,curated_produce_alias,1,Afourer,Fruit,0,kg,1,p-kb-pg15-btn5,1,,
+top_products,MANDARINES MURCOTT KG,1007969,,safe,4665,4665,curated_produce_alias,1,Honey Murcott,Fruit,5.89,kg,0,p-kb-pg15-btn1,1,,
+top_products,MANGOES CALYPSO EA,19772,,safe,20373,20373,loose_active_db_name,1,Calypso Mango,Tropical,3.49,each,0,p-kb-pg16-calypso,1,,
+top_products,MANGOES KEITT EA,1008276,,safe,20374,20374,loose_active_db_name,1,Keitt Mango,Tropical,1.99,each,0,p-kb-pg16-btn4,1,,
+top_products,MANGOES KP,1007988,,safe,20103,20103,loose_active_db_name,1,Kp Mango,Fruit,3.5,each,0,p-kb-pg16-kp-mango,1,,
+top_products,MARKET GROCER SOUR WORMS 200G,24830,,safe,9315054008362,9315054008362,exact_active_db_name,1,MARKET GROCER SOUR WORMS 200G,Dried Fruit & Nuts,3.99,each,0,7495943b-9a50-4bac-940b-378930df680d,1,,
+top_products,MINT FRESH LARGE,10968,,safe,1962,1962,exact_active_db_name,1,MINT FRESH LARGE,Fresh Herbs,3.89,each,0,c2dec560-0066-42a4-a16b-26b935b9cb22,1,,
+top_products,NAVEL ORANGE,20391,,safe,20318,20318,exact_active_db_name,1,Navel Orange,Oranges,6.99,kg,0,p-orange-navel,1,,
+top_products,ONIONS SPANISH 1 KG BAG,1008508,,safe,2444,2444,exact_active_db_name,1,ONIONS SPANISH 1KG BAG,Vegetables,2.99,each,0,abab59ed-64ef-4977-bd3b-b5147b6dd402,1,,
+top_products,ORANGE  3 KG BAG,1006965,,safe,4911,4911,loose_active_db_name,1,3 KG ORANGES,Fruit,6.99,kg,0,2af8765a-61b9-41c7-8c1d-45d8dde6a239,1,,
+top_products,ORANGE CANDY MELON WHOLE EA,20204,,safe,4753,4753,loose_active_db_name,1,ORANGE CANDY MELON WHOLE,Fruit,5.99,each,0,11105c1b-9b3f-423a-aa27-32d444964d98,1,,
+top_products,ORANGES  VALENCIA KG,8291,,safe,3791,3791,exact_active_db_name,1,ORANGES VALENCIA KG,Fruit,3.89,kg,0,ee8c6cf5-7f7d-4264-a53f-307e7b284ed7,1,,
+top_products,OUTDOOR MIX 160G,24611,,safe,9315054002261,9315054002261,exact_active_db_name,1,OUTDOOR MIX 160G,Dried Fruit & Nuts,7.85,each,0,9e67b203-ed49-47c8-8795-07d6bf2608d5,1,,
+top_products,OUTSIDE ROCKMELON EA,27551,,safe,20348,20348,loose_active_db_name,1,Rockmelon,Melons,5.99,each,0,p-kb-pg17-rockmelon,1,,
+top_products,PARSLEY CONTINENTAL BUNCH,1007721,,safe,3266,3266,exact_active_db_name,1,PARSLEY CONTINENTAL BUNCH,Fresh Herbs,3.89,each,0,eb01065f-b231-4a7c-97ae-442309801b8e,1,,
+top_products,PARSLEY CURLY BUNCH,1007720,,safe,3262,3262,exact_active_db_name,1,PARSLEY CURLY BUNCH,Fresh Herbs,3.89,each,0,7f4a26a9-cd44-4e6a-bc41-a6e659006376,1,,
+top_products,PEACH YELLOW KG,1008104,,safe,20380,20380,loose_active_db_name,1,Yellow Peach,Fruit,6.99,kg,0,p-kb-pg20-yellow-peach,1,,
+top_products,PEARS NASHI YA PEARS,1008201,,safe,5392,5392,curated_produce_alias,1,Nashi,Fruit,1.99,each,0,p-kb-pg21-btn1,1,,
+top_products,PERSIMMON KG,1008089,,safe,5022,5022,exact_active_db_name,1,PERSIMMON KG,Fruit,12.99,kg,0,fe30f455-8d34-4fce-bfe0-16a59beba383,1,,
+top_products,PINK LADY APPLE SPECIAL,1007792,,safe,4031,4031,curated_produce_alias,1,PINK LADY APPLE KG,Fruit,1.99,kg,0,price-list-4031,1,,
+top_products,PISTACHIO SALTED 175G,24610,,safe,9315054009369,9315054009369,exact_active_db_name,1,PISTACHIO SALTED 175G,Dried Fruit & Nuts,8.9,each,0,609a9e61-e3de-4aa7-929d-198c3bcdf1c9,1,,
+top_products,PLUMS SUGAR KG,1008160,,safe,5241,5241,exact_active_db_name,1,PLUMS SUGAR KG,Fruit,11.99,kg,0,e146137b-5c5e-4703-993a-1424a27f9b92,1,,
+top_products,POMMELO  KG,21343,,safe,4914,4914,exact_active_db_name,1,POMMELO KG,Fruit,8.98,kg,0,52323ff1-14df-46c6-9727-8459487c3d69,1,,
+top_products,POPPING CORN 500G,24595,,safe,9315054004951,9315054004951,exact_active_db_name,1,POPPING CORN 500G,Dried Fruit & Nuts,3.29,each,0,cd950f40-eff6-4fdf-8f3b-5433c9a44a4d,1,,
+top_products,RED PLUMS KG,18371,,safe,5121,5121,exact_active_db_name,1,RED PLUMS KG,Fruit,9.89,kg,0,c33e93b1-7d5a-4980-a4a1-76627027814d,1,,
+top_products,ROSEMARY BUNCH,16044,,safe,8988,8988,exact_active_db_name,1,ROSEMARY BUNCH,Fresh Herbs,3.89,each,0,7468bc47-1d01-4aa8-bb5c-889369905896,1,,
+top_products,ROYAL GALA SMALL,1007801,,safe,4065,4065,loose_active_db_name,1,SM ROYAL GALA,Fruit,4.99,kg,0,price-list-4065,1,,
+top_products,SWEET POTATOES OUTSIDE,21156,,safe,20211,20211,loose_active_db_name,1,Sweet Potato,Sweet Potatoes,3.99,kg,0,80dfa0ba-abd9-4a81-bb76-1e6acc7206de,1,,
+top_products,TOMATOES ROMA PER KG,1007669,,safe,20401,20401,loose_active_db_name,1,Roma Tomato,Tomatoes,7.89,kg,0,p-kb-pg35-roma,1,,
+top_products,TOMATOES ROUND KG,1007647,,safe,20406,20406,loose_active_db_name,1,Round Tomato,Tomatoes,6.89,kg,0,f32a2d39-fb12-4b68-8855-00e2dd0ff869,1,,
+top_products,TOMATOES TRUSS VINE  KG,1007704,,safe,3181,3181,exact_active_db_name,1,TOMATOES TRUSS VINE KG,Vegetables,7.99,kg,0,ef44d8eb-f0f6-4da4-932d-cc0154ba4de3,1,,
+top_products,WATERCRESS BUNCH,1007735,,safe,3322,3322,exact_active_db_name,1,WATERCRESS BUNCH,Fresh Herbs,3.89,each,0,9dac8e92-a804-4250-8947-44250136e61e,1,,
+top_products,WATERMELON SEEDED LONG WHOLE,1008234,,safe,20355,20355,loose_active_db_name,1,Long Seeded Watermelon,Melons,0.99,kg,0,p-watermelon,1,,
+top_products,WATERMELON SEEDLESS WHOLE KG,1008015,,safe,4801,4801,exact_active_db_name,1,WATERMELON SEEDLESS WHOLE KG,Fruit,0.99,kg,0,4183576f-d2b7-4b15-81f0-fc41ec217f6d,1,,
+top_products,YELLOW SPLIT PEAS 500G,24596,,safe,9315054004555,9315054004555,exact_active_db_name,1,YELLOW SPLIT PEAS 500G,Dried Fruit & Nuts,2.95,each,0,19c43dfb-60f8-4c51-b60e-e7aff9a9520e,1,,
+Fruit,3 KG ORANGES,,4911,safe,4911,4911,exact_active_db_name,1,3 KG ORANGES,Fruit,6.99,kg,0,2af8765a-61b9-41c7-8c1d-45d8dde6a239,1,1,yes
+Fruit,APPLE BRAVOI KG,,5711,safe,5711,5711,exact_active_db_name,1,APPLE BRAVOI KG,Fruit,6.49,kg,0,b31ce75a-6e5e-4992-997c-1c887d8550e7,1,1,yes
+Fruit,APPLE GRANNY SMITH LGE KG,,4071,safe,4017,4017,loose_active_db_name,1,Granny Smith Apples,Apples,5.99,kg,0,p-apple-gsmith,1,1,no
+Fruit,APPLE GRANNY SMITH SML KG,,4075,safe,4075,4075,exact_active_db_name,1,APPLE GRANNY SMITH SML KG,Fruit,4.99,kg,0,price-list-4075,1,1,yes
+Fruit,APPLE PINK LADY  KG,,4011,safe,4031,4031,loose_active_db_name,1,PINK LADY APPLE KG,Fruit,1.99,kg,0,price-list-4031,1,1,no
+Fruit,APPLE PINK LADY SMALL KG,,4015,safe,4015,4015,exact_active_db_name,1,APPLE PINK LADY SMALL KG,Fruit,4.99,kg,0,price-list-4015,1,1,yes
+Fruit,APPLE RED DELICIOUS LGE KG,,4021,safe,20310,20310,loose_active_db_name,1,Red Delicious Apple,Apples,5.89,kg,0,p-kb-pg7-red-delicious,1,1,no
+Fruit,APPLE ROYAL GALA LGE KG,,4061,safe,4061,4061,exact_active_db_name,1,APPLE ROYAL GALA LGE KG,Fruit,6.89,kg,0,price-list-4061,1,1,yes
+Fruit,APPLES GREEN BAG PER KG,,40026,safe,40026,40026,exact_active_db_name,1,APPLES GREEN BAG PER KG,Fruit,1.99,kg,0,website-fv-40026,1,1,yes
+Fruit,APPLES KANZIL KG,,4835,safe,20308,20308,loose_active_db_name,1,Kanzi Apple,Apples,7.99,kg,0,2b95e9d9-c52b-498a-9345-3e5aa7c89435,1,1,no
+Fruit,APRICOTS IN GREEN BUCKET,,4422,safe,4422,4422,exact_active_db_name,1,APRICOTS IN GREEN BUCKET,Fruit,6.99,each,0,ac5f0d5d-2a92-4b98-91e0-e046da7d1b28,1,1,yes
+Fruit,APRICOTS KG,,4141,safe,4141,4141,exact_active_db_name,1,APRICOTS KG,Fruit,12.99,kg,0,312462d2-ecbb-46db-b510-99787c7eb1ca,1,1,yes
+Fruit,AVOCADO GREEN SKIN LGE,,41522,safe,41522,41522,curated_produce_alias,1,Shepard,Fruit,0,each,1,p-kb-pg9-btn2,1,1,yes
+Fruit,AVOCADO IN NET BAG,,5925,safe,20081,20081,loose_active_db_name,1,Sm Avocado,Fruit,1.5,each,0,p-kb-pg9-avo-sm,1,1,no
+Fruit,AVOCADO LARGE HASS,,4152,safe,20338,20338,loose_active_db_name,1,Hass Avocado,Fruit,2.99,each,0,p-open-pg9-btn0,1,1,no
+Fruit,AVOCADO REED,,4157,safe,4157,4157,curated_produce_alias,1,Reed,Fruit,2.99,each,0,p-kb-pg9-btn1,1,1,yes
+Fruit,AVOCADOES  SMALL EA,,4155,safe,4155,4155,curated_produce_alias,1,Small Avocado,Fruit,1,each,0,p-kb-pg9-btn3,1,1,yes
+Fruit,BANANAS CAVENDISH  KG,,4201,safe,20341,20341,loose_active_db_name,1,Cavendish Banana,Bananas,4.99,kg,0,9f6a5df7-9e75-4a21-9747-c2b61e6dc347,1,1,no
+Fruit,BANANAS GREEN BAG KG,,40022,safe,40022,40022,exact_active_db_name,1,BANANAS GREEN BAG KG,Fruit,2.99,kg,0,price-list-40022,1,1,yes
+Fruit,BANANAS LADYFINGER KG,,4221,safe,4221,4221,curated_produce_alias,1,Lady Finger,Fruit,6.99,kg,0,p-kb-pg10-btn1,1,1,yes
+Fruit,BESTALLA DATES 500G,,9341533006666,safe,9341533006666,9341533006666,exact_active_db_name,1,BESTALLA DATES 500G,Fruit,5.99,each,0,f6f8ac9e-aee3-405d-8d20-8283352a2de6,1,1,yes
+Fruit,BLACK BERRY VALLEY 125G,,93541251,safe,93541251,93541251,exact_active_db_name,1,BLACK BERRY VALLEY 125G,Fruit,3.49,each,0,8857369b-6071-46c5-8c73-5e5bacfb9c1c,1,1,yes
+Fruit,BLACK MUSCAT GRAPES KG,,3235,safe,3235,3235,exact_active_db_name,1,BLACK MUSCAT GRAPES KG,Fruit,6.99,kg,0,d4efc0f8-844f-4659-8abb-cef4a8953bb2,1,1,yes
+Fruit,BLACK PLUM KG,,87123,safe,87123,87123,exact_active_db_name,1,BLACK PLUM KG,Fruit,9.89,kg,0,3d25ba6e-1ca8-4f88-b325-5a34dd80199f,1,1,yes
+Fruit,BLACKBERRES 125G,,9317948009240,safe,9317948009240,9317948009240,exact_active_db_name,1,BLACKBERRES 125G,Fruit,3.99,each,0,32f2c8cf-ca6f-4fda-b9be-aa1f778fb91d,1,1,yes
+Fruit,BLACKBERRIES,,93541114,safe,20358,20358,exact_active_db_name,1,Blackberries,Berries,5.99,each,0,0edc2cf3-25af-474c-8246-7e5aa074f7e7,1,1,no
+Fruit,BLACKBERRIES 125G,,9320800000668,safe,9320800000668,9320800000668,exact_active_db_name,1,BLACKBERRIES 125G,Fruit,4.99,each,0,ad23bfb2-d087-496a-a005-a72da1f3fc10,1,1,yes
+Fruit,BLACKBERRIES 125G,,93567145,safe,9320800000668,9320800000668,exact_active_db_name,1,BLACKBERRIES 125G,Fruit,4.99,each,0,ad23bfb2-d087-496a-a005-a72da1f3fc10,1,1,no
+Fruit,BLOOD ORANGE BUCKET,,1313,safe,1313,1313,exact_active_db_name,1,BLOOD ORANGE BUCKET,Fruit,2.89,each,0,97f9187c-e623-4d50-bdc6-ba82a11944ef,1,1,yes
+Fruit,BLOOD ORANGES  KG,,8292,safe,8292,8292,exact_active_db_name,1,BLOOD ORANGES KG,Fruit,4.89,kg,0,a2f4f0c7-73a3-4c1c-9e4c-bf807d128f25,1,1,yes
+Fruit,BLUEBERRIES  125G,,9317948009233,safe,9317948009233,9317948009233,exact_active_db_name,1,BLUEBERRIES 125G,Fruit,3.99,each,0,7bd23c19-e702-49ec-abde-35f128e3b7c2,1,1,yes
+Fruit,BLUEBERRIES 125G,,9320801000452,safe,9317948009233,9317948009233,exact_active_db_name,1,BLUEBERRIES 125G,Fruit,3.99,each,0,7bd23c19-e702-49ec-abde-35f128e3b7c2,1,1,no
+Fruit,BLUEBERRIES 125G,,93567138,safe,9317948009233,9317948009233,exact_active_db_name,1,BLUEBERRIES 125G,Fruit,3.99,each,0,7bd23c19-e702-49ec-abde-35f128e3b7c2,1,1,no
+Fruit,BLUEBERRIES 125G,,9350489000628,safe,9317948009233,9317948009233,exact_active_db_name,1,BLUEBERRIES 125G,Fruit,3.99,each,0,7bd23c19-e702-49ec-abde-35f128e3b7c2,1,1,no
+Fruit,BLUEBERRIES 125G,,93573689,safe,9317948009233,9317948009233,exact_active_db_name,1,BLUEBERRIES 125G,Fruit,3.99,each,0,7bd23c19-e702-49ec-abde-35f128e3b7c2,1,1,no
+Fruit,BLUEBERRIES 125G,,9357107000237,safe,9317948009233,9317948009233,exact_active_db_name,1,BLUEBERRIES 125G,Fruit,3.99,each,0,7bd23c19-e702-49ec-abde-35f128e3b7c2,1,1,no
+Fruit,BLUEBERRIES PUNNET 125G,,9335089000834,safe,9335089000834,9335089000834,exact_active_db_name,1,BLUEBERRIES PUNNET 125G,Fruit,3.99,each,0,de6ec23b-8bf7-45e0-9a4a-e2d38c2af636,1,1,yes
+Fruit,BLUEBERRY 170G FB,,9357107000244,safe,9357107000244,9357107000244,exact_active_db_name,1,BLUEBERRY 170G FB,Fruit,4.89,each,0,e9954569-f393-4955-b690-64260cc80842,1,1,yes
+Fruit,BLUEBERRY FRESH  125G,,9327403000101,safe,9327403000101,9327403000101,exact_active_db_name,1,BLUEBERRY FRESH 125G,Fruit,5.99,each,0,972a4a26-e692-4b11-8f5f-b6afc18f049a,1,1,yes
+Fruit,BLUEBERRY PUNNET,,93536240,safe,20224,20224,loose_active_db_name,1,Blueberries,Berries,8.99,each,0,8a3b6810-c990-47aa-92cb-6f5a5657fb5c,1,1,no
+Fruit,CANDY PLUM KG,,9876,safe,9876,9876,exact_active_db_name,1,CANDY PLUM KG,Fruit,16.9,kg,0,59598789-a533-4356-92ca-3b7570782d31,1,1,yes
+Fruit,CARA CARA ORANGE KG,,9276,safe,9276,9276,exact_active_db_name,1,CARA CARA ORANGE KG,Fruit,5.89,kg,0,3e69e646-ed40-4552-916e-99570613a68b,1,1,yes
+Fruit,CHERRIES FRESH KG,,4351,safe,4351,4351,exact_active_db_name,1,CHERRIES FRESH KG,Fruit,24,kg,0,1ff779eb-eb50-464d-9cb1-4f6b3c2c5565,1,1,yes
+Fruit,CHERRY TOMATOES 250G,,9369999026677,safe,9369999026677,9369999026677,exact_active_db_name,1,CHERRY TOMATOES 250G,Fruit,3.99,each,0,7a3bb914-6fd7-485f-b529-19b4173c7cec,1,1,yes
+Fruit,CHERRY TOMATOES 250G,,769807150669,safe,9369999026677,9369999026677,exact_active_db_name,1,CHERRY TOMATOES 250G,Fruit,3.99,each,0,7a3bb914-6fd7-485f-b529-19b4173c7cec,1,1,no
+Fruit,COCO THUMB SIP DRINKING COCONUT,,8858754200052,safe,8858754200052,8858754200052,exact_active_db_name,1,COCO THUMB SIP DRINKING COCONUT,Fruit,4.49,each,0,49c38d7b-0fca-42a0-8e82-55721140f9a7,1,1,yes
+Fruit,COCONUTS EA,,4382,safe,4382,4382,exact_active_db_name,1,COCONUTS EA,Fruit,6.99,each,0,6f0e865c-b66d-45d9-886a-3c609cdc7dff,1,1,yes
+Fruit,CUSTARD APPLES KG,,4401,safe,20332,20332,loose_active_db_name,1,Custard Apple,Fruit,12.99,kg,0,p-kb-pg2-custard-apple,1,1,no
+Fruit,DRAGON FRUIT KG,,5322,safe,5322,5322,exact_active_db_name,1,DRAGON FRUIT KG,Fruit,15.99,kg,0,c7957e81-ddab-4c08-99ef-45389e624544,1,1,yes
+Fruit,DRISCOLLS BLACKBERRIES 125G,,9342373000340,safe,9342373000340,9342373000340,exact_active_db_name,1,DRISCOLLS BLACKBERRIES 125G,Fruit,4.99,each,0,4a64b399-fca6-4146-ad64-5e6922292ef0,1,1,yes
+Fruit,DRISCOLLS BLUEBERRIES 200G,,9342373000197,safe,9342373000197,9342373000197,exact_active_db_name,1,DRISCOLLS BLUEBERRIES 200G,Fruit,4.99,each,0,8f7db147-0c2d-4e1b-88d3-d058befc8351,1,1,yes
+Fruit,FIGS FRESH KG,,4421,safe,4421,4421,exact_active_db_name,1,FIGS FRESH KG,Fruit,29.99,kg,0,website-fv-4421,1,1,yes
+Fruit,FRESH BLUEBERRIES 170G,,93573726,safe,93573726,93573726,exact_active_db_name,1,FRESH BLUEBERRIES 170G,Fruit,4.89,each,0,318c15d3-8037-4436-95ae-a3c68376898d,1,1,yes
+Fruit,FRESH STRAWBERRY 250G,,9335074019803,safe,9335074019803,9335074019803,exact_active_db_name,1,FRESH STRAWBERRY 250G,Fruit,6.99,each,0,16565a25-598f-44a0-b1a7-3e5ae5de0fdb,1,1,yes
+Fruit,FRT & VEG OTHER,,12,safe,12,12,exact_active_db_name,1,FRT & VEG OTHER,Fruit,400,each,0,151b149b-2aef-45d5-87b8-434f2811f549,1,1,yes
+Fruit,FRUIT & VEG EA,,723,safe,723,723,exact_active_db_name,1,(S) FRUIT & VEG EA,Fruit,0,each,1,c24b4a51-2a14-4eb4-9d47-0bbd96195cec,1,1,yes
+Fruit,FRUIT & VEG KG,,722,safe,21,21,exact_active_db_name,1,FRUIT & VEG KG,Fruit,0,kg,1,25191255-5504-4d24-ae23-b351b4ed2136,1,1,no
+Fruit,FRUIT & VEG KG,,21,safe,21,21,exact_active_db_name,1,FRUIT & VEG KG,Fruit,0,kg,1,25191255-5504-4d24-ae23-b351b4ed2136,1,1,yes
+Fruit,FUJI APPLE,,9842,safe,4041,4041,exact_active_db_name,1,Fuji Apple,Fruit,5.99,kg,0,p-kb-pg7-btn12,1,1,no
+Fruit,GRAPE  WHITE SEEDLESS KG,,4491,safe,4491,4491,exact_active_db_name,1,GRAPE WHITE SEEDLESS KG,Fruit,7.89,kg,0,6b16cc3c-9333-4ecc-853c-a7faee9c5342,1,1,yes
+Fruit,GRAPEFRUIT RUBY RED KG,,4581,safe,4581,4581,exact_active_db_name,1,GRAPEFRUIT RUBY RED KG,Fruit,3.99,kg,0,e5ddd60b-1af4-47cd-9c11-201ec352123c,1,1,yes
+Fruit,GRAPES AUTUMN KING KG,,4481,safe,20365,20365,loose_active_db_name,1,Autumn King Grapes,Fruit,5.99,kg,0,p-open-pg11-btn3,1,1,no
+Fruit,GRAPES BLACK SEEDLESS KG,,4931,safe,20364,20364,loose_active_db_name,1,Black Seedless Grapes,Fruit,5.99,kg,0,p-open-pg11-btn2,1,1,no
+Fruit,GRAPES RED SEEDLESS KG,,4461,safe,4461,4461,exact_active_db_name,1,GRAPES RED SEEDLESS KG,Fruit,5.99,kg,0,bef6d3be-b3e3-403a-9e82-e1fe66ca8b30,1,1,yes
+Fruit,GREEN BAG CAVENDISH PER KG,,40024,safe,40024,40024,exact_active_db_name,1,GREEN BAG CAVENDISH PER KG,Fruit,0.99,kg,0,price-list-40024,1,1,yes
+Fruit,GRN VALLEY STRAWBERRIES 250 GR,,9327438000169,safe,9327438000169,9327438000169,exact_active_db_name,1,GRN VALLEY STRAWBERRIES 250 GR,Fruit,5.99,each,0,725aacef-72de-4d06-8947-c15f234a199a,1,1,yes
+Fruit,IMPERIAL MANDARINS  KG,,4681,safe,4681,4681,exact_active_db_name,1,IMPERIAL MANDARINS KG,Fruit,4.89,kg,0,20be4cff-346a-456f-8fe5-f2aa70fdea93,1,1,yes
+Fruit,JAZZ  APPLE  KG,,3812,safe,3812,3812,exact_active_db_name,1,JAZZ  APPLE  KG,Fruit,7.99,kg,0,price-list-3812,1,1,yes
+Fruit,KEITT  EA,,5772,safe,5772,5772,exact_active_db_name,1,KEITT EA,Fruit,1.99,each,0,26d128bc-df65-4a87-96f5-d7031bb35317,1,1,yes
+Fruit,KIWI FRUIT GOLD EACH,,5984,safe,5984,5984,exact_active_db_name,1,KIWI FRUIT GOLD EACH,Fruit,2.89,each,0,7e113f6f-3c65-49b2-9280-235659c394df,1,1,yes
+Fruit,KIWI FRUIT KG,,4612,safe,4612,4612,curated_produce_alias,1,Regular Kiwi,Kiwi Fruit,14.89,kg,0,p-kb-pg12-btn0,1,1,yes
+Fruit,KP MANGO MEDIUM,,4703,safe,4703,4703,exact_active_db_name,1,KP MANGO MEDIUM,Fruit,3.99,each,0,d49f857d-d091-41a9-8824-409e1acf7b61,1,1,yes
+Fruit,LEMONS BAGGED NET KG,,46211,safe,46211,46211,exact_active_db_name,1,LEMONS BAGGED NET KG,Fruit,1.99,kg,0,2adb4806-56f2-4c34-a37d-c804a02ee159,1,1,yes
+Fruit,LEMONS FRESH  KG,,4621,safe,4621,4621,exact_active_db_name,1,LEMONS FRESH KG,Fruit,5.99,kg,0,5b250a00-623d-43d7-b467-ee052798bfe3,1,1,yes
+Fruit,LIME NET BAG 6PK,,46422,safe,46422,46422,curated_produce_alias,1,Bagged Limes,Fruit,2.99,kg,0,p-kb-pg14-btn1,1,1,yes
+Fruit,LIMES EACH,,4643,safe,20328,20328,loose_active_db_name,1,Limes,Fruit,1.99,each,0,p-kb-pg14-limes-ea,1,1,no
+Fruit,LITTLE DARLINGS BLUEBERRIES 125G,,9421007560242,safe,9421007560242,9421007560242,exact_active_db_name,1,LITTLE DARLINGS BLUEBERRIES 125G,Fruit,7.99,each,0,5ad7dbab-6aca-4431-a7bd-7fc52780fdba,1,1,yes
+Fruit,LONGAN NUT BERRIES KG,,6061,safe,6061,6061,exact_active_db_name,1,LONGAN NUT BERRIES KG,Fruit,10.99,kg,0,94cd7abe-d338-4693-8752-780688009523,1,1,yes
+Fruit,LYCHEE,,4671,safe,20032,20032,exact_active_db_name,1,Lychee,Fruit,14.99,kg,0,p-kb-pg2-lychee,1,1,no
+Fruit,MANDARINES AFROURER   KG,,5791,safe,5791,5791,curated_produce_alias,1,Afourer,Fruit,0,kg,1,p-kb-pg15-btn5,1,1,yes
+Fruit,MANDARINES DAISY KG,,4457,safe,4457,4457,curated_produce_alias,1,Daisy,Fruit,6.99,kg,0,p-kb-pg15-btn4,1,1,yes
+Fruit,MANDARINES EMPRESS KG,,4661,safe,4661,4661,curated_produce_alias,1,Empress,Fruit,6.89,kg,0,p-kb-pg15-btn3,1,1,yes
+Fruit,MANDARINES GREEN BUCKET PER KG,,40049,safe,40049,40049,exact_active_db_name,1,MANDARINES GREEN BUCKET PER KG,Fruit,1.99,kg,0,price-list-40049,1,1,yes
+Fruit,MANDARINES MURCOT  KG,,4665,safe,4665,4665,curated_produce_alias,1,Honey Murcott,Fruit,5.89,kg,0,p-kb-pg15-btn1,1,1,yes
+Fruit,MANGO PEARL EA,,1442,safe,1442,1442,exact_active_db_name,1,MANGO PEARL EA,Fruit,3.49,each,0,cc657973-e57b-451b-b59d-211507e12301,1,1,yes
+Fruit,MANGOES CALYPSO,,5788,safe,5788,5788,exact_active_db_name,1,MANGOES CALYPSO,Fruit,3.49,each,0,fe1b038f-e2c4-4c29-a235-2efe79ea8db0,1,1,yes
+Fruit,MANGOES KP EA,,4702,safe,4702,4702,exact_active_db_name,1,MANGOES KP EA,Fruit,2.99,each,0,ec266e93-d7f5-4429-98bb-a50dc6a5d4a8,1,1,yes
+Fruit,MANGOES R2E2 EA,,4732,safe,4732,4732,exact_active_db_name,1,MANGOES R2E2 EA,Fruit,5.99,each,0,929c4bf3-113b-4412-931f-6fe8241f91d9,1,1,yes
+Fruit,MEDLEY TOMATOES 200G,,9369998415557,safe,9369998415557,9369998415557,exact_active_db_name,1,MEDLEY TOMATOES 200G,Fruit,3.99,each,0,ab75a50e-72e5-428a-b33a-8797824e8a64,1,1,yes
+Fruit,MELON HONEY DEW EA,,4722,safe,4722,4722,curated_produce_alias,1,Honeydew,Fruit,5.89,each,0,p-kb-pg17-btn1,1,1,yes
+Fruit,MV BLUEBERRY,,9349671001031,safe,9349671001031,9349671001031,exact_active_db_name,1,MV BLUEBERRY,Fruit,4.89,each,0,93a3fa5c-a695-47c3-b483-93f7cc573789,1,1,yes
+Fruit,NAVEL ORANGE KG,,4912,safe,20318,20318,loose_active_db_name,1,Navel Orange,Oranges,6.99,kg,0,p-orange-navel,1,1,no
+Fruit,NAVELS OUTSIDE,,7274,safe,7274,7274,exact_active_db_name,1,NAVELS OUTSIDE,Fruit,1.99,each,0,be688f2e-7603-4169-8e33-20e722345dbe,1,1,yes
+Fruit,NECTARINE KG,,4841,safe,4841,4841,exact_active_db_name,1,NECTARINE KG,Fruit,6.99,kg,0,bec42d09-7862-4f38-b489-238ccf18fd2d,1,1,yes
+Fruit,NECTARINE WHITE  KG,,4851,safe,4851,4851,exact_active_db_name,1,NECTARINE WHITE KG,Fruit,6.99,kg,0,603ee4b1-887a-47a4-8cd0-66d140e58a45,1,1,yes
+Fruit,NECTARINES GREEN BUCKET KG,,4425,safe,4425,4425,loose_active_db_name,1,Nectarines Green Bucket,Fruit,1.99,kg,0,p-kb-pg18-btn2,1,1,yes
+Fruit,NERRIGUNDAH BLUEBERRIES,,9320805000380,safe,9320805000380,9320805000380,exact_active_db_name,1,NERRIGUNDAH BLUEBERRIES,Fruit,7.99,each,0,b0255aef-4f38-4922-ae37-7786c3cad10e,1,1,yes
+Fruit,ORANGE CANDY MELON WHOLE,,4753,safe,4753,4753,exact_active_db_name,1,ORANGE CANDY MELON WHOLE,Fruit,5.99,each,0,11105c1b-9b3f-423a-aa27-32d444964d98,1,1,yes
+Fruit,ORANGES VALENCIA KG,,3791,safe,3791,3791,exact_active_db_name,1,ORANGES VALENCIA KG,Fruit,3.89,kg,0,ee8c6cf5-7f7d-4264-a53f-307e7b284ed7,1,1,yes
+Fruit,ORANGES VALENCIA SPECIAL,,3793,safe,3793,3793,exact_active_db_name,1,ORANGES VALENCIA SPECIAL,Fruit,1.99,each,0,ab5e93aa-84bf-4610-938a-b19d28be40be,1,1,yes
+Fruit,OUTSIDE HONEYDEW EA,,8716,safe,8716,8716,exact_active_db_name,1,OUTSIDE HONEYDEW EA,Fruit,5.99,each,0,416461e9-cb63-4438-87b5-229056cb043d,1,1,yes
+Fruit,OUTSIDE ROCKMELON,,8717,safe,20369,20369,exact_active_db_name,1,Outside Rockmelon,Melons,5.99,each,0,p-open-pg17-btn3,1,1,no
+Fruit,OZ GROUP BLUEBERRIES 125G,,9342373009985,safe,9342373009985,9342373009985,exact_active_db_name,1,OZ GROUP BLUEBERRIES 125G,Fruit,3.99,each,0,3ce00ebc-e3e9-459a-a99f-9a66fcb9df70,1,1,yes
+Fruit,OZ GROUP JUMBO BLUEBERRIES 125GR,,9342373000364,safe,9342373000364,9342373000364,exact_active_db_name,1,OZ GROUP JUMBO BLUEBERRIES 125GR,Fruit,4.99,each,0,1814b178-c176-4f21-a494-14aeb8edd78a,1,1,yes
+Fruit,PASSIONFRUIT EA.,,4871,safe,4871,4871,exact_active_db_name,1,PASSIONFRUIT EA.,Fruit,1.99,each,0,525f545f-c4c4-4ffb-b203-a5bf80b41abc,1,1,yes
+Fruit,PAW PAW CUT,,709,safe,709,709,exact_active_db_name,1,(S) PAW PAW CUT,Fruit,4.89,each,0,228fad78-6ca2-4395-afe2-c2e9c0c7ed3f,1,1,yes
+Fruit,PAW PAW GREEN  KG,,5461,safe,5461,5461,exact_active_db_name,1,PAW PAW GREEN KG,Fruit,6.99,kg,0,107900f3-9ca7-43ce-bfa9-15da8d35b356,1,1,yes
+Fruit,PAW PAW RED CUT KG,,732,safe,732,732,exact_active_db_name,1,(S) PAW PAW RED CUT KG,Fruit,5.99,kg,0,58be16ef-9130-4ce4-bed7-036e46e25889,1,1,yes
+Fruit,PAW PAW RED KG,,5282,safe,5282,5282,exact_active_db_name,1,PAW PAW RED KG,Fruit,5.99,kg,0,440dc238-b026-4667-93da-2512d6e689d4,1,1,yes
+Fruit,PAW PAW YELLOW KG,,4951,safe,4951,4951,exact_active_db_name,1,PAW PAW YELLOW KG,Fruit,7.99,kg,0,a42063d1-a960-4aca-b689-444e794e6093,1,1,yes
+Fruit,PEACH GOLDEN KG,,5111,safe,5111,5111,exact_active_db_name,1,PEACH GOLDEN KG,Fruit,6.99,kg,0,c227bc9e-9d76-40b9-a821-4eb3a434f87e,1,1,yes
+Fruit,PEACH GREEN BUCKET KG,,5011,safe,5011,5011,exact_active_db_name,1,PEACH GREEN BUCKET KG,Fruit,1.99,kg,0,1a956ad4-4c61-45bb-86b9-403e8b4610c1,1,1,yes
+Fruit,PEACH WHITE KG,,5101,safe,5101,5101,exact_active_db_name,1,PEACH WHITE KG,Fruit,6.99,kg,0,7f2c5c98-ba9b-48de-9c7e-e1899390e8ed,1,1,yes
+Fruit,PEACH YELLOW  KG,,5081,safe,20380,20380,loose_active_db_name,1,Yellow Peach,Fruit,6.99,kg,0,p-kb-pg20-yellow-peach,1,1,no
+Fruit,PEAR NASHI EA.,,5392,safe,20317,20317,loose_active_db_name,1,Nashi Pear,Pears,1.99,each,0,p-kb-pg21-nashi,1,1,no
+Fruit,PEARS CORELLA KG,,5271,safe,5271,5271,exact_active_db_name,1,PEARS CORELLA KG,Fruit,5.99,kg,0,3354f7e3-9c59-4df6-b02d-b93353581c77,1,1,yes
+Fruit,PEARS GREEN BAG 1 KG,,40023,safe,40023,40023,exact_active_db_name,1,PEARS GREEN BAG 1 KG,Fruit,1.99,kg,0,522e7acd-e6d1-472d-baa4-e86bb9c2a4b0,1,1,yes
+Fruit,PEARS PACKHAM KG,,4991,safe,20315,20315,loose_active_db_name,1,Packham Pear,Pears,5.89,kg,0,p-kb-pg21-packham,1,1,no
+Fruit,PEARS WILLIAM KG,,4971,safe,4971,4971,exact_active_db_name,1,PEARS WILLIAM KG,Fruit,5.89,kg,0,69f81e1a-1cd0-438a-836e-0ea7e6ba7370,1,1,yes
+Fruit,PERSIMMON  KG,,5022,safe,5022,5022,exact_active_db_name,1,PERSIMMON KG,Fruit,12.99,kg,0,fe30f455-8d34-4fce-bfe0-16a59beba383,1,1,yes
+Fruit,PINATA STRAWBERRIES,,9319453000163,safe,9319453000163,9319453000163,exact_active_db_name,1,PINATA STRAWBERRIES,Fruit,4.99,each,0,4fbd9a38-2ac7-4836-bd9c-a4ee535e1fcb,1,1,yes
+Fruit,PINE TOPLESS AU. GOLD,,9328223000029,safe,9328223000029,9328223000029,exact_active_db_name,1,PINE TOPLESS AU. GOLD,Fruit,5.99,each,0,8b80ecdc-d362-4d89-b0ca-fb48f20ea0ea,1,1,yes
+Fruit,PINEAPPLE  EXTRA LARGE,,5422,safe,5422,5422,exact_active_db_name,1,PINEAPPLE EXTRA LARGE,Fruit,7.99,each,0,f669e020-89bd-49f0-a9dd-bb3f9e7d2dfc,1,1,yes
+Fruit,PINEAPPLE SMOOTH SMALL,,5052,safe,5052,5052,exact_active_db_name,1,PINEAPPLE SMOOTH SMALL,Fruit,3.99,each,0,451ae30a-d424-40e8-810f-ee8e5a0fb388,1,1,yes
+Fruit,PINEAPPLE SPENCER RANCH,,9338340000895,safe,9338340000895,9338340000895,exact_active_db_name,1,PINEAPPLE SPENCER RANCH,Fruit,7.99,each,0,cb841719-9ece-4f6b-98a2-3f8d3c9dfe40,1,1,yes
+Fruit,PINEAPPLE TOPLESS M/SMALL,,5445,safe,5445,5445,exact_active_db_name,1,PINEAPPLE TOPLESS M/SMALL,Fruit,3.99,each,0,a158ddd9-074a-43ad-83d0-f9854a7c69ff,1,1,yes
+Fruit,PINEAPPLE TOPLESS SMALL,,9328223000012,safe,9328223000012,9328223000012,exact_active_db_name,1,PINEAPPLE TOPLESS SMALL,Fruit,2.99,each,0,2455a508-2887-4ef8-8778-55500c362462,1,1,yes
+Fruit,PINES TOPLESS LARGE,,659359572319,safe,659359572319,659359572319,exact_active_db_name,1,PINES TOPLESS LARGE,Fruit,6.99,each,0,a5d4ac21-a514-48ab-a888-a5985c609a5c,1,1,yes
+Fruit,PINK LADY APPLE KG,,4031,safe,4031,4031,exact_active_db_name,1,PINK LADY APPLE KG,Fruit,1.99,kg,0,price-list-4031,1,1,yes
+Fruit,PLUMS BLOOD (BLACK DIAMOND),,5671,safe,5671,5671,exact_active_db_name,1,PLUMS BLOOD (BLACK DIAMOND),Fruit,6.99,each,0,56ced512-92d2-41bb-8575-38ef2c5a8567,1,1,yes
+Fruit,PLUMS IN GREEN BUCKET,,4423,safe,4423,4423,exact_active_db_name,1,PLUMS IN GREEN BUCKET,Fruit,2.99,each,0,dd28e73b-de1b-4a2b-b77b-3d0947591380,1,1,yes
+Fruit,PLUMS QUEEN GARNET KG,,5841,safe,5841,5841,exact_active_db_name,1,PLUMS QUEEN GARNET KG,Fruit,6.99,kg,0,634845da-fa83-41bf-89e7-e85e4df40a7e,1,1,yes
+Fruit,PLUMS SUGAR  KG,,5241,safe,5241,5241,exact_active_db_name,1,PLUMS SUGAR KG,Fruit,11.99,kg,0,e146137b-5c5e-4703-993a-1424a27f9b92,1,1,yes
+Fruit,POMEGRANATE EA,,5042,safe,5042,5042,exact_active_db_name,1,POMEGRANATE EA,Fruit,2.99,each,0,e23b2478-1cf7-4214-b756-5e0602a491e7,1,1,yes
+Fruit,POMMELO KG,,4914,safe,4914,4914,exact_active_db_name,1,POMMELO KG,Fruit,8.98,kg,0,52323ff1-14df-46c6-9727-8459487c3d69,1,1,yes
+Fruit,PUNNET RASPBERRIES,,9320800000644,safe,9320800000644,9320800000644,exact_active_db_name,1,PUNNET RASPBERRIES,Fruit,2.99,each,0,148fed17-b9bb-4890-a8b5-c1f206666ec4,1,1,yes
+Fruit,PUNNET RASPBERRIES,,93541121,safe,9320800000644,9320800000644,exact_active_db_name,1,PUNNET RASPBERRIES,Fruit,2.99,each,0,148fed17-b9bb-4890-a8b5-c1f206666ec4,1,1,no
+Fruit,PURPLE CARROTS,,9313129345862,safe,9313129345862,9313129345862,exact_active_db_name,1,PURPLE CARROTS,Fruit,2.99,each,0,bb1c4b2b-6d1e-44cf-bc07-fcfdf907eaa8,1,1,yes
+Fruit,QUINCE KG,,5211,safe,5211,5211,exact_active_db_name,1,QUINCE KG,Fruit,8.99,kg,0,ffbd7545-0111-4f2b-a4bc-7c04fb5d1317,1,1,yes
+Fruit,RASPBERRIES,,9317948008731,safe,20361,20361,exact_active_db_name,1,Raspberries,Berries,5.99,each,0,34cd1e15-88cf-4335-8f0f-1ce1b9ca4ec2,1,1,no
+Fruit,RASPBERRIES 125G,,93567121,safe,93567121,93567121,exact_active_db_name,1,RASPBERRIES 125G,Fruit,5.99,each,0,5bd479cc-c6d8-40e6-aebc-de7471b2b5c3,1,1,yes
+Fruit,RED  PLUMS KG,,5121,safe,5121,5121,exact_active_db_name,1,RED PLUMS KG,Fruit,9.89,kg,0,c33e93b1-7d5a-4980-a4a1-76627027814d,1,1,yes
+Fruit,RED IMPERIAL MANDARIN KG,,5821,safe,5821,5821,curated_produce_alias,1,Imperial,Fruit,4.89,kg,0,p-kb-pg15-btn0,1,1,yes
+Fruit,RED PAPAYA KG,,795,safe,795,795,exact_active_db_name,1,(S) RED PAPAYA KG,Fruit,5.99,kg,0,778d15c5-5d54-4337-874d-be265328b86a,1,1,yes
+Fruit,RICO PEAR KG,,3123,safe,3123,3123,exact_active_db_name,1,RICO PEAR KG,Fruit,4.99,kg,0,3965b195-77b3-4142-9ded-9eca7a346e5c,1,1,yes
+Fruit,RIVER BLUBERRIES,,9348835000057,safe,9348835000057,9348835000057,exact_active_db_name,1,RIVER BLUBERRIES,Fruit,4.99,each,0,940c5115-d59c-4dff-bee8-97301f55f41b,1,1,yes
+Fruit,ROCKMELON EA,,4752,safe,20348,20348,loose_active_db_name,1,Rockmelon,Melons,5.99,each,0,p-kb-pg17-rockmelon,1,1,no
+Fruit,SANTA CLAUS MELON,,5992,safe,20371,20371,exact_active_db_name,1,Santa Claus Melon,Melons,5.89,each,0,p-open-pg17-btn5,1,1,no
+Fruit,SEEDLESS WATERMELON CUT KG,,799,safe,799,799,exact_active_db_name,1,(S) SEEDLESS WATERMELON CUT KG,Fruit,1.89,kg,0,c33d8cac-f730-4078-aa5c-a61997a03e43,1,1,yes
+Fruit,SEEDLESS WATERMELON WHOLE,,719,safe,719,719,exact_active_db_name,1,(S)SEEDLESS WATERMELON WHOLE,Fruit,1.69,each,0,779372af-ecee-4ee6-b5bb-0be83342ad3a,1,1,yes
+Fruit,SM ROYAL GALA,,4065,safe,4065,4065,exact_active_db_name,1,SM ROYAL GALA,Fruit,4.99,kg,0,price-list-4065,1,1,yes
+Fruit,SMALL MANGOES EA,,4705,safe,4705,4705,exact_active_db_name,1,SMALL MANGOES EA,Fruit,1.99,each,0,43b84666-ff4e-4983-aa32-baa27d2c4194,1,1,yes
+Fruit,SMALL PINEAPPLE TOP,,9326608000008,safe,9326608000008,9326608000008,exact_active_db_name,1,SMALL PINEAPPLE TOP,Fruit,6.99,each,0,dbea9a90-8a06-47e3-b61c-9e92a033b09c,1,1,yes
+Fruit,SPANISH MELON,,4742,safe,4742,4742,exact_active_db_name,1,SPANISH MELON,Fruit,5.89,each,0,45aea247-ca59-4492-9745-f4db0c47000c,1,1,yes
+Fruit,STRAWBERRIES,,9317948009547,safe,9317948009547,9317948009547,exact_active_db_name,1,STRAWBERRIES,Fruit,1.49,each,0,e7226fe7-90ff-47ae-b8a4-fe43ec41088d,1,1,yes
+Fruit,STRAWBERRIES,,9320800000484,safe,9317948009547,9317948009547,exact_active_db_name,1,STRAWBERRIES,Fruit,1.49,each,0,e7226fe7-90ff-47ae-b8a4-fe43ec41088d,1,1,no
+Fruit,STRAWBERRIES 250G,,9320802000444,safe,9320802000444,9320802000444,exact_active_db_name,1,Strawberries 250g,Berries,5.99,each,0,45a1bfd4-4eee-4150-8224-c5dd8ac456c0,1,1,yes
+Fruit,STRAWBERRIES 250G DRISCOLL,,9342373001026,safe,9342373001026,9342373001026,exact_active_db_name,1,STRAWBERRIES 250G DRISCOLL,Fruit,2.99,each,0,ef713a29-3bbc-4c0f-87dd-9fe42013f761,1,1,yes
+Fruit,STRAWBERRIES 500 GR,,9317948009523,safe,9317948009523,9317948009523,exact_active_db_name,1,STRAWBERRIES 500 GR,Fruit,1.99,each,0,f5290e28-64b7-400c-85eb-51d58cdcaefe,1,1,yes
+Fruit,STRAWBERRIES 500G,,5352,safe,5352,5352,exact_active_db_name,1,STRAWBERRIES 500G,Fruit,4.99,each,0,1d5d196d-584b-4389-9df7-32175f1e36bd,1,1,yes
+Fruit,STRAWBERRIES 500G,,9327438000008,safe,5352,5352,exact_active_db_name,1,STRAWBERRIES 500G,Fruit,4.99,each,0,1d5d196d-584b-4389-9df7-32175f1e36bd,1,1,no
+Fruit,STRAWBERRIES 500G,,9320802000482,safe,5352,5352,exact_active_db_name,1,STRAWBERRIES 500G,Fruit,4.99,each,0,1d5d196d-584b-4389-9df7-32175f1e36bd,1,1,no
+Fruit,STRAWBERRIES 500G,,9320802000345,safe,5352,5352,exact_active_db_name,1,STRAWBERRIES 500G,Fruit,4.99,each,0,1d5d196d-584b-4389-9df7-32175f1e36bd,1,1,no
+Fruit,STRAWBERRIES FAMILY PACK 500 GR,,9319453000156,safe,9319453000156,9319453000156,exact_active_db_name,1,STRAWBERRIES FAMILY PACK 500 GR,Fruit,3.99,each,0,2cd6e363-08e7-47cf-8470-ea40e531db01,1,1,yes
+Fruit,STRW BERRIES 250G,,9308020004444,safe,9308020004444,9308020004444,exact_active_db_name,1,STRW BERRIES 250G,Fruit,5.99,each,0,45a57e57-f1e8-412a-84a5-fcff806b166c,1,1,yes
+Fruit,TANGELLO KG,,5581,safe,5581,5581,exact_active_db_name,1,TANGELLO KG,Fruit,4.99,kg,0,5ba6f8b7-67d4-4a06-a518-53591d5176ee,1,1,yes
+Fruit,TOMATOES GREEN BAG PER KG,,40025,safe,40025,40025,exact_active_db_name,1,TOMATOES GREEN BAG PER KG,Fruit,1.99,kg,0,website-fv-40025,1,1,yes
+Fruit,WATERMELON  SEEDLESS WHOLE KG,,4801,safe,4801,4801,exact_active_db_name,1,WATERMELON SEEDLESS WHOLE KG,Fruit,0.99,kg,0,4183576f-d2b7-4b15-81f0-fc41ec217f6d,1,1,yes
+Fruit,WATERMELON KG,,714,safe,714,714,exact_active_db_name,1,(S) WATERMELON KG,Fruit,2.29,kg,0,3c12f5fa-663f-4d45-9a76-1f6e7c797cb7,1,1,yes
+Fruit,WATERMELON SEEDED LONG WHOLE KG,,5561,safe,5561,5561,exact_active_db_name,1,WATERMELON SEEDED LONG WHOLE KG,Fruit,0.99,kg,0,d1b565ad-58dc-484b-a8e8-499c7d88b0bd,1,1,yes
+Fruit,ZUCCHINI BUCKET KG,,5232,safe,5232,5232,exact_active_db_name,1,ZUCCHINI BUCKET KG,Fruit,1.99,kg,0,62a3c05f-9ae3-48dd-852e-711697a2aaec,1,1,yes
+Vegetables,10KG BROWN ONION,,2451,safe,20243,20243,loose_active_db_name,1,Brown Onion 10kg,Bucket Specials,12.9,each,0,a7ff2617-a26c-4969-8516-2897f539016c,1,1,no
+Vegetables,10KG RED ONION,,2453,safe,20242,20242,loose_active_db_name,1,Red Onion 10kg,Bucket Specials,18,each,0,ba3e5640-c13e-45cb-b651-f673cf2862c7,1,1,no
+Vegetables,1KG CARROT BAG,,9318441000000,safe,20120,20120,loose_active_db_name,1,Carrot Bag 1kg,Vegetables,2.69,each,0,p-kb-pg4-carrot-bag,1,1,no
+Vegetables,ALFALFA,,9319055000004,safe,9319055000004,9319055000004,exact_active_db_name,1,ALFALFA,Vegetables,3.89,each,0,b3f9d774-1340-4a3f-8619-7d4892e9f056,1,1,yes
+Vegetables,ALFALFA SPROUTS,,3214100000175,safe,3214100000175,3214100000175,exact_active_db_name,1,ALFALFA SPROUTS,Vegetables,3.89,each,0,46af68dd-0e1d-4c2c-ace3-31535bd6459e,1,1,yes
+Vegetables,ANISEED/FENNEL EACH,,1912,safe,1912,1912,exact_active_db_name,1,ANISEED/FENNEL EACH,Vegetables,2.69,each,0,aa444d62-8050-4661-90b5-73032cd80164,1,1,yes
+Vegetables,ARTICHOKE SPIKE EA,,1932,safe,1932,1932,exact_active_db_name,1,ARTICHOKE SPIKE EA,Vegetables,2.99,each,0,bf547270-300f-4208-9b79-06abf52b0b8b,1,1,yes
+Vegetables,ASIAN VEGE BUNCH,,1552,safe,1552,1552,exact_active_db_name,1,ASIAN VEGE BUNCH,Vegetables,2.99,each,0,0b8309c4-f12c-4efa-9068-290cc4619db1,1,1,yes
+Vegetables,ASPARAGUS BABY,,9335147000035,safe,9335147000035,9335147000035,exact_active_db_name,1,ASPARAGUS BABY,Vegetables,3.99,each,0,e774a665-690f-41b9-a70d-51b13074c3f2,1,1,yes
+Vegetables,ASPARAGUS BUNCH,,1042,safe,1042,1042,exact_active_db_name,1,ASPARAGUS BUNCH,Vegetables,4.99,each,0,ae3e411f-4524-4dbc-bec0-07e96b2947ce,1,1,yes
+Vegetables,BABY BEETROOT,,9317466311283,safe,9317466311283,9317466311283,exact_active_db_name,1,BABY BEETROOT,Vegetables,3.99,each,0,0125e4b4-bf92-4de2-943a-415890e1772d,1,1,yes
+Vegetables,BABY COS TWIN PACK,,9350336000009,safe,9350336000009,9350336000009,exact_active_db_name,1,BABY COS TWIN PACK,Vegetables,3.99,each,0,621cebaf-9738-4c61-bcf1-5a160d4edca9,1,1,yes
+Vegetables,BABY COZ TWIN,,9335567000028,safe,9335567000028,9335567000028,exact_active_db_name,1,BABY COZ TWIN,Vegetables,3.99,each,0,00f77f84-b394-462b-90a2-e7b5cc4cd690,1,1,yes
+Vegetables,BABY CUCUMBERS,,9317645000663,safe,20201,20201,exact_active_db_name,1,Baby Cucumbers,Vegetables,3.99,each,0,69be04c8-fa53-4382-8f2d-e72078a19df5,1,1,no
+Vegetables,BAYLEAF 15G,,9329539000024,safe,9329539000024,9329539000024,exact_active_db_name,1,BAYLEAF 15G,Vegetables,2.99,each,0,c63b2242-ad01-4612-8a32-4326cc6786c0,1,1,yes
+Vegetables,BEAN SPROUTS,,9321410000024,safe,9321410000024,9321410000024,exact_active_db_name,1,BEAN SPROUTS,Vegetables,2.99,each,0,cf05c014-c40f-4b23-bb23-946bd511983c,1,1,yes
+Vegetables,BEANS FRESH,,744,safe,744,744,exact_active_db_name,1,(S) BEANS FRESH,Vegetables,5.99,each,0,6811d5da-9482-408a-b3b1-cdfaa1dc802e,1,1,yes
+Vegetables,BEANS FRESH  KG,,1051,safe,1051,1051,exact_active_db_name,1,BEANS FRESH KG,Vegetables,12.99,kg,0,0c5149a0-605a-4cb9-8740-6c4df5e2b980,1,1,yes
+Vegetables,BEETROOT BUNCH,,1142,safe,1142,1142,exact_active_db_name,1,BEETROOT BUNCH,Vegetables,4.99,each,0,ddcb65fe-0fc1-4492-b3d9-859f5696fa2b,1,1,yes
+Vegetables,BEETROOT KG,,1141,safe,1141,1141,exact_active_db_name,1,BEETROOT KG,Vegetables,4.99,kg,0,536a0a60-2531-440f-ad97-1fd962c2ad1c,1,1,yes
+Vegetables,BOTTLE GOURD KG,,9123,safe,9123,9123,exact_active_db_name,1,BOTTLE GOURD KG,Vegetables,4.99,kg,0,b71f830a-b361-465e-b142-5fdb4951f993,1,1,yes
+Vegetables,BROCCOLI KG,,1161,safe,990017,990017,exact_active_db_name,1,Broccoli KG,Broccoli,4.59,kg,0,demo-prod-broccoli,1,1,no
+Vegetables,BROCCOLINI BUNCH,,1602,safe,9350336000375,9350336000375,exact_active_db_name,1,BROCCOLINI BUNCH,Vegetables,3.99,each,0,39e2524d-700c-4688-bede-b5a2f5fb2b63,1,1,no
+Vegetables,BROCCOLINI BUNCH,,9350336000375,safe,9350336000375,9350336000375,exact_active_db_name,1,BROCCOLINI BUNCH,Vegetables,3.99,each,0,39e2524d-700c-4688-bede-b5a2f5fb2b63,1,1,yes
+Vegetables,BROCCOLINI BUNCH,,9317948000582,safe,9350336000375,9350336000375,exact_active_db_name,1,BROCCOLINI BUNCH,Vegetables,3.99,each,0,39e2524d-700c-4688-bede-b5a2f5fb2b63,1,1,no
+Vegetables,BRUSSEL SPROUTS KG,,1171,safe,1171,1171,exact_active_db_name,1,BRUSSEL SPROUTS KG,Vegetables,12.99,kg,0,91fc0113-5ab8-47c7-918b-a0ef09da660a,1,1,yes
+Vegetables,CABBAGE CHINESE  EA,,1202,safe,1202,1202,exact_active_db_name,1,CABBAGE CHINESE EA,Vegetables,1.49,each,0,82288c2b-6e70-4702-b352-fb422ceb526e,1,1,yes
+Vegetables,CABBAGE DRUM HEAD EA,,1222,safe,1222,1222,exact_active_db_name,1,CABBAGE DRUM HEAD EA,Vegetables,3.99,each,0,7caeb57e-a439-403c-8f77-ebb105346819,1,1,yes
+Vegetables,CABBAGE RED EA,,1282,safe,1282,1282,exact_active_db_name,1,CABBAGE RED EA,Vegetables,3.99,each,0,d8a905ed-8fbd-4e12-85c3-950da61231b1,1,1,yes
+Vegetables,CABBAGE SUGAR  EA,,1312,safe,1312,1312,exact_active_db_name,1,CABBAGE SUGAR EA,Vegetables,2.99,each,0,809fa3cb-ba45-4eb4-8484-77b96858c97f,1,1,yes
+Vegetables,CABBAGE SUGARLOAF WHOLE,,9366562155451,safe,9366562155451,9366562155451,exact_active_db_name,1,CABBAGE SUGARLOAF WHOLE,Vegetables,2.99,each,0,0127ad3f-31d5-472c-971c-6bb38bb51569,1,1,yes
+Vegetables,CAPSCIUM YELLOW,,1351,safe,1351,1351,exact_active_db_name,1,CAPSCIUM YELLOW,Vegetables,8.99,kg,0,b7257e76-210e-4072-92e5-ddba374207d9,1,1,yes
+Vegetables,CAPSICUM GREEN KG,,1341,safe,1341,1341,exact_active_db_name,1,CAPSICUM GREEN KG,Vegetables,7.99,kg,0,6bac872a-acf3-4b88-a4ce-01e41cfcb7e4,1,1,yes
+Vegetables,CAPSICUM RED KG,,1331,safe,1331,1331,exact_active_db_name,1,CAPSICUM RED KG,Vegetables,5.99,kg,0,de44b913-36d3-430b-b77d-a5b334f582eb,1,1,yes
+Vegetables,CAPSICUM TRAY KG,,796,safe,796,796,exact_active_db_name,1,(S) CAPSICUM TRAY KG,Vegetables,1.49,kg,0,1a815f6a-f612-4eda-aa1d-241e679d6671,1,1,yes
+Vegetables,CARROTS BAG,,1374,safe,1374,1374,exact_active_db_name,1,CARROTS BAG,Vegetables,2.69,each,0,268ee582-2a32-4479-a581-d2d22fb55d1f,1,1,yes
+Vegetables,CARROTS BAG 1 KG,,9321406000021,safe,9321406000021,9321406000021,exact_active_db_name,1,CARROTS BAG 1 KG,Vegetables,2.69,each,0,a4822b0e-6a66-41ed-a544-d8ab5e3b8e44,1,1,yes
+Vegetables,CARROTS KG,,1371,safe,1371,1371,exact_active_db_name,1,CARROTS KG,Vegetables,3.69,kg,0,5057ce6a-cd16-4817-a1bf-603ab7afd203,1,1,yes
+Vegetables,CAULIFLOWER EA,,1412,safe,1412,1412,exact_active_db_name,1,CAULIFLOWER EA,Vegetables,1.49,each,0,77a7009d-68f3-4d0d-b064-cf1726ed678a,1,1,yes
+Vegetables,CELERIAC EA,,1452,safe,1452,1452,exact_active_db_name,1,CELERIAC EA,Vegetables,7.89,each,0,3e6eefbd-6184-4b0e-a254-6f020c31a9e9,1,1,yes
+Vegetables,CELERY,,1472,safe,1472,1472,exact_active_db_name,1,CELERY,Vegetables,2.99,each,0,dba53d71-9979-4b45-98e9-dea0dd8ad552,1,1,yes
+Vegetables,CELERY 1/2 BUNCH,,1482,safe,1482,1482,exact_active_db_name,1,CELERY 1/2 BUNCH,Vegetables,1.99,each,0,6530476e-814d-42df-a082-30f0665158be,1,1,yes
+Vegetables,CHERRY TOMATOES 250G,,9300633607333,safe,9369999026677,9369999026677,exact_active_db_name,1,CHERRY TOMATOES 250G,Fruit,3.99,each,0,7a3bb914-6fd7-485f-b529-19b4173c7cec,1,1,no
+Vegetables,CHERRY TOMATOES 250G,,9317948001718,safe,9369999026677,9369999026677,exact_active_db_name,1,CHERRY TOMATOES 250G,Fruit,3.99,each,0,7a3bb914-6fd7-485f-b529-19b4173c7cec,1,1,no
+Vegetables,CHERRY TOMATOES 250G 363,,9317948012363,safe,9317948012363,9317948012363,exact_active_db_name,1,CHERRY TOMATOES 250G 363,Vegetables,3.99,each,0,a6e76643-aee9-427b-ad25-c7186815616a,1,1,yes
+Vegetables,CHILLI BIRDS EYE,,742,safe,742,742,exact_active_db_name,1,(S) CHILLI BIRDS EYE,Vegetables,39.99,each,0,ca320c2f-a591-43f7-b2e6-407e07b6c781,1,1,yes
+Vegetables,CHILLI HOT KG,,1511,safe,1511,1511,curated_produce_alias,1,Red Chilli,Vegetables,12.9,kg,0,389f4b73-0fb6-48e0-aa3a-947a7068f06e,1,1,yes
+Vegetables,CHILLI SWEET KG,,1541,safe,1541,1541,curated_produce_alias,1,Green Sweet (Banana),Vegetables,9.99,kg,0,a85cef40-a7a9-420b-9eaf-db946a9a7ea6,1,1,yes
+Vegetables,CHILLIES GREEN KG,,1521,safe,1521,1521,curated_produce_alias,1,Green Chilli,Vegetables,0,kg,1,17471777-ab0b-4eae-a91b-479f37589438,1,1,yes
+Vegetables,CHOI SUM  BUNCH,,5653,safe,5653,5653,exact_active_db_name,1,CHOI SUM BUNCH,Vegetables,3.79,each,0,76964ed2-c272-4297-9561-39b2fa36d12a,1,1,yes
+Vegetables,CHOKOES KG,,1701,safe,1701,1701,exact_active_db_name,1,CHOKOES KG,Vegetables,6.99,kg,0,b61a3dec-083e-4845-9d94-7efbb1bd82f7,1,1,yes
+Vegetables,CORN EACH,,1722,safe,1722,1722,exact_active_db_name,1,CORN EACH,Vegetables,0.99,each,0,3e7263ab-a537-4696-81e8-e33caefd9e24,1,1,yes
+Vegetables,COS LETTUCE,,9338340001892,safe,9338340001892,9338340001892,exact_active_db_name,1,Cos Lettuce,Lettuces,4.99,each,0,262c2a44-c9d9-4019-a754-4aebf992a451,1,1,yes
+Vegetables,CUCUMBER BABY TRAY 250G,,9317948000742,safe,9317948000742,9317948000742,exact_active_db_name,1,CUCUMBER BABY TRAY 250G,Vegetables,3.99,each,0,df7d6920-24e3-45c6-bdde-f4bbd76db323,1,1,yes
+Vegetables,CUCUMBER BUCKET,,9113,safe,9113,9113,exact_active_db_name,1,CUCUMBER BUCKET,Vegetables,1.99,each,0,e80add1e-42c3-4250-a486-b9ee69d0543a,1,1,yes
+Vegetables,CUCUMBER CONTINENTAL EA,,1762,safe,1762,1762,exact_active_db_name,1,CUCUMBER CONTINENTAL EA,Vegetables,1.99,each,0,08162733-de50-47bc-9833-432aa5d3736e,1,1,yes
+Vegetables,CUCUMBER LEBANESE  KG,,1781,safe,1781,1781,exact_active_db_name,1,CUCUMBER LEBANESE KG,Vegetables,5.89,kg,0,920c49fe-f50c-4df5-bf66-dbbc06f9010a,1,1,yes
+Vegetables,CUCUMBER TELEGRAPH EA,,80687465323,safe,80687465323,80687465323,exact_active_db_name,1,CUCUMBER TELEGRAPH EA,Vegetables,3.99,each,0,bae0388a-1a74-446a-ae59-5c0a68c18554,1,1,yes
+Vegetables,EGGPLANT BABY KG,,1811,safe,1811,1811,exact_active_db_name,1,EGGPLANT BABY KG,Vegetables,9.99,kg,0,fdd8a036-5367-4b6b-b440-bfcd36c97c07,1,1,yes
+Vegetables,EGGPLANT KG,,1801,safe,1801,1801,exact_active_db_name,1,EGGPLANT KG,Vegetables,5.99,kg,0,d06f4d6c-e13a-4ba2-a419-887ea0b7316f,1,1,yes
+Vegetables,EGGPLANT THAI KG,,1831,safe,1831,1831,exact_active_db_name,1,EGGPLANT THAI KG,Vegetables,9.89,kg,0,4ef80ebf-a639-4d88-b1cc-0ed0dc9a6d82,1,1,yes
+Vegetables,ENOKI MUSHROOM 100G,,9336109000940,safe,9336109000940,9336109000940,exact_active_db_name,1,ENOKI MUSHROOM 100G,Vegetables,3.99,each,0,de2f7d2c-cdea-41e1-af45-aeb7d3da878b,1,1,yes
+Vegetables,ESHALLOTS BUNCH,,2772,safe,2772,2772,exact_active_db_name,1,ESHALLOTS BUNCH,Vegetables,1.99,each,0,156d0ddd-2c68-46df-ba67-b253e1b77fdd,1,1,yes
+Vegetables,FRESH GARLIC BAGS,,9313551054080,safe,9313551054080,9313551054080,exact_active_db_name,1,FRESH GARLIC BAGS,Vegetables,4.99,each,0,7583771c-6f66-42cd-a627-0b638d69be10,1,1,yes
+Vegetables,FRESH GARLIC BAGS,,9327863000017,safe,9313551054080,9313551054080,exact_active_db_name,1,FRESH GARLIC BAGS,Vegetables,4.99,each,0,7583771c-6f66-42cd-a627-0b638d69be10,1,1,no
+Vegetables,GARLIC  KG,,1851,safe,1851,1851,exact_active_db_name,1,GARLIC KG,Vegetables,28.9,kg,0,0c86ef83-ca6b-4839-9f10-123885c08ecf,1,1,yes
+Vegetables,GARLIC AUSTRALIAN KG,,729,safe,729,729,exact_active_db_name,1,(S) GARLIC AUSTRALIAN KG,Vegetables,28.9,kg,0,a4c79193-8bcd-4223-b53b-0d2cd6024d29,1,1,yes
+Vegetables,GARLIC BAG,,8033737422687,safe,20210,20210,exact_active_db_name,1,Garlic Bag,Garlic,4.99,each,0,497dd7e9-cfbc-46bb-abc3-f4c75b6a9f82,1,1,no
+Vegetables,GARLIC BAG,,9327072004103,safe,20210,20210,exact_active_db_name,1,Garlic Bag,Garlic,4.99,each,0,497dd7e9-cfbc-46bb-abc3-f4c75b6a9f82,1,1,no
+Vegetables,GARLIC BAG,,9329521000131,safe,20210,20210,exact_active_db_name,1,Garlic Bag,Garlic,4.99,each,0,497dd7e9-cfbc-46bb-abc3-f4c75b6a9f82,1,1,no
+Vegetables,GARLIC SHOOTS BUNCH,,1892,safe,1892,1892,exact_active_db_name,1,GARLIC SHOOTS BUNCH,Vegetables,3.89,each,0,9205b59e-eb22-43bf-a360-281a271a83d4,1,1,yes
+Vegetables,GINGER KG,,1861,safe,1861,1861,exact_active_db_name,1,GINGER KG,Vegetables,34.99,kg,0,151c477c-5bd3-4a33-baea-758978dac278,1,1,yes
+Vegetables,GRAPE TOMATO,,9369998207527,safe,9369998207527,9369998207527,exact_active_db_name,1,GRAPE TOMATO,Vegetables,3.99,each,0,f77563b0-c39d-4bfc-b3a7-753e7f9cfe76,1,1,yes
+Vegetables,GRAPE TOMATO PUNNET,,9332102000246,safe,9332102000246,9332102000246,exact_active_db_name,1,GRAPE TOMATO PUNNET,Vegetables,1.99,each,0,75ea19d8-8cf7-4a86-ba0a-c1f9172b7281,1,1,yes
+Vegetables,GRAPE TOMATOES 250G,,9359918000000,safe,9359918000000,9359918000000,exact_active_db_name,1,GRAPE TOMATOES 250G,Vegetables,4.99,each,0,2a309c7f-611e-43b8-9a3b-e713c4097424,1,1,yes
+Vegetables,JACOBS EGG CAGE 800G,,9332022008001,safe,9332022008001,9332022008001,exact_active_db_name,1,JACOBS EGG CAGE 800G,Vegetables,8.99,each,0,price-list-9332022008001,1,1,yes
+Vegetables,JAP PUMPKIN OUTSIDE  KG,,2721,safe,20226,20226,loose_active_db_name,1,Jap Pumpkin,Pumpkins,2.49,kg,0,p-kb-pg33-jap,1,1,no
+Vegetables,KALE BUNCH,,2212,safe,2212,2212,exact_active_db_name,1,KALE BUNCH,Vegetables,3.99,each,0,d8fc4e82-79cb-41c1-b4aa-d8d5ed15032c,1,1,yes
+Vegetables,KALFRESH SWEETCORN 500G,,9321406620014,safe,9321406620014,9321406620014,exact_active_db_name,1,KALFRESH SWEETCORN 500G,Vegetables,5.99,each,0,0096eba0-6c89-4372-b2ed-0945709f7959,1,1,yes
+Vegetables,KG FRESH GALANGAL,,785,safe,785,785,exact_active_db_name,1,(S) KG FRESH GALANGAL,Vegetables,15.5,kg,0,6ecdff66-9b3a-402b-8efe-0ffeda94c8e2,1,1,yes
+Vegetables,KG FRESH GINGER,,784,safe,784,784,exact_active_db_name,1,(S) KG FRESH GINGER,Vegetables,34.99,kg,0,ba70bd92-a06f-4645-bd89-41722d76083a,1,1,yes
+Vegetables,KG FRESH TUMERIC,,786,safe,786,786,exact_active_db_name,1,(S) KG FRESH TUMERIC,Vegetables,15.9,kg,0,adb66d51-90e4-4c8a-817e-02508a56fd0b,1,1,yes
+Vegetables,KG HOT GREEN CHILLI,,782,safe,782,782,exact_active_db_name,1,(S) KG HOT GREEN CHILLI,Vegetables,19.99,kg,0,478f304f-2d6c-4bc2-bc0d-2fb30161f7af,1,1,yes
+Vegetables,KG JALAPENO CHILLI,,783,safe,783,783,exact_active_db_name,1,(S) KG JALAPENO CHILLI,Vegetables,29.99,kg,0,a274d148-55b8-4b10-aa2c-3695acf9cf20,1,1,yes
+Vegetables,KG JALAPENO CHILLI,,7831,safe,783,783,exact_active_db_name,1,(S) KG JALAPENO CHILLI,Vegetables,29.99,kg,0,a274d148-55b8-4b10-aa2c-3695acf9cf20,1,1,no
+Vegetables,KYOGLE GARLIC,,9335682007469,safe,9335682007469,9335682007469,exact_active_db_name,1,KYOGLE GARLIC,Vegetables,7.99,each,0,5ff830b3-1677-4056-882f-bd36376ba3c8,1,1,yes
+Vegetables,LEEK BUNCH,,2232,safe,2232,2232,exact_active_db_name,1,LEEK BUNCH,Vegetables,3.49,each,0,d700302d-0c90-4fe8-bfdf-303cffe529aa,1,1,yes
+Vegetables,LETTUCE COS EACH,,2272,safe,2272,2272,exact_active_db_name,1,LETTUCE COS EACH,Vegetables,3.99,each,0,96003ca0-4907-4df4-8c60-b4a91356054c,1,1,yes
+Vegetables,LETTUCE FANCY EA,,2362,safe,20117,20117,loose_active_db_name,1,Fancy Lettuce,Lettuces,3.99,each,0,daf02aa0-9015-4887-95f4-5401a7599724,1,1,no
+Vegetables,LETTUCE ICEBERG EA,,2252,safe,2252,2252,exact_active_db_name,1,LETTUCE ICEBERG EA,Vegetables,1.49,each,0,d2279c07-edc1-439b-85d2-67d703e029e3,1,1,yes
+Vegetables,LETTUCE RADICCHIO EA,,2312,safe,2312,2312,exact_active_db_name,1,LETTUCE RADICCHIO EA,Vegetables,6.99,each,0,a4d51798-f46f-40d8-a1d6-2935b419ffd3,1,1,yes
+Vegetables,LIVING SPROUTS 250G,,9319055888121,safe,9319055888121,9319055888121,exact_active_db_name,1,LIVING SPROUTS 250G,Vegetables,3.99,each,0,b3a21c67-cabf-421b-89fa-f20e0dbf0f7e,1,1,yes
+Vegetables,LYCHEES 400G,,9360250000276,safe,9360250000276,9360250000276,exact_active_db_name,1,LYCHEES 400G,Vegetables,5.99,each,0,3f29359e-dfe1-42a8-8cec-219532b24d68,1,1,yes
+Vegetables,MEDLEY MIX 200G,,793618111939,safe,793618111939,793618111939,exact_active_db_name,1,MEDLEY MIX 200G,Vegetables,3.99,each,0,908c49ec-8d80-4e86-b47f-429887359370,1,1,yes
+Vegetables,MEDLEY TOM MIX,,9355981000046,safe,9355981000046,9355981000046,exact_active_db_name,1,MEDLEY TOM MIX,Vegetables,3.99,each,0,19f2549c-7b75-4735-a8d2-946111cf70f1,1,1,yes
+Vegetables,MINI ROMAS 250G,,9358963000072,safe,9358963000072,9358963000072,exact_active_db_name,1,MINI ROMAS 250G,Vegetables,3.99,each,0,eff7a3df-e085-44a8-a075-81eef3eaf90d,1,1,yes
+Vegetables,MUNG BEANS,,9321410000000,safe,9321410000000,9321410000000,exact_active_db_name,1,MUNG BEANS,Vegetables,3.89,each,0,65124644-a6bb-48e5-b4ff-ccb419ab66fd,1,1,yes
+Vegetables,MUSHROOM CUPS KG,,2371,safe,2371,2371,exact_active_db_name,1,MUSHROOM CUPS KG,Vegetables,14.9,kg,0,b9f317e4-e67c-49bc-901a-bbdcb7c66b5f,1,1,yes
+Vegetables,MUSHROOM FLAT KG,,2381,safe,20130,20130,loose_active_db_name,1,Flat Mushroom,Mushrooms,14.9,kg,0,p-kb-pg30-flat-mush,1,1,no
+Vegetables,MUSHROOM SWISS BROWN KG,,2351,safe,2351,2351,exact_active_db_name,1,MUSHROOM SWISS BROWN KG,Vegetables,16.9,kg,0,78d28e52-47c8-4909-a339-ad74047810f9,1,1,yes
+Vegetables,MUSHROOMS FIELD 400GM,,789,safe,789,789,exact_active_db_name,1,MUSHROOMS FIELD 400GM,Vegetables,4.5,each,0,0ad8e3c7-2379-483d-8c3c-a3b832d3e15d,1,1,yes
+Vegetables,OKRA KG,,773,safe,773,773,exact_active_db_name,1,(S) OKRA KG,Vegetables,12.9,kg,0,cca1c3f9-a70f-40ff-8877-bb69c8d51597,1,1,yes
+Vegetables,ONION BAG 2 KG,,2454,safe,2454,2454,exact_active_db_name,1,ONION BAG 2 KG,Vegetables,3.99,kg,0,74f8c38f-1b71-4de2-b489-aae07456df8c,1,1,yes
+Vegetables,ONIONS BROWN 1  KG BAG,,2414,safe,2414,2414,exact_active_db_name,1,ONIONS BROWN 1 KG BAG,Vegetables,2.99,kg,0,85d1a8b6-dbd6-4f32-930e-718e180b4ef1,1,1,yes
+Vegetables,ONIONS BROWN KG,,2411,safe,4663,4663,loose_active_db_name,1,Brown Onion,Onions,2.99,kg,0,p-open-pg31-btn1,1,1,no
+Vegetables,ONIONS PICKLING BAG 1KG,,2434,safe,20209,20209,loose_active_db_name,1,Pickling Onion Bag 1kg,Onions,3.49,each,0,f3f52d9a-d588-4fb8-9e6c-470c08df7e49,1,1,no
+Vegetables,ONIONS SALAD/SPANISH KG,,2441,safe,2441,2441,curated_produce_alias,1,Onion Red,Vegetables,4.99,kg,0,p-kb-pg31-btn2,1,1,yes
+Vegetables,ONIONS SPANISH 1KG BAG,,2444,safe,2444,2444,exact_active_db_name,1,ONIONS SPANISH 1KG BAG,Vegetables,2.99,each,0,abab59ed-64ef-4977-bd3b-b5147b6dd402,1,1,yes
+Vegetables,ONIONS SPRING BUNCH,,2452,safe,2452,2452,loose_active_db_name,1,Spring Onion Bunch,Vegetables,5.99,each,0,p-kb-pg31-btn7,1,1,yes
+Vegetables,ONIONS WHITE KG,,2421,safe,2421,2421,exact_active_db_name,1,ONIONS WHITE KG,Vegetables,7.99,kg,0,4192a568-4941-41b5-bb17-7dde8708b704,1,1,yes
+Vegetables,ORANGE CHERRY TOMATO 200G,,9369998087471,safe,9369998087471,9369998087471,exact_active_db_name,1,ORANGE CHERRY TOMATO 200G,Vegetables,4.99,each,0,473fbb47-1ba1-4ba5-8462-23d7b1b9fdef,1,1,yes
+Vegetables,OUTSIDE BUTTERNUT PUMPKIN,,3681,safe,20229,20229,loose_active_db_name,1,Butternut Pumpkin,Pumpkins,2.49,kg,0,p-kb-pg33-butternut,1,1,no
+Vegetables,OUTSIDE JARRA PUMPKIN KG,,91231,safe,91231,91231,exact_active_db_name,1,OUTSIDE JARRA PUMPKIN KG,Vegetables,0.99,kg,0,0531efee-5214-4110-bf80-ef5a3cc4b0c4,1,1,yes
+Vegetables,PARSNIP KG,,2471,safe,2471,2471,exact_active_db_name,1,PARSNIP KG,Vegetables,12.99,kg,0,9f747a5b-6926-4735-b35e-c779aa189709,1,1,yes
+Vegetables,PEAS FRESH KG,,2481,safe,2481,2481,exact_active_db_name,1,PEAS FRESH KG,Vegetables,14.99,kg,0,95b1a92a-94fa-4acb-9e71-f7a8a99bbe7e,1,1,yes
+Vegetables,PERFECTION QUKES 250G,,9317948013483,safe,9317948013483,9317948013483,exact_active_db_name,1,PERFECTION QUKES 250G,Vegetables,3.99,each,0,fb3fcc1d-f136-4d94-88af-f24b5984b0fe,1,1,yes
+Vegetables,POTATOES BRUSHED  KG,,2521,safe,20154,20154,loose_active_db_name,1,Brushed Potatoes,Potatoes,2.99,kg,0,p-kb-pg32-brushed,1,1,no
+Vegetables,POTATOES BRUSHED 3KG,,25221,safe,20158,20158,curated_produce_alias,1,Potato Bag 3kg,Potatoes,5.99,each,0,p-kb-pg32-potato-bag,1,1,no
+Vegetables,POTATOES CHATS 1KG BAG,,2764,safe,2764,2764,loose_active_db_name,1,Chat Potatoes 1kg Bag,Potatoes,4.89,each,0,p-kb-pg32-btn2,1,1,yes
+Vegetables,POTATOES DUTCH KG,,2534,review_recommended,2534,2534,best_active_db_name_match,0.8,Dutch Cream Potatoes,Potatoes,7.99,kg,0,p-kb-pg32-btn5,1,1,yes
+Vegetables,POTATOES KIPFLER KG,,2531,safe,2531,2531,loose_active_db_name,1,Kipfler Potatoes,Potatoes,7.99,kg,0,f212c8ff-a290-4f5b-91cc-1f52239e568d,1,1,yes
+Vegetables,POTATOES LGE SWEET GOLD  KG,,2571,safe,2571,2571,exact_active_db_name,1,POTATOES LGE SWEET GOLD KG,Vegetables,3.99,kg,0,194641eb-38a8-44d4-9943-6a19469e8c4b,1,1,yes
+Vegetables,POTATOES RED CHATS 1KG BAG,,2544,safe,20157,20157,loose_active_db_name,1,Red Chat Potatoes 1kg Bag,Potatoes,4.89,each,0,p-kb-pg32-chat,1,1,no
+Vegetables,POTATOES SWEET RED KG,,2551,safe,20223,20223,loose_active_db_name,1,Red Sweet Potato,Sweet Potatoes,6.99,kg,0,p-open-pg34-btn1,1,1,no
+Vegetables,POTATOES SWEET WHITE KG,,2581,safe,2581,2581,exact_active_db_name,1,POTATOES SWEET WHITE KG,Vegetables,6.99,kg,0,10cd8906-2c55-4e3e-9d25-3ee5b6dc4baa,1,1,yes
+Vegetables,POTATOES WASHED KG,,2511,safe,2511,2511,loose_active_db_name,1,Potatoes Washed,Potatoes,5.59,kg,0,p-potato,1,1,yes
+Vegetables,PUMPKIN BUTTERNUT CUT KG,,2671,safe,20229,20229,loose_active_db_name,1,Butternut Pumpkin,Pumpkins,2.49,kg,0,p-kb-pg33-butternut,1,1,no
+Vegetables,PUMPKIN BUTTERNUT KG,,2661,safe,20229,20229,loose_active_db_name,1,Butternut Pumpkin,Pumpkins,2.49,kg,0,p-kb-pg33-butternut,1,1,no
+Vegetables,PUMPKIN JAP CUT KG,,2941,safe,20226,20226,loose_active_db_name,1,Jap Pumpkin,Pumpkins,2.49,kg,0,p-kb-pg33-jap,1,1,no
+Vegetables,PUMPKIN JAP KG,,2931,safe,20226,20226,loose_active_db_name,1,Jap Pumpkin,Pumpkins,2.49,kg,0,p-kb-pg33-jap,1,1,no
+Vegetables,PUMPKIN JARRA CUT KG,,2631,safe,2559,2559,loose_active_db_name,1,Jarra Pumpkin,Pumpkins,2.49,kg,0,p-open-pg33-btn2,1,1,no
+Vegetables,PUMPKIN JARRA KG,,2621,safe,2559,2559,loose_active_db_name,1,Jarra Pumpkin,Pumpkins,2.49,kg,0,p-open-pg33-btn2,1,1,no
+Vegetables,RADISH LONG WHITE KG,,2711,safe,2711,2711,exact_active_db_name,1,RADISH LONG WHITE KG,Vegetables,3.89,kg,0,5f0a24f5-f809-495c-b570-0159db87e554,1,1,yes
+Vegetables,RADISH PKT EA,,9347361000005,safe,9347361000005,9347361000005,exact_active_db_name,1,RADISH PKT EA,Vegetables,3.29,each,0,cf7044f3-672e-46de-9e46-07c4c9ead084,1,1,yes
+Vegetables,RADISH RED BUNCH,,2701,safe,2701,2701,exact_active_db_name,1,RADISH RED BUNCH,Vegetables,2.99,each,0,6df02409-9b1c-462e-87e1-cfc758ad99d4,1,1,yes
+Vegetables,RED GRAPE TOMATO 200G,,9317948006997,safe,9317948006997,9317948006997,exact_active_db_name,1,RED GRAPE TOMATO 200G,Vegetables,3.99,each,0,4c715d38-cf37-4c0e-97ca-22370dba3bf5,1,1,yes
+Vegetables,REDUCED TO CLEAR,,713,safe,713,713,exact_active_db_name,1,REDUCED TO CLEAR,Vegetables,0.99,each,0,2d227aaf-a848-49fb-b885-b6e445b2c95d,1,1,yes
+Vegetables,RHUBARB BUN,,2741,safe,2741,2741,exact_active_db_name,1,RHUBARB BUN,Vegetables,4.99,each,0,0bdf598c-8144-4d6c-acc5-a9d94ea4075f,1,1,yes
+Vegetables,ROCKET PUNNET 100 GR,,9329878001300,safe,9329878001300,9329878001300,exact_active_db_name,1,ROCKET PUNNET 100 GR,Vegetables,3.99,each,0,3723b0e9-fb31-4cf7-bae3-8b2cb5108cf0,1,1,yes
+Vegetables,ROMA TOMATOES BUCKET PER KG,,3034,safe,3034,3034,exact_active_db_name,1,ROMA TOMATOES BUCKET PER KG,Vegetables,0.48,kg,0,5bc66c63-cc11-4cb3-b587-6790f0846800,1,1,yes
+Vegetables,SILVERBEET BUNCH,,2812,safe,2812,2812,exact_active_db_name,1,SILVERBEET BUNCH,Vegetables,3.99,each,0,6a346c32-82cb-44f5-9df4-0705128e8b87,1,1,yes
+Vegetables,SNACKING BABY CARROTS 250G,,9317885001437,safe,9317885001437,9317885001437,exact_active_db_name,1,SNACKING BABY CARROTS 250G,Vegetables,3.99,each,0,6e433aac-dd6c-4922-b2cf-dec573145376,1,1,yes
+Vegetables,SNACKING RADISH,,9317885001543,safe,9317885001543,9317885001543,exact_active_db_name,1,SNACKING RADISH,Vegetables,3.89,each,0,0fb834a8-6464-4b85-9e6b-dd7cfe61e401,1,1,yes
+Vegetables,SNOW PEA SPROUTS 100G,,3214100001097,safe,3214100001097,3214100001097,exact_active_db_name,1,SNOW PEA SPROUTS 100G,Vegetables,2.99,each,0,dd48cd27-9e93-4039-8ff6-12098a1f2e38,1,1,yes
+Vegetables,SNOW PEAS KG,,1231,safe,1231,1231,exact_active_db_name,1,SNOW PEAS KG,Vegetables,24.99,kg,0,33ee3860-514e-4d19-8d49-ba40601f6ce4,1,1,yes
+Vegetables,SPECIAL SWEET POTATOES,,2882,safe,2882,2882,exact_active_db_name,1,SPECIAL SWEET POTATOES,Vegetables,1.49,each,0,aadf2b29-62bb-4271-8eff-039f0cce3108,1,1,yes
+Vegetables,SQUASH GOLD KG,,2861,manual_review,,1882,best_active_db_name_match,0.67,Gold,Vegetables,0,kg,1,p-kb-pg34-btn3,1,1,no
+Vegetables,SUGAR SNAP PEAS KG,,5622,safe,5622,5622,exact_active_db_name,1,SUGAR SNAP PEAS KG,Vegetables,24.99,kg,0,e0e221b0-fd9c-43bc-b1a4-711f58779689,1,1,yes
+Vegetables,SWEDES KG,,2871,safe,2871,2871,exact_active_db_name,1,SWEDES KG,Vegetables,5.89,kg,0,a2322092-52ce-4c9b-82c8-cfaf452dee18,1,1,yes
+Vegetables,SWEET CHILLI RED,,5565,safe,5565,5565,exact_active_db_name,1,SWEET CHILLI RED,Vegetables,9.89,each,0,d4d54b07-fed8-4161-8460-e6039dec5c80,1,1,yes
+Vegetables,TAROROOT KG,,2881,safe,2881,2881,exact_active_db_name,1,TAROROOT KG,Vegetables,9.89,kg,0,acec0914-864e-453b-8fbc-0d2f346062ad,1,1,yes
+Vegetables,TOMATO MEDLEY 200G,,9317948009578,safe,9317948009578,9317948009578,exact_active_db_name,1,TOMATO MEDLEY 200G,Vegetables,3.99,each,0,c21fd7f4-936c-410e-a76e-901fa3454884,1,1,yes
+Vegetables,TOMATOES GRAPE RED 200G,,9316363001167,safe,9316363001167,9316363001167,exact_active_db_name,1,TOMATOES GRAPE RED 200G,Vegetables,3.99,each,0,ef817240-2049-4508-9827-4fe221df9d5e,1,1,yes
+Vegetables,TOMATOES GRAPE RED 250G,,9317948008076,review_recommended,9359918000000,9359918000000,best_active_db_name_match,0.89,GRAPE TOMATOES 250G,Vegetables,4.99,each,0,2a309c7f-611e-43b8-9a3b-e713c4097424,1,1,no
+Vegetables,TOMATOES HEIRLOOM KG,,3021,safe,3021,3021,exact_active_db_name,1,TOMATOES HEIRLOOM KG,Vegetables,9.99,kg,0,5155e8ff-6599-48f5-ae02-f5906a6b3425,1,1,yes
+Vegetables,TOMATOES KG,,3001,safe,3001,3001,exact_active_db_name,1,TOMATOES KG,Vegetables,6.89,kg,0,41f341c7-a868-405e-9bf2-be40e11b295f,1,1,yes
+Vegetables,TOMATOES ROMA/EGG  KG,,3031,safe,3031,3031,exact_active_db_name,1,TOMATOES ROMA/EGG  KG,Vegetables,7.89,kg,0,price-list-3031,1,1,yes
+Vegetables,TOMATOES TRUSS VINE   KG,,3181,safe,3181,3181,exact_active_db_name,1,TOMATOES TRUSS VINE KG,Vegetables,7.99,kg,0,ef44d8eb-f0f6-4da4-932d-cc0154ba4de3,1,1,yes
+Vegetables,TURNIP WHITE KG,,3041,safe,3041,3041,exact_active_db_name,1,TURNIP WHITE KG,Vegetables,5.89,kg,0,cd6eb178-63b4-4f3c-91ed-044c922b6c7e,1,1,yes
+Vegetables,TWIN BABY COSS PKT,,9317948008250,safe,9317948008250,9317948008250,exact_active_db_name,1,TWIN BABY COSS PKT,Vegetables,3.99,each,0,ddf2331d-e68d-4c36-883c-1308a91a8cd3,1,1,yes
+Vegetables,TWIN PACK LETTUCE,,794712247319,safe,794712247319,794712247319,exact_active_db_name,1,TWIN PACK LETTUCE,Vegetables,3.99,each,0,750ddd2e-b219-4d0f-b8fd-80c2af1c98b9,1,1,yes
+Vegetables,ZUCCHINI LEBANESE KG,,3071,safe,3071,3071,exact_active_db_name,1,ZUCCHINI LEBANESE KG,Vegetables,12.99,kg,0,d896d361-4372-42e8-9455-bd1b9046d2c5,1,1,yes
+Vegetables,ZUCCHINI LGE KG,,3061,safe,3061,3061,exact_active_db_name,1,ZUCCHINI LGE KG,Vegetables,6.99,kg,0,3f14c2d1-f6a7-4d9a-b7f3-441030891a73,1,1,yes

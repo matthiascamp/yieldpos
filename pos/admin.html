@@ -2344,8 +2344,11 @@
 
     <!-- ── Cash Drawer ────────────────────────────────────────────── -->
     <div class="tab-content" id="tab-cashdrawer">
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
         <h1 style="margin:0">Cash Drawer Management</h1>
+        <input type="date" id="cdDate" style="padding:8px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+        <button class="btn btn-outline" id="cdToday" style="padding:6px 12px;font-size:12px">Today</button>
+        <button class="btn btn-outline" id="cdYesterday" style="padding:6px 12px;font-size:12px">Yesterday</button>
         <div class="form-field" style="margin:0">
           <select id="cdTillSelect" style="padding:8px 12px;font-size:13px;min-width:160px">
             <option value="">All Tills</option>
@@ -2354,8 +2357,8 @@
         <button class="btn btn-outline" id="cdAddTill" style="padding:6px 12px;font-size:12px">+ Add Till</button>
       </div>
       <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:20px">
-        <div class="stat-card"><div class="stat-label">Current Float</div><div class="stat-value green" id="cdFloat">$0.00</div></div>
-        <div class="stat-card"><div class="stat-label">Cash Sales Today</div><div class="stat-value" id="cdCashSales">$0.00</div></div>
+        <div class="stat-card"><div class="stat-label">Opening Float</div><div class="stat-value green" id="cdFloat">$0.00</div></div>
+        <div class="stat-card"><div class="stat-label">Cash Sales</div><div class="stat-value" id="cdCashSales">$0.00</div></div>
         <div class="stat-card"><div class="stat-label">Expected in Drawer</div><div class="stat-value" id="cdExpected">$0.00</div></div>
       </div>
       <div class="section" style="margin-bottom:20px">
@@ -2387,10 +2390,10 @@
         </div>
       </div>
       <div class="section" style="margin-top:20px">
-        <h2>Drawer Log (Today)</h2>
+        <h2 id="cdLogTitle">Drawer Log</h2>
         <table>
           <thead><tr><th>Time</th><th>Till</th><th>Action</th><th>Amount</th><th>Staff</th><th>Note</th></tr></thead>
-          <tbody id="cdLogTable"><tr><td colspan="6" style="color:var(--text-dim)">No entries today</td></tr></tbody>
+          <tbody id="cdLogTable"><tr><td colspan="6" style="color:var(--text-dim)">No entries for this date</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -2925,6 +2928,7 @@
         <div class="form-field" style="margin-bottom:10px"><label>Anon Key</label><input type="text" id="setSupaKey" placeholder="eyJ..." style="font-family:monospace;font-size:12px;"></div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
           <button class="btn btn-blue" id="saveSupaBtn">Save &amp; Connect</button>
+          <button class="btn btn-green" id="pushNowBtn" style="display:none">Push Local Now</button>
           <button class="btn btn-outline" id="pullNowBtn" style="display:none">Pull Now</button>
           <span id="supaStatus" style="font-size:13px;color:var(--text-dim)"></span>
         </div>
@@ -2996,16 +3000,21 @@
         <input type="date" id="auditDate" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text)">
         <select id="auditAction" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text)">
           <option value="">All Actions</option>
-          <option value="void_item">Void Item</option>
-          <option value="no_sale">No Sale</option>
-          <option value="discount_sale">Discount (Sale)</option>
-          <option value="discount_item">Discount (Item)</option>
-          <option value="price_change">Price Change</option>
-          <option value="refund">Refund</option>
+          <option value="product_change">Product Changes</option>
+          <option value="price_change">Price Changes</option>
+          <option value="drawer">Drawer Activity</option>
+          <option value="discount">Discounts</option>
+          <option value="void">Voids</option>
+          <option value="refund">Refunds</option>
           <option value="settings_change">Settings Change</option>
+          <option value="deal_created">Deal Created</option>
+          <option value="deal_updated">Deal Updated</option>
+          <option value="deal_deleted">Deal Deleted</option>
+          <option value="staff_updated">Staff Updated</option>
         </select>
         <button class="btn btn-blue" id="auditSearchBtn">Search</button>
         <button class="btn btn-outline" id="auditTodayBtn">Today</button>
+        <button class="btn btn-outline" id="auditYesterdayBtn">Yesterday</button>
       </div>
       <div class="section" style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:13px" id="auditTable">
@@ -3460,9 +3469,56 @@
 
   <script type="module">
     import { esc, $, $$, money, showToast, debounce } from './js/ui.js'
-    import { initSync, pullAll } from './js/sync.js'
+    import { initSync, pullAll, pushLocalSnapshot } from './js/sync.js'
 
     let appModeInfo = { mode: 'admin', isRegisterApp: false }
+
+    function localDateInputValue (date = new Date()) {
+      const y = date.getFullYear()
+      const m = String(date.getMonth() + 1).padStart(2, '0')
+      const d = String(date.getDate()).padStart(2, '0')
+      return `${y}-${m}-${d}`
+    }
+
+    function parseDbDate (value) {
+      if (!value) return null
+      const raw = String(value)
+      if (/Z$|[+-]\d\d:?\d\d$/.test(raw)) return new Date(raw)
+      return new Date(raw.replace(' ', 'T'))
+    }
+
+    const auditActionLabels = {
+      void_item: 'Void Item',
+      void_transaction: 'Void Transaction',
+      no_sale: 'No Sale',
+      discount_sale: 'Discount (Sale)',
+      discount_item: 'Discount (Item)',
+      discount_items: 'Discount (Items)',
+      price_change: 'Price Change',
+      product_price_change: 'Product Price Change',
+      product_created: 'Product Created',
+      product_updated: 'Product Updated',
+      product_deleted: 'Product Deleted',
+      category_created: 'Category Created',
+      category_updated: 'Category Updated',
+      category_deleted: 'Category Deleted',
+      deal_created: 'Deal Created',
+      deal_updated: 'Deal Updated',
+      deal_deleted: 'Deal Deleted',
+      deal_activated: 'Deal Activated',
+      refund: 'Refund',
+      refund_transaction: 'Refund Transaction',
+      settings_change: 'Settings Change',
+      float_set: 'Float Set',
+      cash_pickup: 'Cash Pickup',
+      cash_drop: 'Cash Drop',
+      drawer_open: 'Drawer Open',
+      drawer_close: 'Drawer Close',
+      end_of_day: 'End of Day',
+      staff_created: 'Staff Created',
+      staff_updated: 'Staff Updated',
+      logout: 'Logout'
+    }
 
     // ── Modal Helpers ───────────────────────────────────────────────
 
@@ -4603,34 +4659,28 @@
     }
 
     async function loadCashDrawer () {
-      const today = new Date().toISOString().slice(0, 10)
+      if (!$('#cdDate').value) $('#cdDate').value = localDateInputValue()
+      const selectedDate = $('#cdDate').value
       const tillFilter = $('#cdTillSelect').value || null
+      const scope = { date: selectedDate, register_id: tillFilter }
       const [summary, log] = await Promise.all([
-        window.pos.getCashDrawerSummary(today),
-        window.pos.getCashDrawerLog(today)
+        window.pos.getCashDrawerSummary(scope),
+        window.pos.getCashDrawerLog(scope)
       ])
 
-      const filteredLog = tillFilter ? log.filter(e => e.register_id === tillFilter) : log
+      const filteredLog = log
 
-      const floatTotal = filteredLog.filter(e => e.action === 'float').reduce((s, e) => s + (e.amount || 0), 0)
-      const pickupTotal = filteredLog.filter(e => e.action === 'pickup').reduce((s, e) => s + (e.amount || 0), 0)
-      const dropTotal = filteredLog.filter(e => e.action === 'drop').reduce((s, e) => s + (e.amount || 0), 0)
-
-      if (tillFilter) {
-        $('#cdFloat').textContent = money(floatTotal)
-        $('#cdExpected').textContent = money(floatTotal + summary.cash_sales - pickupTotal + dropTotal)
-      } else {
-        $('#cdFloat').textContent = money(summary.float)
-        $('#cdExpected').textContent = money(summary.expected)
-      }
+      $('#cdFloat').textContent = money(summary.float)
+      $('#cdExpected').textContent = money(summary.expected)
       $('#cdCashSales').textContent = money(summary.cash_sales)
+      $('#cdLogTitle').textContent = `Drawer Log - ${selectedDate}${tillFilter ? ` - ${tillFilter}` : ''}`
 
       if (filteredLog.length) {
         const actionLabels = { float: 'Open Float', pickup: 'Cash Pickup', drop: 'Cash Drop', close: 'Close/EOD', open: 'Drawer Open' }
         $('#cdLogTable').innerHTML = filteredLog.map(e => {
-          const dt = new Date(e.created_at + 'Z')
+          const dt = parseDbDate(e.created_at)
           return `<tr>
-            <td>${dt.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</td>
+            <td>${dt ? dt.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
             <td>${esc(e.register_id || '-')}</td>
             <td><span class="badge badge-green">${esc(actionLabels[e.action] || e.action)}</span></td>
             <td>${e.amount != null ? money(e.amount) : '-'}</td>
@@ -4639,9 +4689,21 @@
           </tr>`
         }).join('')
       } else {
-        $('#cdLogTable').innerHTML = '<tr><td colspan="6" style="color:var(--text-dim)">No entries today</td></tr>'
+        $('#cdLogTable').innerHTML = '<tr><td colspan="6" style="color:var(--text-dim)">No entries for this date</td></tr>'
       }
     }
+
+    $('#cdDate').addEventListener('change', loadCashDrawer)
+    $('#cdToday').addEventListener('click', () => {
+      $('#cdDate').value = localDateInputValue()
+      loadCashDrawer()
+    })
+    $('#cdYesterday').addEventListener('click', () => {
+      const d = new Date()
+      d.setDate(d.getDate() - 1)
+      $('#cdDate').value = localDateInputValue(d)
+      loadCashDrawer()
+    })
 
     $('#cdTillSelect').addEventListener('change', () => {
       loadCashDrawer()
@@ -5123,6 +5185,7 @@
         const ok = await initSync(url, key)
         if (ok) {
           showToast('Connected. Local database remains the source of truth.', 'success')
+          $('#pushNowBtn').style.display = 'inline-block'
           $('#pullNowBtn').style.display = 'inline-block'
           $('#supaStatus').textContent = 'Connected'
           loadProducts()
@@ -5138,10 +5201,36 @@
     {
       const s = await window.pos.getAllSettings()
       if (!appModeInfo.isRegisterApp && s.supabase_url && s.supabase_anon_key && s.lan_mode !== 'client') {
+        $('#pushNowBtn').style.display = 'inline-block'
         $('#pullNowBtn').style.display = 'inline-block'
         $('#supaStatus').textContent = 'Connected'
       }
     }
+
+    $('#pushNowBtn').addEventListener('click', async () => {
+      if (appModeInfo.isRegisterApp) return
+      const s = await window.pos.getAllSettings()
+      try {
+        const ok = await initSync(s.supabase_url, s.supabase_anon_key)
+        if (!ok) { showToast('Connection failed', 'error'); return }
+        $('#pushNowBtn').disabled = true
+        $('#pullNowBtn').disabled = true
+        $('#supaStatus').textContent = 'Pushing local database...'
+        const result = await pushLocalSnapshot()
+        if (!result) { showToast('Connection failed', 'error'); $('#supaStatus').textContent = 'Push failed'; return }
+        const productCount = result.products || 0
+        const keyboardCount = result.keyboard_buttons || 0
+        const txnCount = result.transactions || 0
+        showToast(`Pushed ${productCount} products, ${keyboardCount} buttons, ${txnCount} sales to Supabase`, 'success')
+        $('#supaStatus').textContent = `Last push: ${new Date().toLocaleTimeString()}`
+      } catch (e) {
+        showToast('Push failed: ' + e.message, 'error')
+        $('#supaStatus').textContent = 'Push failed'
+      } finally {
+        $('#pushNowBtn').disabled = false
+        $('#pullNowBtn').disabled = false
+      }
+    })
 
     $('#pullNowBtn').addEventListener('click', async () => {
       if (appModeInfo.isRegisterApp) return
@@ -5149,6 +5238,8 @@
       try {
         const ok = await initSync(s.supabase_url, s.supabase_anon_key)
         if (!ok) { showToast('Connection failed', 'error'); return }
+        $('#pushNowBtn').disabled = true
+        $('#pullNowBtn').disabled = true
         $('#supaStatus').textContent = 'Pulling...'
         const { categories: catCount, products: prodCount } = await pullAll()
         showToast(`Synced ${catCount} categories, ${prodCount} products from Supabase`, 'success')
@@ -5157,6 +5248,9 @@
       } catch (e) {
         showToast('Pull failed: ' + e.message, 'error')
         $('#supaStatus').textContent = 'Pull failed'
+      } finally {
+        $('#pushNowBtn').disabled = false
+        $('#pullNowBtn').disabled = false
       }
     })
 
@@ -5335,7 +5429,7 @@
     // ── Audit Log ────────────────────────────────────────────────────
 
     async function loadAuditLog () {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = localDateInputValue()
       $('#auditDate').value = today
       await searchAuditLog()
     }
@@ -5353,16 +5447,17 @@
         return
       }
       body.innerHTML = rows.map(r => {
-        const t = new Date(r.created_at + 'Z')
-        const actionLabel = {
-          void_item: 'Void Item', no_sale: 'No Sale', discount_sale: 'Discount (Sale)',
-          discount_item: 'Discount (Item)', price_change: 'Price Change', refund: 'Refund',
-          settings_change: 'Settings Change'
-        }[r.action] || r.action
+        const t = parseDbDate(r.created_at)
+        const actionLabel = auditActionLabels[r.action] || r.action
+        const badgeClass = r.action.includes('void') || r.action.includes('refund') || r.action.includes('delete')
+          ? 'badge-red'
+          : r.action.includes('discount') || r.action.includes('price') || r.action.includes('cash')
+            ? 'badge-yellow'
+            : 'badge-green'
         return `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:8px;white-space:nowrap">${t.toLocaleTimeString()}</td>
-          <td style="padding:8px">${esc(r.staff_name || 'Unknown')}</td>
-          <td style="padding:8px"><span class="badge ${r.action.includes('void') || r.action.includes('refund') ? 'badge-red' : r.action.includes('discount') ? 'badge-yellow' : ''}" style="font-size:11px">${esc(actionLabel)}</span></td>
+          <td style="padding:8px;white-space:nowrap">${t ? t.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+          <td style="padding:8px">${esc(r.staff_name || 'System')}</td>
+          <td style="padding:8px"><span class="badge ${badgeClass}" style="font-size:11px">${esc(actionLabel)}</span></td>
           <td style="padding:8px">${esc(r.detail || '')}</td>
         </tr>`
       }).join('')
@@ -5370,7 +5465,14 @@
 
     $('#auditSearchBtn').addEventListener('click', searchAuditLog)
     $('#auditTodayBtn').addEventListener('click', () => {
-      $('#auditDate').value = new Date().toISOString().slice(0, 10)
+      $('#auditDate').value = localDateInputValue()
+      $('#auditAction').value = ''
+      searchAuditLog()
+    })
+    $('#auditYesterdayBtn').addEventListener('click', () => {
+      const d = new Date()
+      d.setDate(d.getDate() - 1)
+      $('#auditDate').value = localDateInputValue(d)
       $('#auditAction').value = ''
       searchAuditLog()
     })
@@ -5397,6 +5499,10 @@
       }
       if ($('#pullNowBtn')) {
         $('#pullNowBtn').style.display = (showSupabase && s.supabase_url && s.supabase_anon_key && mode !== 'client') ? 'inline-block' : 'none'
+      }
+      if ($('#pushNowBtn')) {
+        $('#pushNowBtn').style.display = (showSupabase && s.supabase_url && s.supabase_anon_key && mode !== 'client') ? 'inline-block' : 'none'
+        $('#pushNowBtn').disabled = !showSupabase || mode === 'client'
       }
       if ($('#supaStatus')) {
         $('#supaStatus').textContent = s.supabase_url && s.supabase_anon_key ? (mode === 'client' ? 'Managed on server' : 'Configured') : 'Not configured'

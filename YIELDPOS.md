@@ -643,6 +643,248 @@ This can support a more professional checkout experience where the customer can 
 4. Print the report.
 5. Review reports, payment methods, and drawer totals in Admin.
 
+## Example Sales Data For Website Mockups
+
+The following is fictional demo data designed to make website screenshots, report examples, charts, and sales copy feel realistic. It represents a strong trading week for an independent fresh food and grocery shop grossing about $50,000.
+
+Use this data as sample content only. Do not present it as real customer data.
+
+### Example Weekly Summary
+
+Week: Monday to Sunday
+
+Gross sales: $50,000.00
+
+Transactions: 2,462
+
+Average transaction: $20.31
+
+Items sold: 9,840
+
+Discounts given: $890.50
+
+Refunds/returns: $342.80
+
+Estimated net sales after discounts and returns: $48,766.70
+
+Cash drawer actions: 18 pickups, 7 drops, 7 opening floats
+
+Peak trading window: Saturday 9:00am to 1:00pm
+
+Best sales day: Saturday
+
+Quietest sales day: Sunday
+
+### Sales By Day
+
+| Day | Gross Sales | Transactions | Average Sale | Notes |
+|---|---:|---:|---:|---|
+| Monday | $6,420.35 | 312 | $20.58 | Steady weekday trade, strong grocery basket sales |
+| Tuesday | $6,985.80 | 335 | $20.85 | Produce restock day lifted fruit and veg sales |
+| Wednesday | $7,240.10 | 346 | $20.92 | Good lunch-period traffic and deli add-ons |
+| Thursday | $7,615.65 | 365 | $20.86 | Strong afternoon trade, more card payments |
+| Friday | $8,935.25 | 421 | $21.22 | Weekend shop-up begins, flowers and deli lift |
+| Saturday | $9,840.55 | 482 | $20.42 | Busiest day, peak from 9:00am to 1:00pm |
+| Sunday | $2,962.30 | 201 | $14.74 | Shorter trading day, top-up purchases |
+| Total | $50,000.00 | 2,462 | $20.31 | Strong independent retail week |
+
+### Sales By Department
+
+| Department | Sales | Share Of Week | Example Drivers |
+|---|---:|---:|---|
+| Fruit and Vegetables | $31,800.00 | 63.6% | Bananas, apples, avocados, berries, tomatoes, potatoes |
+| Grocery | $6,450.00 | 12.9% | Pantry staples, drinks, packaged goods, sauces |
+| Deli and Cheese | $4,250.00 | 8.5% | Cheese, sliced meats, olives, antipasto |
+| Meat | $2,850.00 | 5.7% | Weekend meal items and premium cuts |
+| Coffee and Bread | $1,950.00 | 3.9% | Coffee, bread, pastries, croissants |
+| Flowers | $1,650.00 | 3.3% | Open-price bunches, weekend gifts |
+| Nuts | $900.00 | 1.8% | Bulk nuts, snack packs, premium mixes |
+| Bags, Gas, Misc | $150.00 | 0.3% | Bags and small add-ons |
+| Total | $50,000.00 | 100% |  |
+
+### Payment Mix
+
+| Payment Type | Sales | Share |
+|---|---:|---:|
+| EFTPOS/Card | $35,850.00 | 71.7% |
+| Cash | $11,640.00 | 23.3% |
+| Account | $2,010.00 | 4.0% |
+| Manual EFTPOS Accepted | $500.00 | 1.0% |
+| Total | $50,000.00 | 100% |
+
+Website use:
+
+- A simple pie chart for payment methods.
+- A dashboard card saying "72% card, 23% cash".
+- A cash-control feature example showing why drawer tracking matters.
+
+### Example Saturday Trading Day
+
+Saturday gross sales: $9,840.55
+
+Transactions: 482
+
+Average sale: $20.42
+
+Items sold: 1,928
+
+Discounts: $186.40
+
+Refunds: $72.50
+
+Cash sales: $2,340.55
+
+Card sales: $7,120.00
+
+Account sales: $380.00
+
+Opening float: $500.00
+
+Cash pickups: $1,200.00
+
+Cash drops: $300.00
+
+Expected cash in drawer before final count: $1,640.55
+
+Counted cash: $1,638.90
+
+Variance: -$1.65
+
+Suggested website wording:
+
+"At the end of a busy Saturday, YieldPOS can show sales, payments, cash movement, expected drawer total, and staff activity in one place."
+
+### Saturday Sales By Hour
+
+| Time | Sales | Transactions | Notes |
+|---|---:|---:|---|
+| 6am-7am | $420.35 | 24 | Early coffee, bread, and quick produce |
+| 7am-8am | $820.40 | 43 | Morning rush begins |
+| 8am-9am | $1,180.65 | 58 | Strong fruit and veg baskets |
+| 9am-10am | $1,510.25 | 72 | Peak checkout load |
+| 10am-11am | $1,675.80 | 79 | Busiest hour |
+| 11am-12pm | $1,420.30 | 67 | Larger basket sizes |
+| 12pm-1pm | $1,085.10 | 55 | Lunch and top-up trade |
+| 1pm-2pm | $760.85 | 38 | Slower but steady |
+| 2pm-3pm | $520.40 | 25 | Late shoppers |
+| 3pm-4pm | $446.45 | 21 | Wind-down trade |
+| Total | $9,840.55 | 482 |  |
+
+Website use:
+
+- Use this for a "busy hours" chart.
+- Add a caption: "Know when the counter is busiest and roster around real trading patterns."
+
+### Top Products For The Week
+
+| Rank | Product | Qty Sold | Sales | Notes |
+|---:|---|---:|---:|---|
+| 1 | Bananas KG | 820 kg | $4,091.80 | High-volume weighed produce |
+| 2 | Pink Lady Apples KG | 510 kg | $3,054.90 | Strong repeat purchase item |
+| 3 | Hass Avocado EA | 1,120 ea | $3,348.80 | Multi-buy deal performer |
+| 4 | Strawberries Punnet | 530 ea | $3,174.70 | Weekend promotional driver |
+| 5 | Tomatoes KG | 410 kg | $2,824.90 | Consistent basket staple |
+| 6 | Blueberries | 260 ea | $2,337.40 | Premium add-on item |
+| 7 | Sourdough Loaf | 310 ea | $1,705.00 | Morning and weekend lift |
+| 8 | Flowers Open Price | 96 sales | $1,650.00 | Open-price department example |
+| 9 | Cheese Selection | 180 sales | $1,485.00 | Deli add-on item |
+| 10 | Coffee Beans 1kg | 74 ea | $1,406.00 | Higher-value grocery item |
+
+Website use:
+
+- Use this in the Reports page to show "Top Products".
+- Use Bananas, Avocados, Strawberries, and Flowers in screenshots because they demonstrate weighed, each, promotional, and open-price workflows.
+
+### Example Deals And Promotions
+
+| Deal | Products | Result |
+|---|---|---|
+| Hass Avocado 2 for $5 | Hass Avocado | 420 deal redemptions |
+| Strawberries 2 for $10 | Strawberries Punnet | 186 deal redemptions |
+| Limes 3 for $5 | Limes | 94 deal redemptions |
+| Corn 2 for $2 | Sweet Corn | 112 deal redemptions |
+| Blackberries 2 for $5 | Blackberries | 76 deal redemptions |
+
+Suggested website wording:
+
+"Run produce specials without relying on staff memory. Add the products, activate the deal, and let the register apply the offer."
+
+### Example Staff Activity
+
+| Staff Member | Role | Transactions | Sales | Notes |
+|---|---|---:|---:|---|
+| Ava | Manager | 510 | $11,420.80 | Opened Saturday and handled end of day |
+| Noah | Cashier | 684 | $13,980.25 | Highest transaction count |
+| Mia | Cashier | 598 | $11,860.35 | Strong morning shifts |
+| Leo | Cashier | 431 | $8,240.10 | Afternoon and Sunday trade |
+| Owner | Admin | 239 | $4,498.50 | Product edits, reports, support sales |
+| Total |  | 2,462 | $50,000.00 |  |
+
+Website use:
+
+- Use this carefully. The point is accountability, not staff surveillance.
+- Good copy: "See which staff member served a sale, opened the drawer, applied a discount, or completed end of day."
+
+### Example Cash Drawer Activity
+
+| Day | Opening Float | Cash Sales | Pickups | Drops | Expected Final Cash | Counted Cash | Variance |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Monday | $500.00 | $1,430.35 | $800.00 | $0.00 | $1,130.35 | $1,129.85 | -$0.50 |
+| Tuesday | $500.00 | $1,520.80 | $900.00 | $0.00 | $1,120.80 | $1,121.20 | $0.40 |
+| Wednesday | $500.00 | $1,650.10 | $900.00 | $150.00 | $1,400.10 | $1,399.90 | -$0.20 |
+| Thursday | $500.00 | $1,735.65 | $1,000.00 | $0.00 | $1,235.65 | $1,235.65 | $0.00 |
+| Friday | $500.00 | $2,030.25 | $1,100.00 | $150.00 | $1,580.25 | $1,579.55 | -$0.70 |
+| Saturday | $500.00 | $2,340.55 | $1,200.00 | $300.00 | $1,640.55 | $1,638.90 | -$1.65 |
+| Sunday | $500.00 | $932.30 | $500.00 | $0.00 | $932.30 | $932.50 | $0.20 |
+
+Suggested website wording:
+
+"Track floats, cash sales, pickups, drops, and counted cash so end of day is less guesswork."
+
+### Example Audit Events
+
+| Time | Staff | Event | Detail |
+|---|---|---|---|
+| Monday 8:12am | Ava | Float set | Opening float recorded at $500.00 |
+| Monday 10:44am | Noah | Discount | 10% off damaged produce item |
+| Tuesday 2:18pm | Owner | Product price changed | Strawberries Punnet changed to $5.99 |
+| Wednesday 11:05am | Mia | No sale drawer open | Customer requested change |
+| Friday 4:32pm | Ava | Deal activated | Hass Avocado 2 for $5 |
+| Saturday 12:18pm | Noah | Refund | Returned 2 items from original receipt |
+| Saturday 4:05pm | Ava | End of day | Counted cash variance -$1.65 |
+
+Website use:
+
+- Use this to explain audit logs in plain terms.
+- Good copy: "Important actions are recorded, so owners can understand what happened without digging through paper notes."
+
+### Example Dashboard Cards
+
+These are good numbers to use in screenshots or website graphics:
+
+- This Week: $50,000.00
+- Today: $9,840.55
+- Transactions: 2,462
+- Average Sale: $20.31
+- Top Department: Fruit and Vegetables
+- Card Payments: 71.7%
+- Cash Payments: 23.3%
+- Top Product: Bananas KG
+- Best Hour: Saturday 10am-11am
+- Refunds This Week: $342.80
+- Cash Variance This Week: -$2.45
+
+### Suggested Website Chart Ideas Using This Data
+
+- Weekly sales bar chart using the Sales By Day table.
+- Payment method donut chart.
+- Department sales horizontal bar chart.
+- Saturday sales by hour line or bar chart.
+- Top products table.
+- Cash drawer variance card.
+- Deal redemption mini-table.
+- Staff transaction count table.
+
 ## Suggested Website Positioning
 
 ### Short Description
@@ -1293,3 +1535,210 @@ Avoid:
 
 YieldPOS is for independent shops that need a fast register and strong owner control. It helps staff serve customers quickly, helps managers keep products and prices accurate, connects to the hardware shops already use, and gives owners the reports and backups they need to run the business with confidence.
 
+## Colour Palette, Fonts, And Aesthetic Direction
+
+YieldPOS should feel practical, warm, grounded, and premium without looking like generic corporate software. The visual identity should borrow from fresh produce shops, timber counters, paper price tags, dark green shopfronts, brass/gold signage, cream receipts, and real retail hardware.
+
+The app already has two related visual modes:
+
+- Register Mode: darker, high-contrast, counter-facing, fast to read under shop lighting.
+- Admin Mode: lighter cream/white management surfaces with the same forest, sage, and gold brand colours.
+
+### Primary Brand Palette
+
+Use these as the main website colours:
+
+- Deep Forest: `#07150d`
+  - Main brand background, header/footer, dark hero overlays, premium dark sections.
+- Forest Green: `#102418`
+  - Secondary dark background, register-style panels, section bands.
+- Leaf Green: `#123c27`
+  - Buttons, active states, key feature accents.
+- Fresh Green: `#4fbd77`
+  - Success states, positive metrics, small highlights.
+- Cream: `#f8f4ea`
+  - Main light text on dark backgrounds, soft page backgrounds.
+- Warm Cream: `#efe6d2`
+  - Secondary surfaces, cards, panels, product/price-tag feel.
+- Gold: `#cda75f`
+  - Brand accent, borders, highlights, icons, key underline details.
+- Bright Gold: `#f0d89c`
+  - Premium highlight on dark backgrounds, subtle glow, hero accents.
+- Sage: `#78916b`
+  - Supporting botanical colour, soft badges, backgrounds, dividers.
+- Walnut: `#6b4a32`
+  - Warm neutral accent for cash/register/retail feel.
+
+### Functional Colours
+
+Use these sparingly for meaning:
+
+- Sale/Confirm Green: `#15803d` or `#16a34a`
+  - Main positive action buttons such as "Book a demo", "Request walkthrough", "Save", or "Confirm".
+- Blue: `#3b82f6` or `#5b8def`
+  - Links, network/sync, secondary technical features, informational states.
+- Amber: `#f59e0b` or brand gold `#cda75f`
+  - Warnings, attention, setup notes, "recommended" callouts.
+- Red: `#ef4444`
+  - Errors, danger states, void/refund warnings. Do not use red decoratively.
+- Purple: `#8b5cf6`
+  - Optional accent for insights, advanced tools, or integrations. Use lightly.
+
+### Suggested Website Colour Usage
+
+Home hero:
+
+- Background: real shop/register photo with deep forest overlay.
+- Text: Cream `#f8f4ea`.
+- Primary button: Leaf Green `#123c27` or Sale Green `#15803d`.
+- Accent: Gold `#cda75f`.
+
+Light content sections:
+
+- Background: Cream `#f8f4ea` or Warm Cream `#efe6d2`.
+- Text: Deep Forest `#07150d`.
+- Cards: White `#ffffff` with soft forest/gold borders.
+- Icons: Forest Green or Gold.
+
+Dark feature sections:
+
+- Background gradient: `#102418` to `#020604`.
+- Text: Cream.
+- Accent lines: Gold.
+- Supporting text: Cream at reduced opacity.
+
+Callout panels:
+
+- Background: Warm Cream.
+- Border: Gold at low opacity.
+- Heading: Deep Forest.
+- CTA: Green.
+
+### Fonts
+
+YieldPOS currently uses a practical modern sans-serif for the interface, with an elegant serif accent in Admin branding.
+
+Recommended website fonts:
+
+- Primary UI/body font: Inter.
+  - Use for body copy, buttons, navigation, feature lists, forms, captions, and most headings.
+  - Weights: 400, 500, 600, 700, 800.
+- Brand/editorial accent font: Cormorant Garamond.
+  - Use for the YieldPOS wordmark, occasional elegant section headings, testimonials, or short premium statements.
+  - Weights: 600 and 700.
+- Optional register/code font: JetBrains Mono.
+  - Use only for PLUs, receipt numbers, price-code examples, diagnostic-style snippets, or small UI callouts.
+  - Do not use it for normal body text.
+
+Alternative if keeping the Register flavour stronger:
+
+- Playfair Display can be used for larger hero display headings, but Cormorant Garamond better matches the current Admin brand feel.
+
+### Typography Style
+
+The website should use confident, readable type:
+
+- Headlines should be clear and direct, not overly clever.
+- Body copy should be plain English and shop-owner friendly.
+- Buttons should use short action text.
+- Avoid tiny low-contrast text, especially over photos.
+- Use Inter for most headings if the site needs to feel more software/product focused.
+- Use Cormorant Garamond sparingly when the page needs warmth and brand character.
+
+Suggested hierarchy:
+
+- Hero headline: Inter ExtraBold or Cormorant Garamond Bold, depending on the photo and page mood.
+- Section headings: Inter 700/800.
+- Body: Inter 400/500.
+- Labels and small captions: Inter 600, uppercase only when useful.
+- Numbers and metrics: Inter 800 or JetBrains Mono for a register-style feel.
+
+### Aesthetic Direction
+
+Overall feel:
+
+- Warm retail technology.
+- Premium but not flashy.
+- Fresh food and independent-shop friendly.
+- Local, trustworthy, and hands-on.
+- Practical enough for a busy counter.
+
+Avoid:
+
+- Cold blue SaaS design.
+- Purple gradient tech startup styling.
+- Generic stock photos of smiling office people.
+- Overly minimal white pages that feel disconnected from real shops.
+- Fake 3D device mockups if real shop photos are available.
+- Heavy blur effects that hide the product.
+
+Use:
+
+- Real photos of the register in a shop.
+- Close-up shots of produce, price tags, scanners, scales, receipts, and cash drawer.
+- Dark forest hero sections.
+- Cream and white content areas.
+- Gold dividers and small premium details.
+- Rounded but not pill-shaped cards and buttons.
+- Subtle shadows that feel like physical shop materials.
+- Product screenshots framed cleanly, not buried inside decorative mockups.
+
+### UI Shape And Texture
+
+YieldPOS uses:
+
+- 8px to 14px rounded corners.
+- Soft shadows on cards and product buttons.
+- Stronger shadows on physical/touch controls.
+- Cream surfaces with gold borders.
+- Dark green panels with warm highlights.
+- High-contrast action buttons.
+- Image-led product/category buttons.
+
+For the website:
+
+- Cards should usually use 8px radius.
+- Buttons can use 8px to 10px radius.
+- Avoid giant pill buttons unless used for small tags.
+- Use thin gold borders for premium accents.
+- Use real product photos and screenshots instead of illustrations.
+- Keep layouts clean and scannable, like a tool shop owners can trust.
+
+### Brand Personality
+
+YieldPOS should sound and look:
+
+- Capable.
+- Direct.
+- Calm.
+- Practical.
+- Shop-floor aware.
+- Slightly premium.
+- Owner-friendly.
+
+It should not feel:
+
+- Corporate.
+- Overly technical.
+- Trend-chasing.
+- Cute or gimmicky.
+- Too dark everywhere.
+- Too beige everywhere.
+
+### Suggested Mini Style Guide
+
+Use this as a quick reference when building the site:
+
+- Dark background: `#07150d`
+- Light background: `#f8f4ea`
+- Main text: `#07150d`
+- Light text: `#f8f4ea`
+- Primary CTA: `#15803d`
+- CTA hover/darker: `#123c27`
+- Accent: `#cda75f`
+- Soft panel: `#efe6d2`
+- Body font: Inter
+- Brand accent font: Cormorant Garamond
+- Technical accent font: JetBrains Mono
+- Image style: real shop photos, bright and clear, not stock-like
+- Design mood: warm, premium, practical retail software

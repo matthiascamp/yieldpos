@@ -1,136 +1,202 @@
--- Tillaroo POS — Supabase (Postgres) Schema
--- This is the cloud database. Registers sync their local SQLite data here.
--- Run this in the Supabase SQL Editor after creating your project.
+-- YieldPOS Supabase schema
+-- Cloud mirror for the local SQLite database. The shop's live SQLite database
+-- remains the source of truth; Supabase is used for backup/sync.
 
--- ─── Products ───────────────────────────────────────────────────────────────
+DROP VIEW IF EXISTS public.product_sales CASCADE;
+DROP VIEW IF EXISTS public.daily_sales CASCADE;
 
-CREATE TABLE categories (
-  id          TEXT PRIMARY KEY,
-  name        TEXT NOT NULL,
-  sort_order  INT DEFAULT 0,
-  colour      TEXT DEFAULT '#4fbd77',
-  family      TEXT DEFAULT '',
-  active      BOOLEAN DEFAULT true,
-  updated_at  TIMESTAMPTZ DEFAULT now()
+DROP TABLE IF EXISTS public.transaction_items CASCADE;
+DROP TABLE IF EXISTS public.payments CASCADE;
+DROP TABLE IF EXISTS public.cash_drawer CASCADE;
+DROP TABLE IF EXISTS public.deal_products CASCADE;
+DROP TABLE IF EXISTS public.specials CASCADE;
+DROP TABLE IF EXISTS public.transactions CASCADE;
+DROP TABLE IF EXISTS public.keyboard_buttons CASCADE;
+DROP TABLE IF EXISTS public.keyboard_pages CASCADE;
+DROP TABLE IF EXISTS public.products CASCADE;
+DROP TABLE IF EXISTS public.categories CASCADE;
+DROP TABLE IF EXISTS public.deals CASCADE;
+DROP TABLE IF EXISTS public.staff CASCADE;
+DROP TABLE IF EXISTS public.settings CASCADE;
+DROP TABLE IF EXISTS public.audit_log CASCADE;
+DROP TABLE IF EXISTS public.deleted_records CASCADE;
+
+CREATE TABLE public.categories (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  colour TEXT DEFAULT '#4fbd77',
+  active BOOLEAN DEFAULT true,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  family TEXT DEFAULT ''
 );
 
-CREATE TABLE products (
-  id          TEXT PRIMARY KEY,
-  barcode     TEXT,
-  plu         TEXT,
-  name        TEXT NOT NULL,
-  category_id TEXT REFERENCES categories(id),
-  price       NUMERIC(10,2) NOT NULL DEFAULT 0,
-  cost_price  NUMERIC(10,2) DEFAULT 0,
-  unit        TEXT DEFAULT 'each',
-  tax_rate    NUMERIC(4,2) DEFAULT 0.10,
+CREATE TABLE public.products (
+  id TEXT PRIMARY KEY,
+  barcode TEXT,
+  plu TEXT,
+  name TEXT NOT NULL,
+  category_id TEXT,
+  price NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  cost_price NUMERIC(12, 2) DEFAULT 0,
+  unit TEXT DEFAULT 'each',
+  tax_rate NUMERIC(6, 4) DEFAULT 0.10,
   track_stock BOOLEAN DEFAULT false,
-  stock_qty   NUMERIC(10,2) DEFAULT 0,
-  active      BOOLEAN DEFAULT true,
-  image_url   TEXT,
-  open_price  BOOLEAN DEFAULT false,
-  updated_at  TIMESTAMPTZ DEFAULT now()
+  stock_qty NUMERIC(12, 3) DEFAULT 0,
+  active BOOLEAN DEFAULT true,
+  image_url TEXT,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  open_price BOOLEAN DEFAULT false
 );
 
-CREATE INDEX idx_products_barcode ON products(barcode);
-CREATE INDEX idx_products_plu ON products(plu);
-CREATE INDEX idx_products_category ON products(category_id);
-CREATE UNIQUE INDEX idx_products_plu_unique ON products(plu) WHERE plu IS NOT NULL AND plu <> '';
-CREATE UNIQUE INDEX idx_products_barcode_unique ON products(barcode) WHERE barcode IS NOT NULL AND barcode <> '';
-
--- ─── Specials & Deals ───────────────────────────────────────────────────────
-
-CREATE TABLE specials (
-  id            TEXT PRIMARY KEY,
-  product_id    TEXT NOT NULL REFERENCES products(id),
-  special_price NUMERIC(10,2) NOT NULL,
-  start_date    DATE,
-  end_date      DATE,
-  active        BOOLEAN DEFAULT true,
-  updated_at    TIMESTAMPTZ DEFAULT now()
+CREATE TABLE public.specials (
+  id TEXT PRIMARY KEY,
+  product_id TEXT NOT NULL,
+  special_price NUMERIC(12, 2) NOT NULL,
+  start_date DATE,
+  end_date DATE,
+  active BOOLEAN DEFAULT true,
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE deals (
-  id          TEXT PRIMARY KEY,
-  name        TEXT NOT NULL,
-  type        TEXT NOT NULL,
-  config      JSONB NOT NULL DEFAULT '{}',
-  start_date  DATE,
-  end_date    DATE,
-  active      BOOLEAN DEFAULT true,
-  updated_at  TIMESTAMPTZ DEFAULT now()
+CREATE TABLE public.deals (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  config JSONB NOT NULL DEFAULT '{}',
+  start_date DATE,
+  end_date DATE,
+  active BOOLEAN DEFAULT true,
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE deal_products (
-  deal_id    TEXT NOT NULL REFERENCES deals(id),
-  product_id TEXT NOT NULL REFERENCES products(id),
-  role       TEXT DEFAULT 'trigger',
+CREATE TABLE public.deal_products (
+  deal_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
+  role TEXT DEFAULT 'trigger',
   PRIMARY KEY (deal_id, product_id)
 );
 
--- ─── Staff ──────────────────────────────────────────────────────────────────
-
-CREATE TABLE staff (
-  id          TEXT PRIMARY KEY,
-  name        TEXT NOT NULL,
-  pin_hash    TEXT NOT NULL,
-  role        TEXT DEFAULT 'cashier',
-  active      BOOLEAN DEFAULT true,
-  updated_at  TIMESTAMPTZ DEFAULT now()
+CREATE TABLE public.staff (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  pin_hash TEXT NOT NULL,
+  role TEXT DEFAULT 'cashier',
+  active BOOLEAN DEFAULT true,
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ─── Transactions ───────────────────────────────────────────────────────────
-
-CREATE TABLE transactions (
-  id            TEXT PRIMARY KEY,
-  register_id   TEXT NOT NULL,
-  staff_id      TEXT REFERENCES staff(id),
-  customer_name TEXT,
-  subtotal      NUMERIC(10,2) NOT NULL DEFAULT 0,
-  tax           NUMERIC(10,2) NOT NULL DEFAULT 0,
-  discount      NUMERIC(10,2) NOT NULL DEFAULT 0,
-  total         NUMERIC(10,2) NOT NULL DEFAULT 0,
-  status        TEXT DEFAULT 'completed',
-  created_at    TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE transaction_items (
-  id              TEXT PRIMARY KEY,
-  transaction_id  TEXT NOT NULL REFERENCES transactions(id),
-  product_id      TEXT REFERENCES products(id),
-  name            TEXT NOT NULL,
-  qty             NUMERIC(10,3) NOT NULL DEFAULT 1,
-  unit_price      NUMERIC(10,2) NOT NULL,
-  discount        NUMERIC(10,2) DEFAULT 0,
-  line_total      NUMERIC(10,2) NOT NULL,
-  tax             NUMERIC(10,2) DEFAULT 0,
-  deal_id         TEXT REFERENCES deals(id)
-);
-
-CREATE TABLE payments (
-  id              TEXT PRIMARY KEY,
-  transaction_id  TEXT NOT NULL REFERENCES transactions(id),
-  method          TEXT NOT NULL,
-  amount          NUMERIC(10,2) NOT NULL,
-  reference       TEXT,
-  created_at      TIMESTAMPTZ DEFAULT now()
-);
-
--- ─── Cash Management ────────────────────────────────────────────────────────
-
-CREATE TABLE cash_drawer (
-  id          TEXT PRIMARY KEY,
+CREATE TABLE public.transactions (
+  id TEXT PRIMARY KEY,
   register_id TEXT NOT NULL,
-  staff_id    TEXT REFERENCES staff(id),
-  action      TEXT NOT NULL,
-  amount      NUMERIC(10,2),
-  note        TEXT,
-  created_at  TIMESTAMPTZ DEFAULT now()
+  staff_id TEXT,
+  customer_name TEXT,
+  subtotal NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  tax NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  discount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  status TEXT DEFAULT 'completed',
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ─── Reporting Views ────────────────────────────────────────────────────────
+CREATE TABLE public.transaction_items (
+  id TEXT PRIMARY KEY,
+  transaction_id TEXT NOT NULL,
+  product_id TEXT,
+  name TEXT NOT NULL,
+  qty NUMERIC(12, 3) NOT NULL DEFAULT 1,
+  unit_price NUMERIC(12, 2) NOT NULL,
+  discount NUMERIC(12, 2) DEFAULT 0,
+  line_total NUMERIC(12, 2) NOT NULL,
+  tax NUMERIC(12, 2) DEFAULT 0,
+  deal_id TEXT
+);
 
-CREATE VIEW daily_sales AS
+CREATE TABLE public.payments (
+  id TEXT PRIMARY KEY,
+  transaction_id TEXT NOT NULL,
+  method TEXT NOT NULL,
+  amount NUMERIC(12, 2) NOT NULL,
+  reference TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE public.cash_drawer (
+  id TEXT PRIMARY KEY,
+  register_id TEXT NOT NULL,
+  staff_id TEXT,
+  action TEXT NOT NULL,
+  amount NUMERIC(12, 2),
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE public.keyboard_pages (
+  page INTEGER PRIMARY KEY,
+  name TEXT NOT NULL DEFAULT 'Untitled',
+  cols INTEGER DEFAULT 13,
+  rows INTEGER DEFAULT 7,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE public.keyboard_buttons (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  type TEXT NOT NULL,
+  price NUMERIC(12, 2) DEFAULT 0,
+  image TEXT,
+  color TEXT DEFAULT '#fff',
+  bg_color TEXT DEFAULT '#1a3d2a',
+  parent_id TEXT,
+  category_filter TEXT,
+  alpha_range TEXT,
+  sort_order INTEGER DEFAULT 0,
+  position TEXT DEFAULT 'grid',
+  page INTEGER DEFAULT 1,
+  grid_row INTEGER DEFAULT 0,
+  grid_col INTEGER DEFAULT 0,
+  col_span INTEGER DEFAULT 1,
+  row_span INTEGER DEFAULT 1,
+  product_id TEXT,
+  active BOOLEAN DEFAULT true,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  image_scale NUMERIC(8, 3) DEFAULT 100
+);
+
+CREATE TABLE public.settings (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE public.audit_log (
+  id TEXT PRIMARY KEY,
+  staff_id TEXT,
+  staff_name TEXT,
+  action TEXT NOT NULL,
+  detail TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE public.deleted_records (
+  table_name TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  deleted_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (table_name, record_id)
+);
+
+CREATE INDEX public_idx_products_barcode ON public.products(barcode);
+CREATE INDEX public_idx_products_plu ON public.products(plu);
+CREATE INDEX public_idx_products_category ON public.products(category_id);
+CREATE UNIQUE INDEX public_idx_products_plu_unique ON public.products(plu) WHERE plu IS NOT NULL AND btrim(plu) <> '';
+CREATE UNIQUE INDEX public_idx_products_barcode_unique ON public.products(barcode) WHERE barcode IS NOT NULL AND btrim(barcode) <> '';
+CREATE INDEX public_idx_keyboard_buttons_page ON public.keyboard_buttons(page, grid_row, grid_col);
+CREATE INDEX public_idx_keyboard_buttons_product ON public.keyboard_buttons(product_id);
+CREATE INDEX public_idx_transactions_created_at ON public.transactions(created_at);
+CREATE INDEX public_idx_transaction_items_transaction ON public.transaction_items(transaction_id);
+CREATE INDEX public_idx_payments_transaction ON public.payments(transaction_id);
+
+CREATE VIEW public.daily_sales AS
 SELECT
   DATE(created_at) AS sale_date,
   register_id,
@@ -138,11 +204,11 @@ SELECT
   SUM(total) AS total_sales,
   SUM(tax) AS total_tax,
   SUM(discount) AS total_discounts
-FROM transactions
+FROM public.transactions
 WHERE status = 'completed'
 GROUP BY DATE(created_at), register_id;
 
-CREATE VIEW product_sales AS
+CREATE VIEW public.product_sales AS
 SELECT
   ti.product_id,
   p.name,
@@ -150,111 +216,53 @@ SELECT
   SUM(ti.qty) AS total_qty,
   SUM(ti.line_total) AS total_revenue,
   COUNT(DISTINCT ti.transaction_id) AS txn_count
-FROM transaction_items ti
-JOIN products p ON p.id = ti.product_id
-JOIN transactions t ON t.id = ti.transaction_id
+FROM public.transaction_items ti
+JOIN public.products p ON p.id = ti.product_id
+JOIN public.transactions t ON t.id = ti.transaction_id
 WHERE t.status = 'completed'
 GROUP BY ti.product_id, p.name, p.category_id;
 
--- ─── Row Level Security ─────────────────────────────────────────────────────
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT SELECT ON public.daily_sales, public.product_sales TO anon, authenticated;
 
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE specials ENABLE ROW LEVEL SECURITY;
-ALTER TABLE deals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE deal_products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE staff ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transaction_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cash_drawer ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.specials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deal_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transaction_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cash_drawer ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.keyboard_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.keyboard_buttons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deleted_records ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can read all" ON categories FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can read all" ON products FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can read all" ON specials FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can read all" ON deals FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can read all" ON deal_products FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can read all" ON staff FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can read all" ON transactions FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can read all" ON transaction_items FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can read all" ON payments FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can read all" ON cash_drawer FOR SELECT TO authenticated USING (true);
+CREATE POLICY categories_all_access ON public.categories FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY products_all_access ON public.products FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY specials_all_access ON public.specials FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY deals_all_access ON public.deals FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY deal_products_all_access ON public.deal_products FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY staff_all_access ON public.staff FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY transactions_all_access ON public.transactions FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY transaction_items_all_access ON public.transaction_items FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY payments_all_access ON public.payments FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY cash_drawer_all_access ON public.cash_drawer FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY keyboard_pages_all_access ON public.keyboard_pages FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY keyboard_buttons_all_access ON public.keyboard_buttons FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY settings_all_access ON public.settings FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY audit_log_all_access ON public.audit_log FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY deleted_records_all_access ON public.deleted_records FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY "Authenticated users can insert" ON transactions FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Authenticated users can insert" ON transaction_items FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Authenticated users can insert" ON payments FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Authenticated users can insert" ON cash_drawer FOR INSERT TO authenticated WITH CHECK (true);
-
-CREATE POLICY "Authenticated users can manage products" ON products FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated users can manage categories" ON categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated users can manage specials" ON specials FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated users can manage deals" ON deals FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated users can manage deal_products" ON deal_products FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated users can manage staff" ON staff FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- ─── Keyboard Layout ───────────────────────────────────────────────────────
-
-CREATE TABLE keyboard_buttons (
-  id              TEXT PRIMARY KEY,
-  label           TEXT NOT NULL,
-  type            TEXT NOT NULL,
-  price           NUMERIC(10,2) DEFAULT 0,
-  image           TEXT,
-  image_scale     NUMERIC(6,2) DEFAULT 100,
-  color           TEXT DEFAULT '#fff',
-  bg_color        TEXT DEFAULT '#1a3d2a',
-  parent_id       TEXT,
-  category_filter TEXT,
-  alpha_range     TEXT,
-  sort_order      INT DEFAULT 0,
-  position        TEXT DEFAULT 'main',
-  page            INT DEFAULT 1,
-  grid_row        INT DEFAULT 0,
-  grid_col        INT DEFAULT 0,
-  col_span        INT DEFAULT 1,
-  row_span        INT DEFAULT 1,
-  product_id      TEXT REFERENCES products(id),
-  active          BOOLEAN DEFAULT true,
-  updated_at      TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE keyboard_buttons ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Authenticated users can read all" ON keyboard_buttons FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can manage keyboard" ON keyboard_buttons FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-CREATE TABLE keyboard_pages (
-  page       INT PRIMARY KEY,
-  name       TEXT DEFAULT 'Untitled',
-  cols       INT DEFAULT 13,
-  rows       INT DEFAULT 7,
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE keyboard_pages ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Authenticated users can read all" ON keyboard_pages FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can manage keyboard pages" ON keyboard_pages FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- ─── Settings ──────────────────────────────────────────────────────────────
-
-CREATE TABLE settings (
-  key         TEXT PRIMARY KEY,
-  value       TEXT,
-  updated_at  TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Authenticated users can read all" ON settings FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can manage settings" ON settings FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- ─── Realtime ───────────────────────────────────────────────────────────────
--- Enable realtime on tables that registers need to watch for updates
-
-ALTER PUBLICATION supabase_realtime ADD TABLE products;
-ALTER PUBLICATION supabase_realtime ADD TABLE categories;
-ALTER PUBLICATION supabase_realtime ADD TABLE specials;
-ALTER PUBLICATION supabase_realtime ADD TABLE deals;
-ALTER PUBLICATION supabase_realtime ADD TABLE deal_products;
-ALTER PUBLICATION supabase_realtime ADD TABLE keyboard_buttons;
-ALTER PUBLICATION supabase_realtime ADD TABLE keyboard_pages;
-ALTER PUBLICATION supabase_realtime ADD TABLE staff;
-ALTER PUBLICATION supabase_realtime ADD TABLE settings;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.categories;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.specials;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.deals;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.deal_products;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.keyboard_buttons;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.keyboard_pages;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.staff;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
