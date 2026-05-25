@@ -4237,10 +4237,9 @@ function setupIPC() {
     }
   })
 
-  // â”€â”€ App Update (git pull from GitHub) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // App Update (GitHub ZIP + PowerShell)
 
   ipcMain.handle('app:update', async () => {
-    const { execSync } = require('child_process')
     const https = require('https')
     const os = require('os')
     const appDir = __dirname
@@ -4282,120 +4281,30 @@ function setupIPC() {
         else reject(new Error(stderr || stdout || `${cmd} exited with code ${code}`))
       })
     })
-
-    // Git updater: close YieldPOS first, then let an external PowerShell process
-    // update the real repo folder and relaunch the same register/admin mode.
-    try {
-      const gitVersion = execSync('git --version', { encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-      const candidates = Array.from(new Set([
-        process.cwd(),
-        path.dirname(process.execPath),
-        appDir,
-        path.resolve(appDir, '..', '..'),
-        path.resolve(appDir, '..', '..', '..')
-      ].filter(Boolean)))
-      let repoRoot = ''
-      for (const candidate of candidates) {
-        try {
-          const root = execSync(`git -C "${candidate.replace(/"/g, '\\"')}" rev-parse --show-toplevel`, { encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-          if (root && fs.existsSync(path.join(root, '.git'))) { repoRoot = root; break }
-        } catch (_) {}
+    const cmdQuote = value => `"${String(value).replace(/"/g, '""')}"`
+    const launchVisibleUpdater = (scriptPath, args) => {
+      const psArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-NoExit', '-File', scriptPath, ...args]
+      let child
+      if (process.platform === 'win32') {
+        const commandLine = `start "YieldPOS Updater" powershell.exe ${psArgs.map(cmdQuote).join(' ')}`
+        child = spawn('cmd.exe', ['/d', '/s', '/c', commandLine], {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: false
+        })
+      } else {
+        child = spawn('powershell.exe', psArgs, {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: false
+        })
       }
-      if (!repoRoot) {
-        throw new Error('NO_GIT_CHECKOUT')
-      }
-
-      const before = execSync('git rev-parse HEAD', { cwd: repoRoot, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-      const remote = execSync('git remote get-url origin', { cwd: repoRoot, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-      execSync('git fetch origin main --prune', { cwd: repoRoot, encoding: 'utf-8', timeout: 60000, windowsHide: true })
-      const remoteHead = execSync('git rev-parse origin/main', { cwd: repoRoot, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-      const alreadyLatest = before === remoteHead
-
-      saveDBSync()
-      createBackup('pre-update')
-
-      const mode = isRegisterApp ? 'register' : 'admin'
-      const launcherPath = path.join(repoRoot, isRegisterApp ? 'YieldPOS Register.exe' : 'YieldPOS Admin.exe')
-      const clientExe = path.join(repoRoot, 'YieldPOS-Client-1.0.0.exe')
-      const logPath = path.join(repoRoot, 'yieldpos-update-last.log')
-      const updaterScript = path.join(os.tmpdir(), `yieldpos-git-update-${Date.now()}.ps1`)
-      const script = `
-param(
-  [string]$RepoRoot,
-  [int]$ParentPid,
-  [string]$Mode,
-  [string]$LauncherPath,
-  [string]$ClientExe,
-  [string]$LogPath
-)
-$ErrorActionPreference = 'Continue'
-function Log([string]$Message) {
-  $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-  Add-Content -LiteralPath $LogPath -Value "[$stamp] $Message"
-}
-Set-Content -LiteralPath $LogPath -Value "YieldPOS Git update started $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-try { Wait-Process -Id $ParentPid -Timeout 90 } catch { Start-Sleep -Seconds 5 }
-Get-Process | Where-Object {
-  $_.Id -ne $PID -and (
-    $_.ProcessName -like '*YieldPOS*' -or
-    $_.ProcessName -like '*scanner-bridge*' -or
-    $_.ProcessName -like '*opos*'
-  )
-} | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-try {
-  Log 'Removing stale git lock if present'
-  Remove-Item -LiteralPath (Join-Path $RepoRoot '.git\\index.lock') -Force -ErrorAction SilentlyContinue
-  Log 'Fetching origin/main'
-  & git -C $RepoRoot fetch origin main --prune *>> $LogPath
-  if ($LASTEXITCODE -ne 0) { throw "git fetch failed with exit code $LASTEXITCODE" }
-  Log 'Resetting working tree to origin/main'
-  & git -C $RepoRoot reset --hard origin/main *>> $LogPath
-  if ($LASTEXITCODE -ne 0) { throw "git reset failed with exit code $LASTEXITCODE" }
-  $after = (& git -C $RepoRoot rev-parse --short HEAD)
-  Log "Updated to $after"
-  Log 'Runtime database reset skipped; app startup sync will apply bundled content without overwriting customized keyboard styling'
-} catch {
-  Log "Update failed: $($_.Exception.Message)"
-}
-if (Test-Path -LiteralPath $LauncherPath) {
-  Log "Starting launcher $LauncherPath"
-  Start-Process -FilePath $LauncherPath -WorkingDirectory $RepoRoot
-} elseif (Test-Path -LiteralPath $ClientExe) {
-  $arg = if ($Mode -eq 'admin') { 'admin' } else { 'register' }
-  Log "Starting client $ClientExe $arg"
-  Start-Process -FilePath $ClientExe -ArgumentList $arg -WorkingDirectory $RepoRoot
-} else {
-  Log 'Could not find launcher or client exe after update'
-}
-`
-      fs.writeFileSync(updaterScript, script, 'utf-8')
-      const child = spawn('powershell.exe', [
-        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', updaterScript,
-        repoRoot, String(process.pid), mode, launcherPath, clientExe, logPath
-      ], { detached: true, stdio: 'ignore', windowsHide: true })
       child.unref()
-
-      appLog('info', 'update', `Staged Git update for ${repoRoot} (${before.slice(0,7)} from ${remote})`)
-      setTimeout(() => {
-        try { lanSync.stopAll() } catch (_) {}
-        runHardwareCleanup('git-update')
-        app.quit()
-        setTimeout(() => app.exit(0), 10000)
-      }, 800)
-      return {
-        updated: !alreadyLatest,
-        upToDate: alreadyLatest,
-        staged: true,
-        log: `${alreadyLatest ? 'Already on latest code; restart staged to refresh the running app.' : 'Git update staged.'}\nRepo: ${repoRoot}\nRemote: ${remote}\nCurrent: ${before.slice(0, 7)}\n\nYieldPOS will close, apply the update process, then relaunch ${mode}.`
-      }
-    } catch (e) {
-      const msg = (e.stderr || e.message || String(e)).trim()
-      appLog('warn', 'update', `Git updater unavailable, trying GitHub ZIP fallback: ${msg}`)
+      return child
     }
 
-    // Git is not available on client machines. Use the GitHub source ZIP and
-    // apply it after YieldPOS exits so hardware handlers are not holding files.
+    // Dependency-free updater: use GitHub's source ZIP and apply it after
+    // YieldPOS exits so hardware handlers are not holding files.
     try {
       const zipUrl = 'https://github.com/matthiascamp/yieldpos/archive/refs/heads/main.zip'
       const tmpZip = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}.zip`)
@@ -4415,13 +4324,11 @@ if (Test-Path -LiteralPath $LauncherPath) {
         follow(zipUrl)
       })
 
-      if (os.platform() === 'win32') {
-        await run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
-          `Expand-Archive -LiteralPath ${psQuote(tmpZip)} -DestinationPath ${psQuote(tmpDir)} -Force`])
-      } else {
-        fs.mkdirSync(tmpDir, { recursive: true })
-        await run('unzip', ['-o', tmpZip, '-d', tmpDir])
+      if (os.platform() !== 'win32') {
+        return { error: 'The dependency-free updater currently supports Windows installs only.' }
       }
+      await run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
+        `Expand-Archive -LiteralPath ${psQuote(tmpZip)} -DestinationPath ${psQuote(tmpDir)} -Force`])
 
       const extracted = resolveZipSourceRoot(tmpDir)
       if (!looksLikeAppRoot(extracted)) return { error: 'Download succeeded but extraction failed - folder not found' }
@@ -4449,7 +4356,17 @@ function Log([string]$Message) {
   Add-Content -LiteralPath $LogPath -Value "[$stamp] $Message"
 }
 Set-Content -LiteralPath $LogPath -Value "YieldPOS ZIP update started $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Host 'YieldPOS updater running...'
+Write-Host "Log: $LogPath"
 try { Wait-Process -Id $ParentPid -Timeout 60 } catch { Start-Sleep -Seconds 4 }
+Get-Process | Where-Object {
+  $_.Id -ne $PID -and (
+    $_.ProcessName -like '*YieldPOS*' -or
+    $_.ProcessName -like '*scanner-bridge*' -or
+    $_.ProcessName -like '*opos*'
+  )
+} | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
 $excludeDirs = @('node_modules', '.git', 'dist', 'dist2', 'backups')
 $excludeFiles = @('package-lock.json')
 $preserveRelative = @()
@@ -4475,6 +4392,7 @@ try {
   Log 'Runtime database reset skipped; app startup sync will apply bundled content without overwriting customized keyboard styling'
 } catch {
   Log "Copy failed: $($_.Exception.Message)"
+  Write-Host "Update failed: $($_.Exception.Message)"
   throw
 }
 try { Remove-Item -LiteralPath $TempRoot -Recurse -Force } catch {}
@@ -4488,13 +4406,14 @@ if (Test-Path -LiteralPath $LauncherPath) {
 } else {
   Log 'Could not find launcher or client exe after update'
 }
+Log 'Updater script finished. You can close this window.'
+Write-Host ''
+Write-Host 'YieldPOS updater finished. You can close this window.'
 `
       fs.writeFileSync(updaterScript, script, 'utf-8')
-      const child = spawn('powershell.exe', [
-        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', updaterScript,
+      launchVisibleUpdater(updaterScript, [
         extracted, updateRoot, String(process.pid), updateMode, updateLauncherPath, updateClientExe, tmpDir, logPath
-      ], { detached: true, stdio: 'ignore', windowsHide: true })
-      child.unref()
+      ])
 
       appLog('info', 'update', `Staged GitHub ZIP update into ${updateRoot}; app will quit before files are replaced`)
       setTimeout(() => {
@@ -4502,117 +4421,12 @@ if (Test-Path -LiteralPath $LauncherPath) {
         runHardwareCleanup('zip-update')
         app.quit()
         setTimeout(() => app.exit(0), 10000)
-      }, 800)
-      return { updated: true, staged: true, log: `Downloaded update from GitHub ZIP.\nDestination: ${updateRoot}\nYieldPOS will close, apply the update after hardware handlers stop, and relaunch.` }
-    } catch (e) {
-      return { error: `Download update failed: ${e.message}`, log: e.message }
-    }
-
-    // Try git first
-    let hasGit = false
-    try { execSync('git --version', { timeout: 3000, encoding: 'utf-8' }); hasGit = true } catch (_) {}
-
-    if (hasGit) {
-      try {
-        // Remove stale git lock if it exists (from a previous interrupted git operation)
-        const lockFile = path.join(appDir, '.git', 'index.lock')
-        if (fs.existsSync(lockFile)) {
-          try { fs.unlinkSync(lockFile) } catch (_) {}
-        }
-        // Kill scanner-bridge.exe so git can overwrite it on Windows
-        try { execSync('taskkill /F /IM scanner-bridge.exe', { timeout: 5000, encoding: 'utf-8' }) } catch (_) {}
-        const before = execSync('git rev-parse HEAD', { cwd: appDir, encoding: 'utf-8', timeout: 5000 }).trim()
-        // Stash local changes so pull doesn't fail on dirty working tree
-        let stashed = false
-        try {
-          const stashOut = execSync('git stash --include-untracked', { cwd: appDir, encoding: 'utf-8', timeout: 10000 })
-          stashed = !stashOut.includes('No local changes')
-        } catch (_) {}
-        let pullOutput
-        try {
-          pullOutput = execSync('git pull origin main', { cwd: appDir, encoding: 'utf-8', timeout: 30000 })
-        } finally {
-          if (stashed) try { execSync('git stash pop', { cwd: appDir, encoding: 'utf-8', timeout: 10000 }) } catch (_) {}
-        }
-        const after = execSync('git rev-parse HEAD', { cwd: appDir, encoding: 'utf-8', timeout: 5000 }).trim()
-        if (before === after) return { upToDate: true, log: pullOutput.trim() }
-        const diffLog = execSync(`git log --oneline ${before}..${after}`, { cwd: appDir, encoding: 'utf-8', timeout: 5000 }).trim()
-        appLog('info', 'update', `Updated from ${before.slice(0,7)} to ${after.slice(0,7)}`)
-        setTimeout(() => {
-          runHardwareCleanup('legacy-git-update-relaunch')
-          app.relaunch()
-          setTimeout(() => app.exit(0), 10000)
-        }, 1500)
-        return { updated: true, log: `${pullOutput.trim()}\n\nNew commits:\n${diffLog}`, from: before.slice(0,7), to: after.slice(0,7) }
-      } catch (e) {
-        const msg = (e.stderr || e.message || '').trim()
-        if (!msg.includes('not a git repository')) return { error: msg, log: msg }
-      }
-    }
-
-    // Fallback: download zip from GitHub
-    try {
-      const zipUrl = 'https://github.com/matthiascamp/yieldpos/archive/refs/heads/main.zip'
-      const tmpZip = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}.zip`)
-      const tmpDir = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}`)
-
-      await new Promise((resolve, reject) => {
-        const follow = (url) => {
-          https.get(url, { headers: { 'User-Agent': SOFTWARE_NAME } }, res => {
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-              return follow(res.headers.location)
-            }
-            if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`))
-            const ws = fs.createWriteStream(tmpZip)
-            res.pipe(ws)
-            ws.on('finish', () => ws.close(resolve))
-            ws.on('error', reject)
-          }).on('error', reject)
-        }
-        follow(zipUrl)
-      })
-
-      if (os.platform() === 'win32') {
-        execSync(`powershell -NoProfile -Command "Expand-Archive -Path '${tmpZip}' -DestinationPath '${tmpDir}' -Force"`, { timeout: 30000 })
-      } else {
-        fs.mkdirSync(tmpDir, { recursive: true })
-        execSync(`unzip -o "${tmpZip}" -d "${tmpDir}"`, { timeout: 30000 })
-      }
-
-      const extracted = resolveZipSourceRoot(tmpDir)
-      if (!looksLikeAppRoot(extracted)) return { error: 'Download succeeded but extraction failed - folder not found' }
-
-      const skipDirs = new Set(['node_modules', '.git', 'yieldpos'])
-      const skipFiles = new Set(['package-lock.json'])
-      const copyRecursive = (src, dest) => {
-        const entries = fs.readdirSync(src, { withFileTypes: true })
-        for (const entry of entries) {
-          if (skipDirs.has(entry.name) || skipFiles.has(entry.name)) continue
-          const srcPath = path.join(src, entry.name)
-          const destPath = path.join(dest, entry.name)
-          if (entry.isDirectory()) {
-            fs.mkdirSync(destPath, { recursive: true })
-            copyRecursive(srcPath, destPath)
-          } else {
-            fs.copyFileSync(srcPath, destPath)
-          }
-        }
-      }
-      copyRecursive(extracted, appDir)
-
-      try { fs.unlinkSync(tmpZip) } catch (_) {}
-      try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch (_) {}
-
-      appLog('info', 'update', 'Updated from GitHub zip download')
-      setTimeout(() => {
-        runHardwareCleanup('legacy-zip-update-relaunch')
-        app.relaunch()
-        setTimeout(() => app.exit(0), 10000)
       }, 1500)
-      return { updated: true, log: 'Downloaded latest version from GitHub and applied.\nApp will restart now.' }
+      return { updated: true, staged: true, log: `Downloaded update from GitHub ZIP.\nDestination: ${updateRoot}\nYieldPOS will close, open an updater terminal, apply the update after hardware handlers stop, and relaunch.` }
     } catch (e) {
       return { error: `Download update failed: ${e.message}`, log: e.message }
     }
+
   })
 
   // â”€â”€ Backups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -6010,14 +5824,43 @@ if (Test-Path -LiteralPath $LauncherPath) {
     return dbAll("SELECT kp.page, kp.name, kp.cols, kp.rows FROM keyboard_pages kp ORDER BY kp.page")
   })
 
+  function insertSyncQueueRow (table, recordId, action, payload) {
+    dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
+      [table, String(recordId), action, JSON.stringify(payload || {})])
+    scheduleLanQueueFlush(`${table}:${action}`)
+  }
+
+  function clearDeletedRecord (table, recordId) {
+    dbRun("DELETE FROM deleted_records WHERE table_name = ?1 AND record_id = ?2", [table, String(recordId)])
+  }
+
+  function queueKeyboardPageSync (page, action = 'update') {
+    const pageRow = dbGet("SELECT page, name, cols, rows FROM keyboard_pages WHERE page = ?1", [page])
+    if (!pageRow) return
+    clearDeletedRecord('keyboard_pages', page)
+    insertSyncQueueRow('keyboard_pages', String(page), action, pageRow)
+    lanSync.bumpVersion()
+  }
+
+  function queueKeyboardPageDelete (page) {
+    dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES ('keyboard_pages', ?1)", [String(page)])
+    insertSyncQueueRow('keyboard_pages', String(page), 'delete', { page: Number(page) })
+    lanSync.bumpVersion()
+  }
+
+  function queueKeyboardButtonDelete (id) {
+    dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES ('keyboard_buttons', ?1)", [String(id)])
+    insertSyncQueueRow('keyboard_buttons', String(id), 'delete', { id: String(id) })
+    lanSync.bumpVersion()
+  }
+
   ipcMain.handle('db:keyboard:createPage', (_e, opts) => {
     const existing = dbAll("SELECT page FROM keyboard_pages ORDER BY page DESC LIMIT 1")
     const nextPage = (existing.length ? existing[0].page : 0) + 1
     const pageRow = { page: nextPage, name: opts?.name || 'Untitled', cols: opts?.cols || 13, rows: opts?.rows || 7 }
     dbRun("INSERT INTO keyboard_pages (page, name, cols, rows) VALUES (?1, ?2, ?3, ?4)",
       [pageRow.page, pageRow.name, pageRow.cols, pageRow.rows])
-    dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
-      ['keyboard_pages', String(nextPage), 'insert', JSON.stringify(pageRow)])
+    queueKeyboardPageSync(nextPage, 'insert')
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
     lanSync.bumpVersion()
@@ -6026,9 +5869,7 @@ if (Test-Path -LiteralPath $LauncherPath) {
 
   ipcMain.handle('db:keyboard:renamePage', (_e, page, name) => {
     dbRun("UPDATE keyboard_pages SET name = ?2 WHERE page = ?1", [page, name])
-    const pageRow = dbGet("SELECT page, name, cols, rows FROM keyboard_pages WHERE page = ?1", [page])
-    if (pageRow) dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
-      ['keyboard_pages', String(page), 'update', JSON.stringify(pageRow)])
+    queueKeyboardPageSync(page, 'update')
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
     lanSync.bumpVersion()
@@ -6037,22 +5878,28 @@ if (Test-Path -LiteralPath $LauncherPath) {
 
   ipcMain.handle('db:keyboard:updatePageSize', (_e, page, cols, rows) => {
     dbRun("INSERT OR REPLACE INTO keyboard_pages (page, name, cols, rows) VALUES (?1, COALESCE((SELECT name FROM keyboard_pages WHERE page = ?1), 'Untitled'), ?2, ?3)", [page, cols, rows])
-    const pageRow = dbGet("SELECT page, name, cols, rows FROM keyboard_pages WHERE page = ?1", [page])
-    if (pageRow) dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
-      ['keyboard_pages', String(page), 'update', JSON.stringify(pageRow)])
+    queueKeyboardPageSync(page, 'update')
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
     lanSync.bumpVersion()
     return true
   })
 
-  ipcMain.handle('db:keyboard:bulkUpsertPages', (_e, pages) => {
+  ipcMain.handle('db:keyboard:bulkUpsertPages', (_e, pages, opts = {}) => {
     let count = 0
+    const incomingPages = new Set()
     for (const pg of pages || []) {
       if (!pg.page) continue
+      incomingPages.add(String(pg.page))
       dbRun("INSERT OR REPLACE INTO keyboard_pages (page, name, cols, rows) VALUES (?1, ?2, ?3, ?4)",
         [pg.page, pg.name || ('Page ' + pg.page), pg.cols || 13, pg.rows || 7])
       count++
+    }
+    if (opts?.replace && incomingPages.size) {
+      const existing = dbAll("SELECT page FROM keyboard_pages")
+      for (const row of existing) {
+        if (!incomingPages.has(String(row.page))) dbRun("DELETE FROM keyboard_pages WHERE page = ?1", [row.page])
+      }
     }
     if (count) {
       saveDBSync()
@@ -6105,16 +5952,19 @@ if (Test-Path -LiteralPath $LauncherPath) {
     dbRun("DELETE FROM keyboard_buttons WHERE parent_id = ?1", [id])
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
+    lanSync.bumpVersion()
     return true
   })
 
   ipcMain.handle('db:keyboard:deletePage', (_e, page) => {
+    const pageButtons = dbAll("SELECT id FROM keyboard_buttons WHERE page = ?1", [page])
+    for (const btn of pageButtons) queueKeyboardButtonDelete(btn.id)
     dbRun("DELETE FROM keyboard_buttons WHERE page = ?1", [page])
     dbRun("DELETE FROM keyboard_pages WHERE page = ?1", [page])
+    const affectedLinks = dbAll("SELECT id FROM keyboard_buttons WHERE type = 'page_link' AND parent_id = ?1", [String(page)])
     dbRun("UPDATE keyboard_buttons SET active = 0 WHERE type = 'page_link' AND parent_id = ?1", [String(page)])
-    dbRun("INSERT OR IGNORE INTO deleted_records (table_name, record_id) VALUES ('keyboard_pages', ?1)", [String(page)])
-    dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
-      ['keyboard_pages', String(page), 'delete', JSON.stringify({ page })])
+    for (const link of affectedLinks) queueSync('keyboard_buttons', link.id, 'update')
+    queueKeyboardPageDelete(page)
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     saveDBSync()
     lanSync.bumpVersion()
@@ -6127,13 +5977,15 @@ if (Test-Path -LiteralPath $LauncherPath) {
       ORDER BY kb.page, kb.sort_order`)
   })
 
-  ipcMain.handle('db:keyboard:bulkUpsert', (_e, buttons) => {
+  ipcMain.handle('db:keyboard:bulkUpsert', (_e, buttons, opts = {}) => {
     const deletedRows = dbAll("SELECT record_id FROM deleted_records WHERE table_name = 'keyboard_buttons'")
     const deletedIds = new Set(deletedRows.map(r => r.record_id))
+    const incomingIds = new Set()
     let count = 0
     for (const b of buttons) {
       if (!b.id || !b.label) continue
       if (deletedIds.has(b.id)) continue
+      incomingIds.add(String(b.id))
       db.run(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,datetime('now'))
         ON CONFLICT(id) DO UPDATE SET
@@ -6151,6 +6003,12 @@ if (Test-Path -LiteralPath $LauncherPath) {
          b.product_id || null, b.active !== false ? 1 : 0])
       count++
     }
+    if (opts?.replace && incomingIds.size) {
+      const existing = dbAll("SELECT id FROM keyboard_buttons")
+      for (const row of existing) {
+        if (!incomingIds.has(String(row.id))) dbRun("DELETE FROM keyboard_buttons WHERE id = ?1", [row.id])
+      }
+    }
     if (count) dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     if (count) normalizeKeyboardProductRefs()
     saveDBSync()
@@ -6166,8 +6024,12 @@ if (Test-Path -LiteralPath $LauncherPath) {
       newPage = (last.length ? last[0].page : 0) + 1
       dbRun("INSERT INTO keyboard_pages (page, name, cols, rows) VALUES (?1, ?2, ?3, ?4)",
         [newPage, (srcInfo?.name || 'Page') + ' (copy)', srcInfo?.cols || 13, srcInfo?.rows || 7])
+      queueKeyboardPageSync(newPage, 'insert')
+    } else {
+      queueKeyboardPageSync(newPage, 'update')
     }
     const buttons = dbAll("SELECT * FROM keyboard_buttons WHERE page = ?1 AND active = 1", [srcPage])
+    const copiedButtonIds = []
     for (const btn of buttons) {
       const newId = uuid()
       dbRun(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
@@ -6175,10 +6037,13 @@ if (Test-Path -LiteralPath $LauncherPath) {
         [newId, btn.label, btn.type, btn.price, btn.image, btn.image_scale || 100, btn.color, btn.bg_color,
          btn.parent_id, btn.category_filter, btn.alpha_range, btn.sort_order, btn.position || 'grid',
          newPage, btn.grid_row, btn.grid_col, btn.col_span, btn.row_span, btn.product_id || null])
+      copiedButtonIds.push(newId)
     }
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     normalizeKeyboardProductRefs()
+    for (const id of copiedButtonIds) queueSync('keyboard_buttons', id, 'insert')
     saveDBSync()
+    lanSync.bumpVersion()
     return { count: buttons.length, newPage }
   })
 
@@ -6210,15 +6075,25 @@ if (Test-Path -LiteralPath $LauncherPath) {
     if (!data || !data.buttons || !Array.isArray(data.buttons)) {
       return { error: 'Invalid keyboard layout data' }
     }
+    const previousButtons = dbAll("SELECT id FROM keyboard_buttons").map(r => String(r.id))
+    const previousPages = dbAll("SELECT page FROM keyboard_pages").map(r => String(r.page))
+    const nextButtonIds = new Set()
+    const nextPageIds = new Set()
     dbRun("DELETE FROM keyboard_buttons")
     dbRun("DELETE FROM keyboard_pages")
     if (data.pages && Array.isArray(data.pages)) {
       for (const pg of data.pages) {
+        nextPageIds.add(String(pg.page))
+        clearDeletedRecord('keyboard_pages', pg.page)
         dbRun("INSERT OR REPLACE INTO keyboard_pages (page, name, cols, rows) VALUES (?1, ?2, ?3, ?4)",
           [pg.page, pg.name || 'Untitled', pg.cols || 13, pg.rows || 7])
+        queueKeyboardPageSync(pg.page, previousPages.includes(String(pg.page)) ? 'update' : 'insert')
       }
     } else {
       dbRun("INSERT INTO keyboard_pages (page, name, cols, rows) VALUES (1, 'Main Register', 13, 7)")
+      nextPageIds.add('1')
+      clearDeletedRecord('keyboard_pages', '1')
+      queueKeyboardPageSync(1, previousPages.includes('1') ? 'update' : 'insert')
     }
     let count = 0
     let skipped = 0
@@ -6230,6 +6105,8 @@ if (Test-Path -LiteralPath $LauncherPath) {
         skipped++; continue
       }
       const id = btn.id || uuid()
+      nextButtonIds.add(String(id))
+      clearDeletedRecord('keyboard_buttons', id)
       dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,datetime('now'))`,
         [id, btn.label, btn.type, btn.price || 0, btn.image || null, Number(btn.image_scale || 100) || 100,
@@ -6238,6 +6115,12 @@ if (Test-Path -LiteralPath $LauncherPath) {
          btn.page || 1, row, col, cs, rs, btn.active !== undefined ? btn.active : 1,
          btn.product_id || null])
       count++
+    }
+    for (const oldId of previousButtons) {
+      if (!nextButtonIds.has(oldId)) queueKeyboardButtonDelete(oldId)
+    }
+    for (const oldPage of previousPages) {
+      if (!nextPageIds.has(oldPage)) queueKeyboardPageDelete(oldPage)
     }
     // Restore linked products if included in export
     let productsRestored = 0
@@ -6254,11 +6137,17 @@ if (Test-Path -LiteralPath $LauncherPath) {
     }
     dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('keyboard_user_customized', '1')")
     normalizeKeyboardProductRefs()
+    for (const id of nextButtonIds) {
+      queueSync('keyboard_buttons', id, previousButtons.includes(String(id)) ? 'update' : 'insert')
+    }
     saveDBSync()
+    lanSync.bumpVersion()
     return { count, skipped, productsRestored }
   })
 
   ipcMain.handle('db:keyboard:reset', () => {
+    const previousButtons = dbAll("SELECT id FROM keyboard_buttons").map(r => String(r.id))
+    const previousPages = dbAll("SELECT page FROM keyboard_pages").map(r => String(r.page))
     dbRun("DELETE FROM keyboard_buttons")
     dbRun("DELETE FROM keyboard_pages")
     const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8')
@@ -6270,9 +6159,30 @@ if (Test-Path -LiteralPath $LauncherPath) {
         try { db.run(stmt); count++ } catch (_) {}
       }
     }
+    const nextButtons = dbAll("SELECT id FROM keyboard_buttons").map(r => String(r.id))
+    const nextPages = dbAll("SELECT page FROM keyboard_pages").map(r => String(r.page))
+    const nextButtonIds = new Set(nextButtons)
+    const nextPageIds = new Set(nextPages)
+    for (const id of nextButtons) {
+      clearDeletedRecord('keyboard_buttons', id)
+    }
+    for (const page of nextPages) {
+      clearDeletedRecord('keyboard_pages', page)
+      queueKeyboardPageSync(Number(page), previousPages.includes(page) ? 'update' : 'insert')
+    }
+    for (const id of previousButtons) {
+      if (!nextButtonIds.has(id)) queueKeyboardButtonDelete(id)
+    }
+    for (const page of previousPages) {
+      if (!nextPageIds.has(page)) queueKeyboardPageDelete(page)
+    }
     dbRun("DELETE FROM settings WHERE key = 'keyboard_user_customized'")
     normalizeKeyboardProductRefs()
+    for (const id of nextButtons) {
+      queueSync('keyboard_buttons', id, previousButtons.includes(id) ? 'update' : 'insert')
+    }
     saveDBSync()
+    lanSync.bumpVersion()
     return { count }
   })
 

@@ -448,6 +448,45 @@
     .kb-editor { display: flex; gap: 12px; align-items: start; }
     .kb-editor .kb-grid-wrap { flex: 1; min-width: 0; }
     .kb-editor .kb-sidebar { width: 380px; min-width: 380px; }
+    #tab-keyboard.kb-touch-mode .kb-editor { display: grid; grid-template-columns: 220px minmax(0,1fr); gap: 14px; align-items: start; }
+    #tab-keyboard.kb-touch-mode .kb-page-tree { width: 220px !important; min-width: 220px !important; max-height: calc(100vh - 170px) !important; }
+    #tab-keyboard.kb-touch-mode .kb-sidebar { grid-column: 1 / -1; width: auto; min-width: 0; display: grid; grid-template-columns: minmax(340px,480px) minmax(260px,1fr); gap: 14px; align-items: start; }
+    #tab-keyboard.kb-touch-mode .kb-grid-wrap { padding: 18px; }
+    #tab-keyboard.kb-touch-mode #kbGrid { gap: 6px; min-width: 720px; }
+    #tab-keyboard.kb-touch-mode .kb-row-headers { gap: 6px; }
+    #tab-keyboard.kb-touch-mode .kb-col-headers { gap: 6px; }
+    #tab-keyboard.kb-touch-mode .kb-row-hdr { height: 74px; font-size: 12px; }
+    #tab-keyboard.kb-touch-mode .kb-col-hdr { font-size: 12px; }
+    #tab-keyboard.kb-touch-mode .kb-cell { min-height: 74px; touch-action: manipulation; user-select: none; }
+    #tab-keyboard.kb-touch-mode .kb-tree-node,
+    #tab-keyboard.kb-touch-mode .kb-prod-item { min-height: 44px; align-items: center; }
+    #tab-keyboard.kb-touch-mode .kb-edit-card .kb-field input,
+    #tab-keyboard.kb-touch-mode .kb-edit-card .kb-field select,
+    #tab-keyboard.kb-touch-mode .kb-edit-card textarea,
+    #tab-keyboard.kb-touch-mode .kb-product-sidebar input { min-height: 44px; font-size: 15px; }
+    #tab-keyboard.kb-touch-mode .kb-edit-actions .btn,
+    #tab-keyboard.kb-touch-mode .kb-edit-card .btn { min-height: 42px; }
+    .kb-touch-panel { display: none; margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface2); }
+    #tab-keyboard.kb-touch-mode .kb-touch-panel { display: grid; gap: 10px; }
+    .kb-touch-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .kb-touch-status strong { font-size: 14px; color: var(--text); }
+    .kb-touch-status span { font-size: 12px; color: var(--text-dim); }
+    .kb-touch-groups { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+    .kb-touch-group { display: grid; gap: 7px; }
+    .kb-touch-group-title { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; font-weight: 800; }
+    .kb-touch-grid { display: grid; grid-template-columns: repeat(3, minmax(48px,1fr)); gap: 6px; }
+    .kb-touch-grid.two { grid-template-columns: repeat(2, minmax(58px,1fr)); }
+    .kb-touch-btn { min-height: 48px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: 800 15px/1 Inter,ui-sans-serif,system-ui,sans-serif; cursor: pointer; touch-action: manipulation; }
+    .kb-touch-btn:active { transform: scale(.96); background: var(--surface3); }
+    .kb-touch-btn.primary { background: #15803d; color: #fff; border-color: rgba(21,128,61,.4); }
+    .kb-touch-btn.warn { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .kb-touch-btn.active { background: #f0d89c; color: #07150d; border-color: rgba(205,167,95,.55); }
+    @media (max-width: 1100px) {
+      #tab-keyboard.kb-touch-mode .kb-editor { grid-template-columns: 1fr; }
+      #tab-keyboard.kb-touch-mode .kb-page-tree { width: auto !important; min-width: 0 !important; max-height: none !important; }
+      #tab-keyboard.kb-touch-mode .kb-sidebar,
+      .kb-touch-groups { grid-template-columns: 1fr; }
+    }
     .kb-page-tree .kb-tree-node:hover { background: var(--surface2); }
     .kb-page-tree .kb-tree-node.active { background: var(--green); color: #000; }
     .kb-grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow-x: auto; }
@@ -685,6 +724,7 @@
     .kb-prod-item:hover { background: var(--surface2); }
     .kb-prod-item.sel-highlight { background: rgba(59,130,246,.15); outline: 1px solid #3b82f6; }
     .af-size-btn.active { background: rgba(59,130,246,.2); border-color: #3b82f6; color: #3b82f6; }
+    #kbTouchModeBtn.active { background: rgba(21,128,61,.18); border-color: #15803d; color: #15803d; }
     .kb-prod-item .prod-price { margin-left: auto; color: var(--green); font-weight: 600; font-size: 11px; }
 
     /* Toast */
@@ -2574,6 +2614,7 @@
         <button class="btn btn-outline" style="padding:4px 8px;font-size:10px" id="selectAllBtn" title="Select all buttons on page">Select All</button>
         <button class="btn btn-outline" style="padding:4px 8px;font-size:10px" id="validateKbBtn" title="Check for issues">Validate</button>
         <button class="btn btn-outline" style="padding:4px 8px;font-size:10px" id="previewKbBtn" title="Preview this page as the register sees it">Preview</button>
+        <button class="btn btn-outline" style="padding:4px 8px;font-size:10px" id="kbTouchModeBtn" title="Large controls for register touch screens">Touch Mode</button>
         <button class="btn btn-outline" style="padding:4px 8px;font-size:10px" id="exportKbBtn" title="Export">Export</button>
         <button class="btn btn-outline" style="padding:4px 8px;font-size:10px" id="importKbBtn" title="Import">Import</button>
         <input type="file" id="importKbFile" accept=".json" style="display:none">
@@ -2616,6 +2657,44 @@
             <div id="kbGrid"></div>
           </div>
           <p style="color:var(--text-dim);font-size:10px;margin-top:8px;opacity:.7">Click empty cell to add button. Drag across empty cells for multi-cell. Drag buttons to move.</p>
+          <div class="kb-touch-panel" id="kbTouchPanel">
+            <div class="kb-touch-status">
+              <strong id="kbTouchTitle">No button selected</strong>
+              <span id="kbTouchMeta">Page 1</span>
+              <button class="kb-touch-btn" type="button" data-kb-touch-action="select-mode" id="kbTouchSelectModeBtn">Select Mode</button>
+              <button class="kb-touch-btn primary" type="button" data-kb-touch-action="edit">Edit</button>
+            </div>
+            <div class="kb-touch-groups">
+              <div class="kb-touch-group">
+                <div class="kb-touch-group-title">Move</div>
+                <div class="kb-touch-grid">
+                  <span></span><button class="kb-touch-btn" type="button" data-kb-touch-action="move-up">Up</button><span></span>
+                  <button class="kb-touch-btn" type="button" data-kb-touch-action="move-left">Left</button><button class="kb-touch-btn" type="button" data-kb-touch-action="move-down">Down</button><button class="kb-touch-btn" type="button" data-kb-touch-action="move-right">Right</button>
+                </div>
+              </div>
+              <div class="kb-touch-group">
+                <div class="kb-touch-group-title">Width</div>
+                <div class="kb-touch-grid two">
+                  <button class="kb-touch-btn" type="button" data-kb-touch-action="width-minus">-</button>
+                  <button class="kb-touch-btn" type="button" data-kb-touch-action="width-plus">+</button>
+                </div>
+              </div>
+              <div class="kb-touch-group">
+                <div class="kb-touch-group-title">Height</div>
+                <div class="kb-touch-grid two">
+                  <button class="kb-touch-btn" type="button" data-kb-touch-action="height-minus">-</button>
+                  <button class="kb-touch-btn" type="button" data-kb-touch-action="height-plus">+</button>
+                </div>
+              </div>
+              <div class="kb-touch-group">
+                <div class="kb-touch-group-title">Actions</div>
+                <div class="kb-touch-grid two">
+                  <button class="kb-touch-btn" type="button" data-kb-touch-action="duplicate">Duplicate</button>
+                  <button class="kb-touch-btn warn" type="button" data-kb-touch-action="delete">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="kb-sidebar">
@@ -6337,9 +6416,58 @@
     let kbEditorHydrating = false
     let kbEditorLoadSeq = 0
     let kbSuppressNextGridClick = false
+    let kbTouchMode = localStorage.getItem('yieldpos_keyboard_touch_mode') === '1'
+    let kbTouchSelectMode = false
     const KB_DRAG_THRESHOLD_PX = 8
 
     // ── Load & Init ────────────────────────────────────────────────
+
+    function isKeyboardTouchMode () {
+      return kbTouchMode
+    }
+
+    function selectedTouchButtons () {
+      if (multiSelected?.size) return [...multiSelected].map(id => kbButtons.find(b => b.id === id)).filter(Boolean)
+      return selectedBtnId ? [kbButtons.find(b => b.id === selectedBtnId)].filter(Boolean) : []
+    }
+
+    function updateKeyboardTouchPanel () {
+      const tab = $('#tab-keyboard')
+      const touchBtn = $('#kbTouchModeBtn')
+      if (tab) tab.classList.toggle('kb-touch-mode', kbTouchMode)
+      if (touchBtn) {
+        touchBtn.classList.toggle('active', kbTouchMode)
+        touchBtn.setAttribute('aria-pressed', kbTouchMode ? 'true' : 'false')
+      }
+      const selectBtn = $('#kbTouchSelectModeBtn')
+      if (selectBtn) {
+        selectBtn.classList.toggle('active', kbTouchSelectMode)
+        selectBtn.textContent = kbTouchSelectMode ? 'Select On' : 'Select Mode'
+      }
+      const chosen = selectedTouchButtons()
+      const title = $('#kbTouchTitle')
+      const meta = $('#kbTouchMeta')
+      if (title) {
+        title.textContent = chosen.length > 1
+          ? `${chosen.length} buttons selected`
+          : (chosen[0] ? (labelFromDb(chosen[0].label) || chosen[0].product_name || chosen[0].id) : 'No button selected')
+      }
+      if (meta) {
+        const page = getPageInfo(currentPage)
+        const detail = chosen[0] && chosen.length === 1
+          ? `Row ${chosen[0].grid_row || 0}, Col ${chosen[0].grid_col || 0}, ${(chosen[0].col_span || 1)} x ${(chosen[0].row_span || 1)}`
+          : `${gridCols} x ${gridRows}`
+        meta.textContent = `${page.name || 'Page ' + currentPage} - ${detail}`
+      }
+    }
+
+    function applyKeyboardTouchMode (on) {
+      kbTouchMode = !!on
+      localStorage.setItem('yieldpos_keyboard_touch_mode', kbTouchMode ? '1' : '0')
+      if (!kbTouchMode) kbTouchSelectMode = false
+      updateKeyboardTouchPanel()
+      renderGrid()
+    }
 
     function getPageInfo (page) { return allPages.find(p => p.page === page) || { page, name: `Page ${page}`, cols: 13, rows: 7 } }
 
@@ -6771,6 +6899,10 @@
       }
     })
 
+    $('#kbTouchModeBtn').addEventListener('click', () => {
+      applyKeyboardTouchMode(!kbTouchMode)
+    })
+
     function showBulkPanel () {
       $$('#kbGrid .kb-cell[data-id]').forEach(cell => {
         cell.classList.toggle('multi-selected', multiSelected.has(cell.dataset.id))
@@ -6778,12 +6910,14 @@
       $('#kbBulkTitle').textContent = `${multiSelected.size} selected`
       $('#kbBulkPanel').style.display = ''
       $('#kbEditPanel').classList.remove('active')
+      updateKeyboardTouchPanel()
     }
 
     function hideBulkPanel () {
       multiSelected.clear()
       $$('#kbGrid .kb-cell').forEach(c => c.classList.remove('multi-selected'))
       $('#kbBulkPanel').style.display = 'none'
+      updateKeyboardTouchPanel()
     }
 
     $('#kbBulkClose').addEventListener('click', hideBulkPanel)
@@ -7138,7 +7272,7 @@
 
       const grid = $('#kbGrid')
       grid.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`
-      grid.style.gridTemplateRows = `repeat(${gridRows}, 56px)`
+      grid.style.gridTemplateRows = `repeat(${gridRows}, ${isKeyboardTouchMode() ? 74 : 56}px)`
 
       const pageButtons = kbButtons.filter(b => (b.page || 1) === currentPage && b.active)
       const occupied = new Set()
@@ -7188,6 +7322,7 @@
           if (cr >= r0 && cr <= r1 && cc >= c0 && cc <= c1) cell.classList.add('sel-highlight')
         }
       }
+      updateKeyboardTouchPanel()
     }
 
     function typeLabel (type) {
@@ -7211,6 +7346,15 @@
       const cell = e.target.closest('.kb-cell')
       if (!cell) return
       const id = cell.dataset.id
+      if (id && kbTouchMode && kbTouchSelectMode) {
+        if (multiSelected.has(id)) multiSelected.delete(id)
+        else multiSelected.add(id)
+        selectedBtnId = multiSelected.size === 1 ? [...multiSelected][0] : null
+        if (multiSelected.size) showBulkPanel()
+        else hideBulkPanel()
+        updateKeyboardTouchPanel()
+        return
+      }
       if (id && (e.ctrlKey || e.metaKey)) {
         // Ctrl+click: toggle in/out of multi-select
         if (multiSelected.has(id)) multiSelected.delete(id)
@@ -7340,10 +7484,140 @@
       return valid
     }
 
+    async function moveSingleButtonByTouch (btn, dr, dc) {
+      const nr = (btn.grid_row || 0) + dr
+      const nc = (btn.grid_col || 0) + dc
+      if (!canPlaceButtonFootprint(btn, nr, nc, [btn.id])) {
+        showToast('Move blocked', 'error')
+        return
+      }
+      pushUndo()
+      await window.pos.upsertButton({ ...btn, grid_row: nr, grid_col: nc })
+      kbButtons = await window.pos.getAllButtons()
+      selectedBtnId = btn.id
+      renderGrid()
+      const updated = kbButtons.find(b => b.id === btn.id)
+      if (updated && isKeyboardEditPanelOpen()) openEditPanel(updated)
+      showToast('Button moved', 'success')
+    }
+
+    async function resizeButtonByTouch (btn, dc, dr) {
+      const nextColSpan = Math.max(1, Math.min(gridCols - (btn.grid_col || 0), (btn.col_span || 1) + dc))
+      const nextRowSpan = Math.max(1, Math.min(gridRows - (btn.grid_row || 0), (btn.row_span || 1) + dr))
+      const next = { ...btn, col_span: nextColSpan, row_span: nextRowSpan }
+      if (nextColSpan === (btn.col_span || 1) && nextRowSpan === (btn.row_span || 1)) return
+      if (!canPlaceButtonFootprint(next, btn.grid_row || 0, btn.grid_col || 0, [btn.id])) {
+        showToast('Resize blocked', 'error')
+        return
+      }
+      pushUndo()
+      await window.pos.upsertButton(next)
+      kbButtons = await window.pos.getAllButtons()
+      selectedBtnId = btn.id
+      renderGrid()
+      const updated = kbButtons.find(b => b.id === btn.id)
+      if (updated && isKeyboardEditPanelOpen()) openEditPanel(updated)
+      showToast('Button resized', 'success')
+    }
+
+    function firstFreeTouchSlot (btn) {
+      const probe = { ...btn }
+      for (let row = 0; row < gridRows; row++) {
+        for (let col = 0; col < gridCols; col++) {
+          if (canPlaceButtonFootprint(probe, row, col, [])) return { row, col }
+        }
+      }
+      return null
+    }
+
+    async function duplicateButtonByTouch (btn) {
+      const slot = firstFreeTouchSlot(btn)
+      if (!slot) { showToast('No free space for duplicate', 'error'); return }
+      pushUndo()
+      const copy = {
+        ...btn,
+        id: undefined,
+        grid_row: slot.row,
+        grid_col: slot.col,
+        sort_order: Date.now()
+      }
+      const res = await window.pos.upsertButton(copy)
+      if (res?.error) { showToast(res.error, 'error'); return }
+      kbButtons = await window.pos.getAllButtons()
+      selectedBtnId = res.id
+      renderGrid()
+      if (res.id) selectButton(res.id)
+      showToast('Button duplicated', 'success')
+    }
+
+    async function deleteTouchSelection () {
+      const chosen = selectedTouchButtons()
+      if (!chosen.length) { showToast('Select a button first', 'info'); return }
+      if (!confirm(`Delete ${chosen.length} button${chosen.length !== 1 ? 's' : ''}?`)) return
+      pushUndo()
+      for (const btn of chosen) await window.pos.deleteButton(btn.id)
+      multiSelected.clear()
+      selectedBtnId = null
+      kbButtons = await window.pos.getAllButtons()
+      renderGrid()
+      closeEditPanel()
+      showToast('Button deleted', 'success')
+    }
+
+    $('#kbTouchPanel').addEventListener('click', async e => {
+      const actionBtn = e.target.closest('[data-kb-touch-action]')
+      if (!actionBtn) return
+      const action = actionBtn.dataset.kbTouchAction
+      if (action === 'select-mode') {
+        kbTouchSelectMode = !kbTouchSelectMode
+        if (!kbTouchSelectMode && multiSelected.size <= 1) hideBulkPanel()
+        updateKeyboardTouchPanel()
+        return
+      }
+
+      const chosen = selectedTouchButtons()
+      const primary = chosen[0]
+      if (!primary) { showToast('Select a button first', 'info'); return }
+
+      if (action === 'edit') { selectButton(primary.id); return }
+      if (action === 'delete') { await deleteTouchSelection(); return }
+      if (action === 'duplicate') {
+        if (chosen.length > 1) { showToast('Duplicate one button at a time', 'info'); return }
+        await duplicateButtonByTouch(primary)
+        return
+      }
+
+      const moveMap = {
+        'move-up': [-1, 0],
+        'move-down': [1, 0],
+        'move-left': [0, -1],
+        'move-right': [0, 1]
+      }
+      if (moveMap[action]) {
+        const [dr, dc] = moveMap[action]
+        if (multiSelected.size > 1) await bulkMove(dr, dc)
+        else await moveSingleButtonByTouch(primary, dr, dc)
+        return
+      }
+
+      const sizeMap = {
+        'width-minus': [-1, 0],
+        'width-plus': [1, 0],
+        'height-minus': [0, -1],
+        'height-plus': [0, 1]
+      }
+      if (sizeMap[action]) {
+        if (chosen.length > 1) { showToast('Resize one button at a time', 'info'); return }
+        const [dc, dr] = sizeMap[action]
+        await resizeButtonByTouch(primary, dc, dr)
+      }
+    })
+
     let bulkDragMoved = false
     let bulkDragClickId = null  // track which button was mousedown'd for click-to-deselect
 
     $('#kbGrid').addEventListener('mousedown', e => {
+      if (kbTouchMode) return
       const cell = e.target.closest('.kb-cell[data-id]')
       if (!cell) return
       const id = cell.dataset.id
@@ -7410,6 +7684,7 @@
     let singleDragMoved = false
 
     $('#kbGrid').addEventListener('mousedown', e => {
+      if (kbTouchMode) return
       if (bulkDragging) return
       const cell = e.target.closest('.kb-cell[data-id]')
       if (!cell) return
@@ -7525,6 +7800,7 @@
     }
 
     $('#kbGrid').addEventListener('mousedown', e => {
+      if (kbTouchMode) return
       if (e.button !== 0) return
       const cell = e.target.closest('.empty-cell')
       if (!cell) return
@@ -7582,7 +7858,7 @@
       selectedBtnId = id
       const btn = kbButtons.find(b => b.id === id)
       if (!btn) return
-      renderGrid(); openEditPanel(btn)
+      renderGrid(); openEditPanel(btn); updateKeyboardTouchPanel()
     }
 
     // Convert literal \n in DB labels to real newlines for textarea, and back
@@ -7761,6 +8037,7 @@
         keyboardReloadPending = false
         loadKeyboard().catch(() => {})
       }
+      updateKeyboardTouchPanel()
     }
 
     function updateLivePreview () {

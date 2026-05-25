@@ -92,13 +92,13 @@ contextBridge.exposeInMainWorld('pos', {
   deleteButton:       (id)    => ipcRenderer.invoke('db:keyboard:delete', id),
   deletePage:         (page)  => ipcRenderer.invoke('db:keyboard:deletePage', page),
 
-  bulkUpsertKeyboard: (btns) => ipcRenderer.invoke('db:keyboard:bulkUpsert', btns),
+  bulkUpsertKeyboard: (btns, opts) => ipcRenderer.invoke('db:keyboard:bulkUpsert', btns, opts),
 
   // Keyboard Pages
   createPage:         (opts)      => ipcRenderer.invoke('db:keyboard:createPage', opts),
   renamePage:         (page, name) => ipcRenderer.invoke('db:keyboard:renamePage', page, name),
   updatePageSize:     (page, cols, rows) => ipcRenderer.invoke('db:keyboard:updatePageSize', page, cols, rows),
-  bulkUpsertKeyboardPages: (pages) => ipcRenderer.invoke('db:keyboard:bulkUpsertPages', pages),
+  bulkUpsertKeyboardPages: (pages, opts) => ipcRenderer.invoke('db:keyboard:bulkUpsertPages', pages, opts),
 
   // Keyboard Extended
   copyPage:           (src, dest) => ipcRenderer.invoke('db:keyboard:copyPage', src, dest),
