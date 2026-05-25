@@ -790,29 +790,35 @@
       flex-shrink: 0;
     }
     #oskOverlay {
-      padding: 10px 12px !important;
-      border-radius: 14px 14px 0 0 !important;
+      padding: 16px 18px !important;
+      border-radius: 18px 18px 0 0 !important;
     }
-    body:not(.register-mode) #oskOverlay {
-      display: none !important;
+    body.osk-open {
+      padding-bottom: var(--osk-bottom-space, 390px);
+    }
+    body.osk-open .main-content {
+      padding-bottom: var(--osk-bottom-space, 390px);
+    }
+    body.osk-open .modal-panel.modal-open {
+      top: 18px;
+      max-height: calc(100vh - var(--osk-bottom-space, 390px) - 34px);
+      transform: translate(-50%, 0) scale(1);
     }
     #oskOverlay > div {
-      max-width: 980px !important;
-      gap: 6px !important;
+      max-width: 1120px !important;
+      gap: 9px !important;
     }
     #oskPreview {
       background: #fff;
       color: #111827;
       border: 2px solid #cfd6df;
-      border-radius: 10px;
-      min-height: 44px;
-      max-height: 74px;
-      padding: 8px 14px;
-      font-size: 20px;
+      border-radius: 12px;
+      min-height: 56px;
+      padding: 12px 18px;
+      font-size: 22px;
       font-weight: 800;
       line-height: 1.25;
       word-break: break-word;
-      overflow-y: auto;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 8px rgba(0,0,0,.08);
     }
     #oskPreview:empty::before {
@@ -820,24 +826,24 @@
       white-space: pre;
     }
     #oskOverlay > div > div {
-      gap: 6px !important;
+      gap: 9px !important;
     }
     #oskOverlay .osk-key {
-      min-width: 58px !important;
-      height: 54px !important;
-      border-radius: 10px !important;
-      font-size: 21px !important;
+      min-width: 76px !important;
+      height: 72px !important;
+      border-radius: 12px !important;
+      font-size: 27px !important;
       font-weight: 800 !important;
       touch-action: manipulation;
     }
     #oskOverlay .osk-key[data-osk="BKSP"],
     #oskOverlay .osk-key[data-osk="DONE"] {
-      min-width: 98px !important;
-      font-size: 14px !important;
+      min-width: 132px !important;
+      font-size: 17px !important;
     }
     #oskOverlay .osk-key[data-osk=" "] {
-      max-width: 420px !important;
-      font-size: 14px !important;
+      max-width: 520px !important;
+      font-size: 17px !important;
     }
 
     /* ── YieldPOS Admin — Splash-Inspired Redesign ───────────── */
@@ -1825,9 +1831,6 @@
         <button class="osk-key" data-osk="Z">Z</button><button class="osk-key" data-osk="X">X</button><button class="osk-key" data-osk="C">C</button><button class="osk-key" data-osk="V">V</button><button class="osk-key" data-osk="B">B</button><button class="osk-key" data-osk="N">N</button><button class="osk-key" data-osk="M">M</button>
       </div>
       <div style="display:flex;gap:5px;justify-content:center">
-        <button class="osk-key" data-osk="-">-</button><button class="osk-key" data-osk="/">/</button><button class="osk-key" data-osk="&amp;">&amp;</button><button class="osk-key" data-osk="@">@</button><button class="osk-key" data-osk="#">#</button><button class="osk-key" data-osk=":">:</button><button class="osk-key" data-osk="_">_</button>
-      </div>
-      <div style="display:flex;gap:5px;justify-content:center">
         <button class="osk-key" data-osk=" " style="flex:1;max-width:300px">SPACE</button>
         <button class="osk-key" data-osk="." style="min-width:44px">.</button>
         <button class="osk-key" data-osk="DONE" style="background:#1a3d2a;color:#fff;min-width:80px;font-size:14px">DONE</button>
@@ -2344,11 +2347,8 @@
 
     <!-- ── Cash Drawer ────────────────────────────────────────────── -->
     <div class="tab-content" id="tab-cashdrawer">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
         <h1 style="margin:0">Cash Drawer Management</h1>
-        <input type="date" id="cdDate" style="padding:8px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
-        <button class="btn btn-outline" id="cdToday" style="padding:6px 12px;font-size:12px">Today</button>
-        <button class="btn btn-outline" id="cdYesterday" style="padding:6px 12px;font-size:12px">Yesterday</button>
         <div class="form-field" style="margin:0">
           <select id="cdTillSelect" style="padding:8px 12px;font-size:13px;min-width:160px">
             <option value="">All Tills</option>
@@ -2357,8 +2357,8 @@
         <button class="btn btn-outline" id="cdAddTill" style="padding:6px 12px;font-size:12px">+ Add Till</button>
       </div>
       <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:20px">
-        <div class="stat-card"><div class="stat-label">Opening Float</div><div class="stat-value green" id="cdFloat">$0.00</div></div>
-        <div class="stat-card"><div class="stat-label">Cash Sales</div><div class="stat-value" id="cdCashSales">$0.00</div></div>
+        <div class="stat-card"><div class="stat-label">Current Float</div><div class="stat-value green" id="cdFloat">$0.00</div></div>
+        <div class="stat-card"><div class="stat-label">Cash Sales Today</div><div class="stat-value" id="cdCashSales">$0.00</div></div>
         <div class="stat-card"><div class="stat-label">Expected in Drawer</div><div class="stat-value" id="cdExpected">$0.00</div></div>
       </div>
       <div class="section" style="margin-bottom:20px">
@@ -2390,10 +2390,10 @@
         </div>
       </div>
       <div class="section" style="margin-top:20px">
-        <h2 id="cdLogTitle">Drawer Log</h2>
+        <h2>Drawer Log (Today)</h2>
         <table>
           <thead><tr><th>Time</th><th>Till</th><th>Action</th><th>Amount</th><th>Staff</th><th>Note</th></tr></thead>
-          <tbody id="cdLogTable"><tr><td colspan="6" style="color:var(--text-dim)">No entries for this date</td></tr></tbody>
+          <tbody id="cdLogTable"><tr><td colspan="6" style="color:var(--text-dim)">No entries today</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -2928,7 +2928,6 @@
         <div class="form-field" style="margin-bottom:10px"><label>Anon Key</label><input type="text" id="setSupaKey" placeholder="eyJ..." style="font-family:monospace;font-size:12px;"></div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
           <button class="btn btn-blue" id="saveSupaBtn">Save &amp; Connect</button>
-          <button class="btn btn-green" id="pushNowBtn" style="display:none">Push Local Now</button>
           <button class="btn btn-outline" id="pullNowBtn" style="display:none">Pull Now</button>
           <span id="supaStatus" style="font-size:13px;color:var(--text-dim)"></span>
         </div>
@@ -3000,21 +2999,16 @@
         <input type="date" id="auditDate" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text)">
         <select id="auditAction" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text)">
           <option value="">All Actions</option>
-          <option value="product_change">Product Changes</option>
-          <option value="price_change">Price Changes</option>
-          <option value="drawer">Drawer Activity</option>
-          <option value="discount">Discounts</option>
-          <option value="void">Voids</option>
-          <option value="refund">Refunds</option>
+          <option value="void_item">Void Item</option>
+          <option value="no_sale">No Sale</option>
+          <option value="discount_sale">Discount (Sale)</option>
+          <option value="discount_item">Discount (Item)</option>
+          <option value="price_change">Price Change</option>
+          <option value="refund">Refund</option>
           <option value="settings_change">Settings Change</option>
-          <option value="deal_created">Deal Created</option>
-          <option value="deal_updated">Deal Updated</option>
-          <option value="deal_deleted">Deal Deleted</option>
-          <option value="staff_updated">Staff Updated</option>
         </select>
         <button class="btn btn-blue" id="auditSearchBtn">Search</button>
         <button class="btn btn-outline" id="auditTodayBtn">Today</button>
-        <button class="btn btn-outline" id="auditYesterdayBtn">Yesterday</button>
       </div>
       <div class="section" style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:13px" id="auditTable">
@@ -3383,6 +3377,17 @@
             <button class="btn btn-green" id="saveAppBtn" style="margin-top:8px;">Save App Settings</button>
           </div>
 
+          <div class="section">
+            <h2>Software Update</h2>
+            <p style="color:var(--text-dim);margin-bottom:10px;font-size:13px;">
+              Uses Git to pull the latest version from GitHub. YieldPOS closes first, updates this folder, then relaunches so hardware handlers do not block file replacement.
+            </p>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-blue" id="updateAppBtn" style="padding:10px 20px;font-size:14px">Check for Updates</button>
+              <span id="updateStatus" style="font-size:13px;color:var(--text-dim)"></span>
+            </div>
+            <div id="updateLog" style="margin-top:10px;font-size:11px;font-family:monospace;color:var(--text-dim);max-height:120px;overflow-y:auto;display:none;background:var(--surface2);padding:8px;border-radius:var(--radius);white-space:pre-wrap"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -3458,69 +3463,17 @@
 
   <script type="module">
     import { esc, $, $$, money, showToast, debounce } from './js/ui.js'
-    import { initSync, pullAll, pushLocalSnapshot } from './js/sync.js'
+    import { initSync, pullAll, pullFull } from './js/sync.js'
 
     let appModeInfo = { mode: 'admin', isRegisterApp: false }
-
-    function localDateInputValue (date = new Date()) {
-      const y = date.getFullYear()
-      const m = String(date.getMonth() + 1).padStart(2, '0')
-      const d = String(date.getDate()).padStart(2, '0')
-      return `${y}-${m}-${d}`
-    }
-
-    function parseDbDate (value) {
-      if (!value) return null
-      const raw = String(value)
-      if (/Z$|[+-]\d\d:?\d\d$/.test(raw)) return new Date(raw)
-      return new Date(raw.replace(' ', 'T'))
-    }
-
-    const auditActionLabels = {
-      void_item: 'Void Item',
-      void_transaction: 'Void Transaction',
-      no_sale: 'No Sale',
-      discount_sale: 'Discount (Sale)',
-      discount_item: 'Discount (Item)',
-      discount_items: 'Discount (Items)',
-      price_change: 'Price Change',
-      product_price_change: 'Product Price Change',
-      product_created: 'Product Created',
-      product_updated: 'Product Updated',
-      product_deleted: 'Product Deleted',
-      category_created: 'Category Created',
-      category_updated: 'Category Updated',
-      category_deleted: 'Category Deleted',
-      deal_created: 'Deal Created',
-      deal_updated: 'Deal Updated',
-      deal_deleted: 'Deal Deleted',
-      deal_activated: 'Deal Activated',
-      refund: 'Refund',
-      refund_transaction: 'Refund Transaction',
-      settings_change: 'Settings Change',
-      float_set: 'Float Set',
-      cash_pickup: 'Cash Pickup',
-      cash_drop: 'Cash Drop',
-      drawer_open: 'Drawer Open',
-      drawer_close: 'Drawer Close',
-      end_of_day: 'End of Day',
-      staff_created: 'Staff Created',
-      staff_updated: 'Staff Updated',
-      logout: 'Logout'
-    }
 
     // ── Modal Helpers ───────────────────────────────────────────────
 
     const modalBackdrop = $('#modalBackdrop')
 
-    function hoistModalPanel (el) {
-      if (el?.closest('.tab-content')) document.body.appendChild(el)
-    }
-
     function openModal(panelId) {
       const el = document.getElementById(panelId)
       if (!el) return
-      hoistModalPanel(el)
       el.classList.add('modal-open')
       modalBackdrop.classList.add('active')
     }
@@ -4169,7 +4122,7 @@
     let dealTiers = []
 
     function productCodeText (p) {
-      const code = String(p?.plu || '').trim()
+      const code = p?.plu || p?.barcode || ''
       return code ? `PLU ${code}` : ''
     }
 
@@ -4267,7 +4220,7 @@
         $('#dStartDate').value = deal.start_date || ''
         $('#dEndDate').value = deal.end_date || ''
         const prods = await window.pos.getDealProducts(deal.id)
-        dealProducts = prods.map(p => ({ id: p.product_id, name: p.product_name, price: p.price, plu: p.plu || '' }))
+        dealProducts = prods.map(p => ({ id: p.product_id, name: p.product_name, price: p.price, plu: p.plu || p.barcode || '' }))
         $('#dDeleteBtn').style.display = 'inline-block'
       } else {
         $('#dealEditTitle').textContent = 'New Deal'
@@ -4281,7 +4234,6 @@
       renderDealTiers()
       renderDealProducts()
       openModal('dealEditPanel')
-      $('#dName').focus()
     }
 
     function renderDealProducts () {
@@ -4296,10 +4248,6 @@
         : '<span style="color:var(--text-dim);font-size:12px">No products added yet</span>'
     }
 
-    function dealProductsMissingPlu () {
-      return dealProducts.filter(p => !String(p.plu || '').trim())
-    }
-
     $('#dealProductList').addEventListener('click', e => {
       const rm = e.target.closest('[data-remove-dp]')
       if (!rm) return
@@ -4312,8 +4260,7 @@
       if (q.length < 2) { $('#dealProductResults').innerHTML = ''; return }
       const results = await window.pos.searchProducts(q)
       $('#dealProductResults').innerHTML = results.slice(0, 10).map(p => {
-        const hasPlu = !!String(p.plu || '').trim()
-        return `<div style="padding:6px 8px;cursor:${hasPlu ? 'pointer' : 'not-allowed'};border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px;${hasPlu ? '' : 'opacity:.55'}" data-add-dp="${esc(p.id)}" data-dp-name="${esc(p.name)}" data-dp-price="${p.price}" data-dp-plu="${esc(p.plu || '')}" data-missing-plu="${hasPlu ? '0' : '1'}">
+        return `<div style="padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px" data-add-dp="${esc(p.id)}" data-dp-name="${esc(p.name)}" data-dp-price="${p.price}" data-dp-plu="${esc(p.plu || p.barcode || '')}">
           <span style="flex:1">${esc(p.name)}</span>
           ${productCodeHtml(p)}
           <span style="color:var(--green);font-weight:600;font-size:12px">${money(p.active_price ?? p.price)}</span>
@@ -4324,10 +4271,6 @@
     $('#dealProductResults').addEventListener('click', e => {
       const row = e.target.closest('[data-add-dp]')
       if (!row) return
-      if (row.dataset.missingPlu === '1' || !String(row.dataset.dpPlu || '').trim()) {
-        showToast('Add a PLU to this product before using it in a deal', 'error')
-        return
-      }
       const id = row.dataset.addDp
       if (dealProducts.find(p => p.id === id)) return
       dealProducts.push({ id, name: row.dataset.dpName, price: parseFloat(row.dataset.dpPrice), plu: row.dataset.dpPlu || '' })
@@ -4342,17 +4285,6 @@
       if (!dealTiers.length || dealTiers.some(t => !t.qty || t.qty < 1)) {
         showToast('Each tier needs a quantity of at least 1', 'error'); return
       }
-      if (!dealProducts.length) {
-        showToast('Add at least one product with a PLU before saving this deal', 'error')
-        $('#dealProductSearch').focus()
-        return
-      }
-      const missingPlu = dealProductsMissingPlu()
-      if (missingPlu.length) {
-        const names = missingPlu.slice(0, 3).map(p => p.name || 'Product').join(', ')
-        showToast(`Add PLUs before saving: ${names}${missingPlu.length > 3 ? '...' : ''}`, 'error')
-        return
-      }
       const tiers = dealTiers.sort((a, b) => a.qty - b.qty)
       const config = { tiers }
 
@@ -4366,8 +4298,10 @@
       }
       const res = await window.pos.upsertDeal(deal)
       if (res?.error) { showToast(res.error, 'error'); return }
-      const linkRes = await window.pos.setDealProducts(res.id || deal.id, dealProducts.map(p => p.id))
-      if (linkRes?.error) { showToast(linkRes.error, 'error'); return }
+      if (dealProducts.length) {
+        const linkRes = await window.pos.setDealProducts(res.id || deal.id, dealProducts.map(p => p.id))
+        if (linkRes?.error) { showToast(linkRes.error, 'error'); return }
+      }
       showToast(`Deal "${name}" saved`, 'success')
       closeModal('dealEditPanel')
       loadDeals()
@@ -4648,28 +4582,34 @@
     }
 
     async function loadCashDrawer () {
-      if (!$('#cdDate').value) $('#cdDate').value = localDateInputValue()
-      const selectedDate = $('#cdDate').value
+      const today = new Date().toISOString().slice(0, 10)
       const tillFilter = $('#cdTillSelect').value || null
-      const scope = { date: selectedDate, register_id: tillFilter }
       const [summary, log] = await Promise.all([
-        window.pos.getCashDrawerSummary(scope),
-        window.pos.getCashDrawerLog(scope)
+        window.pos.getCashDrawerSummary(today),
+        window.pos.getCashDrawerLog(today)
       ])
 
-      const filteredLog = log
+      const filteredLog = tillFilter ? log.filter(e => e.register_id === tillFilter) : log
 
-      $('#cdFloat').textContent = money(summary.float)
-      $('#cdExpected').textContent = money(summary.expected)
+      const floatTotal = filteredLog.filter(e => e.action === 'float').reduce((s, e) => s + (e.amount || 0), 0)
+      const pickupTotal = filteredLog.filter(e => e.action === 'pickup').reduce((s, e) => s + (e.amount || 0), 0)
+      const dropTotal = filteredLog.filter(e => e.action === 'drop').reduce((s, e) => s + (e.amount || 0), 0)
+
+      if (tillFilter) {
+        $('#cdFloat').textContent = money(floatTotal)
+        $('#cdExpected').textContent = money(floatTotal + summary.cash_sales - pickupTotal + dropTotal)
+      } else {
+        $('#cdFloat').textContent = money(summary.float)
+        $('#cdExpected').textContent = money(summary.expected)
+      }
       $('#cdCashSales').textContent = money(summary.cash_sales)
-      $('#cdLogTitle').textContent = `Drawer Log - ${selectedDate}${tillFilter ? ` - ${tillFilter}` : ''}`
 
       if (filteredLog.length) {
         const actionLabels = { float: 'Open Float', pickup: 'Cash Pickup', drop: 'Cash Drop', close: 'Close/EOD', open: 'Drawer Open' }
         $('#cdLogTable').innerHTML = filteredLog.map(e => {
-          const dt = parseDbDate(e.created_at)
+          const dt = new Date(e.created_at + 'Z')
           return `<tr>
-            <td>${dt ? dt.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+            <td>${dt.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</td>
             <td>${esc(e.register_id || '-')}</td>
             <td><span class="badge badge-green">${esc(actionLabels[e.action] || e.action)}</span></td>
             <td>${e.amount != null ? money(e.amount) : '-'}</td>
@@ -4678,21 +4618,9 @@
           </tr>`
         }).join('')
       } else {
-        $('#cdLogTable').innerHTML = '<tr><td colspan="6" style="color:var(--text-dim)">No entries for this date</td></tr>'
+        $('#cdLogTable').innerHTML = '<tr><td colspan="6" style="color:var(--text-dim)">No entries today</td></tr>'
       }
     }
-
-    $('#cdDate').addEventListener('change', loadCashDrawer)
-    $('#cdToday').addEventListener('click', () => {
-      $('#cdDate').value = localDateInputValue()
-      loadCashDrawer()
-    })
-    $('#cdYesterday').addEventListener('click', () => {
-      const d = new Date()
-      d.setDate(d.getDate() - 1)
-      $('#cdDate').value = localDateInputValue(d)
-      loadCashDrawer()
-    })
 
     $('#cdTillSelect').addEventListener('change', () => {
       loadCashDrawer()
@@ -5130,6 +5058,36 @@
       showToast(oldHardwareConfigVersion !== newHardwareConfigVersion ? 'App settings saved. Restart YieldPOS to switch hardware config.' : 'App settings saved', 'success')
     })
 
+    $('#updateAppBtn').addEventListener('click', async () => {
+      const btn = $('#updateAppBtn')
+      const status = $('#updateStatus')
+      const log = $('#updateLog')
+      btn.disabled = true
+      btn.textContent = 'Updating...'
+      status.textContent = 'Checking GitHub for updates...'
+      log.style.display = 'block'
+      log.textContent = ''
+      try {
+        const result = await window.pos.updateApp()
+        log.textContent = result.log || ''
+        if (result.updated) {
+          status.innerHTML = '<span style="color:var(--green)">Update staged. Closing to apply...</span>'
+          showToast('Update staged - YieldPOS will restart', 'success')
+        } else if (result.upToDate) {
+          status.innerHTML = '<span style="color:var(--green)">Already up to date</span>'
+          showToast('Already on the latest version', 'info')
+        } else {
+          status.innerHTML = `<span style="color:var(--red)">Update failed</span>`
+          showToast(result.error || 'Update failed', 'error')
+        }
+      } catch (e) {
+        status.innerHTML = `<span style="color:var(--red)">Error: ${esc(e.message)}</span>`
+        log.textContent = e.message
+      }
+      btn.disabled = false
+      btn.textContent = 'Check for Updates'
+    })
+
     $('#saveSupaBtn').addEventListener('click', async () => {
       if (appModeInfo.isRegisterApp) return
       const url = $('#setSupaUrl').value.trim()
@@ -5143,10 +5101,10 @@
       try {
         const ok = await initSync(url, key)
         if (ok) {
-          showToast('Connected. Local database remains the source of truth.', 'success')
-          $('#pushNowBtn').style.display = 'inline-block'
+          showToast('Connected! Syncing products...', 'info')
+          const { categories: catCount, products: prodCount } = await pullFull()
+          showToast(`Synced ${catCount} categories, ${prodCount} products`, 'success')
           $('#pullNowBtn').style.display = 'inline-block'
-          $('#supaStatus').textContent = 'Connected'
           loadProducts()
         } else {
           showToast('Credentials saved but connection failed', 'error')
@@ -5160,36 +5118,10 @@
     {
       const s = await window.pos.getAllSettings()
       if (!appModeInfo.isRegisterApp && s.supabase_url && s.supabase_anon_key && s.lan_mode !== 'client') {
-        $('#pushNowBtn').style.display = 'inline-block'
         $('#pullNowBtn').style.display = 'inline-block'
         $('#supaStatus').textContent = 'Connected'
       }
     }
-
-    $('#pushNowBtn').addEventListener('click', async () => {
-      if (appModeInfo.isRegisterApp) return
-      const s = await window.pos.getAllSettings()
-      try {
-        const ok = await initSync(s.supabase_url, s.supabase_anon_key)
-        if (!ok) { showToast('Connection failed', 'error'); return }
-        $('#pushNowBtn').disabled = true
-        $('#pullNowBtn').disabled = true
-        $('#supaStatus').textContent = 'Pushing local database...'
-        const result = await pushLocalSnapshot()
-        if (!result) { showToast('Connection failed', 'error'); $('#supaStatus').textContent = 'Push failed'; return }
-        const productCount = result.products || 0
-        const keyboardCount = result.keyboard_buttons || 0
-        const txnCount = result.transactions || 0
-        showToast(`Pushed ${productCount} products, ${keyboardCount} buttons, ${txnCount} sales to Supabase`, 'success')
-        $('#supaStatus').textContent = `Last push: ${new Date().toLocaleTimeString()}`
-      } catch (e) {
-        showToast('Push failed: ' + e.message, 'error')
-        $('#supaStatus').textContent = 'Push failed'
-      } finally {
-        $('#pushNowBtn').disabled = false
-        $('#pullNowBtn').disabled = false
-      }
-    })
 
     $('#pullNowBtn').addEventListener('click', async () => {
       if (appModeInfo.isRegisterApp) return
@@ -5197,8 +5129,6 @@
       try {
         const ok = await initSync(s.supabase_url, s.supabase_anon_key)
         if (!ok) { showToast('Connection failed', 'error'); return }
-        $('#pushNowBtn').disabled = true
-        $('#pullNowBtn').disabled = true
         $('#supaStatus').textContent = 'Pulling...'
         const { categories: catCount, products: prodCount } = await pullAll()
         showToast(`Synced ${catCount} categories, ${prodCount} products from Supabase`, 'success')
@@ -5207,9 +5137,6 @@
       } catch (e) {
         showToast('Pull failed: ' + e.message, 'error')
         $('#supaStatus').textContent = 'Pull failed'
-      } finally {
-        $('#pushNowBtn').disabled = false
-        $('#pullNowBtn').disabled = false
       }
     })
 
@@ -5388,7 +5315,7 @@
     // ── Audit Log ────────────────────────────────────────────────────
 
     async function loadAuditLog () {
-      const today = localDateInputValue()
+      const today = new Date().toISOString().slice(0, 10)
       $('#auditDate').value = today
       await searchAuditLog()
     }
@@ -5406,17 +5333,16 @@
         return
       }
       body.innerHTML = rows.map(r => {
-        const t = parseDbDate(r.created_at)
-        const actionLabel = auditActionLabels[r.action] || r.action
-        const badgeClass = r.action.includes('void') || r.action.includes('refund') || r.action.includes('delete')
-          ? 'badge-red'
-          : r.action.includes('discount') || r.action.includes('price') || r.action.includes('cash')
-            ? 'badge-yellow'
-            : 'badge-green'
+        const t = new Date(r.created_at + 'Z')
+        const actionLabel = {
+          void_item: 'Void Item', no_sale: 'No Sale', discount_sale: 'Discount (Sale)',
+          discount_item: 'Discount (Item)', price_change: 'Price Change', refund: 'Refund',
+          settings_change: 'Settings Change'
+        }[r.action] || r.action
         return `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:8px;white-space:nowrap">${t ? t.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-          <td style="padding:8px">${esc(r.staff_name || 'System')}</td>
-          <td style="padding:8px"><span class="badge ${badgeClass}" style="font-size:11px">${esc(actionLabel)}</span></td>
+          <td style="padding:8px;white-space:nowrap">${t.toLocaleTimeString()}</td>
+          <td style="padding:8px">${esc(r.staff_name || 'Unknown')}</td>
+          <td style="padding:8px"><span class="badge ${r.action.includes('void') || r.action.includes('refund') ? 'badge-red' : r.action.includes('discount') ? 'badge-yellow' : ''}" style="font-size:11px">${esc(actionLabel)}</span></td>
           <td style="padding:8px">${esc(r.detail || '')}</td>
         </tr>`
       }).join('')
@@ -5424,14 +5350,7 @@
 
     $('#auditSearchBtn').addEventListener('click', searchAuditLog)
     $('#auditTodayBtn').addEventListener('click', () => {
-      $('#auditDate').value = localDateInputValue()
-      $('#auditAction').value = ''
-      searchAuditLog()
-    })
-    $('#auditYesterdayBtn').addEventListener('click', () => {
-      const d = new Date()
-      d.setDate(d.getDate() - 1)
-      $('#auditDate').value = localDateInputValue(d)
+      $('#auditDate').value = new Date().toISOString().slice(0, 10)
       $('#auditAction').value = ''
       searchAuditLog()
     })
@@ -5458,10 +5377,6 @@
       }
       if ($('#pullNowBtn')) {
         $('#pullNowBtn').style.display = (showSupabase && s.supabase_url && s.supabase_anon_key && mode !== 'client') ? 'inline-block' : 'none'
-      }
-      if ($('#pushNowBtn')) {
-        $('#pushNowBtn').style.display = (showSupabase && s.supabase_url && s.supabase_anon_key && mode !== 'client') ? 'inline-block' : 'none'
-        $('#pushNowBtn').disabled = !showSupabase || mode === 'client'
       }
       if ($('#supaStatus')) {
         $('#supaStatus').textContent = s.supabase_url && s.supabase_anon_key ? (mode === 'client' ? 'Managed on server' : 'Configured') : 'Not configured'
@@ -6291,12 +6206,6 @@
     let dragSelCurrent = null
     let dragSelJustFinished = false
     let activeSelRange = null
-    let keyboardReloadPending = false
-    let kbEditorDirty = false
-    let kbEditorHydrating = false
-    let kbEditorLoadSeq = 0
-    let kbSuppressNextGridClick = false
-    const KB_DRAG_THRESHOLD_PX = 8
 
     // ── Load & Init ────────────────────────────────────────────────
 
@@ -6311,19 +6220,6 @@
       $('#kbCurrentPageLabel').textContent = info.name || `Page ${currentPage}`
     }
 
-    function isKeyboardEditPanelOpen () {
-      return $('#kbEditPanel')?.classList.contains('active')
-    }
-
-    function markKeyboardEditorDirty () {
-      if (!kbEditorHydrating) kbEditorDirty = true
-    }
-
-    function isKeyboardWorkInProgress () {
-      const focusedEditorControl = document.activeElement?.closest?.('#tab-keyboard input, #tab-keyboard textarea, #tab-keyboard select')
-      return isKeyboardEditPanelOpen() || !!focusedEditorControl || isDragSelecting || bulkDragging || singleDragging
-    }
-
     async function savePageSize () {
       await window.pos.updatePageSize(currentPage, gridCols, gridRows)
       const info = getPageInfo(currentPage)
@@ -6332,10 +6228,6 @@
 
     async function loadKeyboard (opts = {}) {
       const preserveEditor = !!opts.preserveEditor
-      if (preserveEditor && isKeyboardWorkInProgress()) {
-        keyboardReloadPending = true
-        return
-      }
       const editorWasOpen = preserveEditor && $('#kbEditPanel')?.classList.contains('active')
       const selectedBeforeReload = selectedBtnId
       kbButtons = await window.pos.getAllButtons()
@@ -6349,7 +6241,7 @@
       applyPageSize()
       renderPageTree()
       renderGrid()
-      if (!editorWasOpen || !selectedStillExists) closeEditPanel({ skipPendingReload: true })
+      if (!editorWasOpen || !selectedStillExists) closeEditPanel()
 
       const cats = await window.pos.getCategories()
       $('#kbCatList').innerHTML = cats.map(c => `<option value="${esc(c.name)}">`).join('') + '<option value="__all__">'
@@ -7162,10 +7054,6 @@
     // ── Grid Click & Drag ──────────────────────────────────────────
 
     $('#kbGrid').addEventListener('click', e => {
-      if (kbSuppressNextGridClick) {
-        kbSuppressNextGridClick = false
-        return
-      }
       if (dragSelJustFinished) return
       const cell = e.target.closest('.kb-cell')
       if (!cell) return
@@ -7209,7 +7097,6 @@
     let bulkDragging = false
     let bulkDragAnchor = null   // {row, col} of the grabbed button
     let bulkDragOffset = null   // {dr, dc} current offset from anchor
-    let bulkDragStartClient = null
     let bulkGhostEls = []       // ghost div elements
 
     function getCellFromPoint (x, y) {
@@ -7313,15 +7200,12 @@
         bulkDragClickId = id
         bulkDragAnchor = { row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col) }
         bulkDragOffset = { dr: 0, dc: 0 }
-        bulkDragStartClient = { x: e.clientX, y: e.clientY }
         $('#kbGrid').style.position = 'relative'
       }
     })
 
     document.addEventListener('mousemove', e => {
       if (!bulkDragging) return
-      const movedPx = bulkDragStartClient ? Math.hypot(e.clientX - bulkDragStartClient.x, e.clientY - bulkDragStartClient.y) : 0
-      if (movedPx < KB_DRAG_THRESHOLD_PX) return
       const pos = getCellFromPoint(e.clientX, e.clientY)
       const dr = pos.row - bulkDragAnchor.row
       const dc = pos.col - bulkDragAnchor.col
@@ -7343,7 +7227,6 @@
       if (bulkDragMoved) {
         const { dr, dc } = bulkDragOffset
         if (dr !== 0 || dc !== 0) {
-          kbSuppressNextGridClick = true
           await bulkMove(dr, dc)
         }
       } else if (bulkDragClickId) {
@@ -7354,7 +7237,6 @@
       bulkDragOffset = null
       bulkDragAnchor = null
       bulkDragClickId = null
-      bulkDragStartClient = null
     })
 
     // Single-button drag — also uses custom mouse approach for proper size preview
@@ -7365,7 +7247,6 @@
     let singleDragging = false
     let singleDragBtn = null
     let singleDragAnchor = null
-    let singleDragStartClient = null
     let singleDragMoved = false
 
     $('#kbGrid').addEventListener('mousedown', e => {
@@ -7380,14 +7261,11 @@
       singleDragMoved = false
       singleDragBtn = btn
       singleDragAnchor = { row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col) }
-      singleDragStartClient = { x: e.clientX, y: e.clientY }
       e.preventDefault()
     })
 
     document.addEventListener('mousemove', e => {
       if (!singleDragging || !singleDragBtn) return
-      const movedPx = singleDragStartClient ? Math.hypot(e.clientX - singleDragStartClient.x, e.clientY - singleDragStartClient.y) : 0
-      if (movedPx < KB_DRAG_THRESHOLD_PX) return
       const pos = getCellFromPoint(e.clientX, e.clientY)
       const dr = pos.row - singleDragAnchor.row
       const dc = pos.col - singleDragAnchor.col
@@ -7431,13 +7309,11 @@
             kbButtons = await window.pos.getAllButtons()
             renderGrid()
             showToast('Button moved', 'success')
-            kbSuppressNextGridClick = true
           }
         }
       }
       singleDragBtn = null
       singleDragAnchor = null
-      singleDragStartClient = null
     })
 
     // ── Drag-Select Empty Cells ────────────────────────────────────
@@ -7610,8 +7486,6 @@
     }
 
     function openNewButton (row, col) {
-      kbEditorHydrating = true
-      kbEditorLoadSeq++
       selectedBtnId = null
       $('#kbEditId').value = ''
       $('#kbLabel').value = ''
@@ -7642,13 +7516,9 @@
       updateTypeFields()
       updateLivePreview()
       updateImageRemoveButton()
-      kbEditorDirty = false
-      kbEditorHydrating = false
     }
 
     function openEditPanel (btn) {
-      const loadToken = ++kbEditorLoadSeq
-      kbEditorHydrating = true
       $('#kbEditId').value = btn.id
       $('#kbLabel').value = labelFromDb(btn.label) || btn.product_name || ''
       // Linked sellable keys are database products; standalone fixed/open keys keep their own type.
@@ -7680,7 +7550,6 @@
       $('#kbProductPrice').value = 0
       if (linkedProductRef) {
         window.pos.getProductById(linkedProductRef).then(async p => p || await window.pos.getProductByBarcode(linkedProductRef)).then(p => {
-          if (loadToken !== kbEditorLoadSeq || kbEditorDirty || $('#kbEditId').value !== btn.id) return
           if (p) {
             kbFillProductFields(p, { keepOpenPrice: Number(btn.product_open_price || 0) === 1 })
           } else {
@@ -7702,24 +7571,14 @@
         $('#kbTargetPage').value = btn.parent_id
       }
       updateLivePreview()
-      kbEditorDirty = false
-      kbEditorHydrating = false
     }
 
-    function closeEditPanel (opts = {}) {
+    function closeEditPanel () {
       selectedBtnId = null
       activeSelRange = null
-      kbEditorDirty = false
-      kbEditorHydrating = false
-      kbEditorLoadSeq++
-      if (document.activeElement?.closest?.('#kbEditPanel')) document.activeElement.blur()
       $('#kbEditPanel').classList.remove('active')
       hideBulkPanel()
       renderGrid()
-      if (!opts.skipPendingReload && keyboardReloadPending && !isKeyboardWorkInProgress()) {
-        keyboardReloadPending = false
-        loadKeyboard().catch(() => {})
-      }
     }
 
     function updateLivePreview () {
@@ -7763,8 +7622,6 @@
     ;['kbLabel', 'kbBgColor', 'kbColor', 'kbPrice', 'kbProductPrice', 'kbProductPlu'].forEach(id => {
       $(`#${id}`).addEventListener('input', updateLivePreview)
     })
-    $('#kbEditPanel').addEventListener('input', markKeyboardEditorDirty, true)
-    $('#kbEditPanel').addEventListener('change', markKeyboardEditorDirty, true)
     const kbProductPluLookup = debounce(() => { kbResolveTypedPlu({ silent: true, fillLabel: kbShouldFillLabelFromProduct() }).catch(() => {}) }, 300)
     function kbShouldFillLabelFromProduct () {
       return !$('#kbEditId').value || !$('#kbLabel').value.trim()
@@ -7850,7 +7707,6 @@
     $('#kbProductResults').addEventListener('click', e => {
       const item = e.target.closest('.kb-prod-pick')
       if (!item) return
-      markKeyboardEditorDirty()
       $('#kbProductResults').style.display = 'none'
       const fillLabel = !$('#kbEditId').value || !$('#kbLabel').value.trim()
       kbFillProductFields({
@@ -7876,7 +7732,6 @@
     })
 
     $('#kbProductClear').addEventListener('click', () => {
-      markKeyboardEditorDirty()
       clearProductPicker()
       $('#kbPrice').value = 0
       updateTypeFields()
@@ -8962,29 +8817,10 @@
       currentMode = mode
     }
 
-    // -- Touch on-screen keyboard ------------------------------------------
+    // -- On-screen keyboard (register mode) --------------------------------
     let oskTarget = null
     const oskOverlay = $('#oskOverlay')
     const oskPreview = $('#oskPreview')
-    const oskBlockedInputTypes = new Set(['hidden', 'button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'color', 'range', 'date', 'time', 'datetime-local', 'month', 'week'])
-
-    function isOskEditableTarget (target) {
-      if (!target || !target.matches?.('input, textarea')) return false
-      if (target.disabled || target.readOnly) return false
-      const tag = target.tagName
-      const type = (target.type || '').toLowerCase()
-      return tag === 'TEXTAREA' || !oskBlockedInputTypes.has(type)
-    }
-
-    function oskPreviewText (target, value = target?.value || '') {
-      return (target?.type || '').toLowerCase() === 'password' ? '•'.repeat(String(value).length) : value
-    }
-
-    function isOskAllowedNow () {
-      const urlMode = new URLSearchParams(window.location.search).get('mode')
-      return document.body.classList.contains('register-mode') &&
-        (appModeInfo.isRegisterApp || window.__fromRegisterApp || urlMode === 'register')
-    }
 
     function updateOskBottomSpace () {
       const height = oskOverlay?.offsetHeight || 390
@@ -8994,13 +8830,14 @@
     function scrollOskTargetIntoView () {
       if (!oskTarget) return
       updateOskBottomSpace()
+      requestAnimationFrame(() => {
+        try { oskTarget.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' }) } catch (_) {}
+      })
     }
 
     function showOskForTarget (target) {
-      if (!isOskAllowedNow()) return
-      if (!isOskEditableTarget(target)) return
       oskTarget = target
-      if (oskPreview) oskPreview.textContent = oskPreviewText(target)
+      if (oskPreview) oskPreview.textContent = target.value || ''
       oskOverlay.style.display = 'block'
       document.body.classList.add('osk-open')
       updateOskBottomSpace()
@@ -9016,8 +8853,8 @@
     }
 
     document.addEventListener('focusin', e => {
-      if (!isOskAllowedNow()) return
-      if (isOskEditableTarget(e.target)) {
+      if (!document.body.classList.contains('register-mode')) return
+      if (e.target.matches('input[type="text"], input[type="search"], input[type="number"], input:not([type])')) {
         showOskForTarget(e.target)
         if (oskTarget.matches('[data-tier-price], [data-tier-qty]')) {
           setTimeout(() => { try { oskTarget.select() } catch (_) {} }, 0)
@@ -9026,7 +8863,6 @@
     })
 
     document.addEventListener('focusout', e => {
-      if (!document.body.classList.contains('osk-open')) return
       setTimeout(() => {
         if (document.activeElement === oskTarget) return
         if (document.activeElement?.closest('#oskOverlay')) return
@@ -9047,7 +8883,7 @@
 
     function oskSetValue (target, value, cursor) {
       target.value = value
-      if (oskPreview) oskPreview.textContent = oskPreviewText(target, value)
+      if (oskPreview) oskPreview.textContent = value
       try { target.setSelectionRange(cursor, cursor) } catch (_) {}
       target.dispatchEvent(new Event('input', { bubbles: true }))
       scrollOskTargetIntoView()
@@ -9062,9 +8898,8 @@
         return oskSetValue(target, value.slice(0, start - 1) + value.slice(end), start - 1)
       }
 
-      const inputType = (target.type || '').toLowerCase()
       const isQtyField = target.matches('[data-tier-qty]') || target.inputMode === 'numeric'
-      const isDecimalField = target.matches('[data-tier-price]') || target.inputMode === 'decimal' || inputType === 'number'
+      const isDecimalField = target.matches('[data-tier-price]') || target.inputMode === 'decimal'
       if (isQtyField && !/^\d$/.test(key)) return
       if (isDecimalField) {
         if (!/^\d$|^\.$/.test(key)) return

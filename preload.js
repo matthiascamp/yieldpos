@@ -6,9 +6,7 @@ contextBridge.exposeInMainWorld('pos', {
   getProductByBarcode:(code)   => ipcRenderer.invoke('db:products:getByBarcode', code),
   getProductById:     (id)     => ipcRenderer.invoke('db:products:getById', id),
   getProductsByCategory:(catId)=> ipcRenderer.invoke('db:products:getByCategory', catId),
-  getAllProducts:     ()       => ipcRenderer.invoke('db:products:getAll'),
   getCategories:      ()       => ipcRenderer.invoke('db:categories:getAll'),
-  getAllCategories:   ()       => ipcRenderer.invoke('db:categories:getAllIncludingInactive'),
   getNextProductPlu:  ()       => ipcRenderer.invoke('db:products:nextPlu'),
   upsertProduct:      (p)     => ipcRenderer.invoke('db:products:upsert', p),
   upsertCategory:     (c)     => ipcRenderer.invoke('db:categories:upsert', c),
@@ -41,9 +39,6 @@ contextBridge.exposeInMainWorld('pos', {
   getParkedSales:     ()      => ipcRenderer.invoke('db:transaction:getParked'),
   getTransactionItems:(id)    => ipcRenderer.invoke('db:transaction:getItems', id),
   getTransactionPayments:(id) => ipcRenderer.invoke('db:transaction:getPayments', id),
-  getAllTransactions: ()      => ipcRenderer.invoke('db:transaction:getAll'),
-  getAllTransactionItems:()   => ipcRenderer.invoke('db:transaction:getAllItems'),
-  getAllTransactionPayments:() => ipcRenderer.invoke('db:transaction:getAllPayments'),
   deleteTransaction:  (id)    => ipcRenderer.invoke('db:transaction:delete', id),
   searchTransactions: (opts)  => ipcRenderer.invoke('db:transaction:search', opts),
 
@@ -156,7 +151,6 @@ contextBridge.exposeInMainWorld('pos', {
   // Cash Drawer
   logCashDrawer:      (entry) => ipcRenderer.invoke('db:cash_drawer:log', entry),
   getCashDrawerLog:   (date)  => ipcRenderer.invoke('db:cash_drawer:getLog', date),
-  getAllCashDrawer:   ()      => ipcRenderer.invoke('db:cash_drawer:getAll'),
   getCashDrawerSummary:(date) => ipcRenderer.invoke('db:cash_drawer:summary', date),
   bulkUpsertCashDrawer:(arr)  => ipcRenderer.invoke('db:cashDrawer:bulkUpsert', arr),
 
@@ -174,6 +168,8 @@ contextBridge.exposeInMainWorld('pos', {
   setMode:            (mode, role)  => ipcRenderer.invoke('window:setMode', mode, role),
   printHTML:           (html, title) => ipcRenderer.invoke('window:printHTML', html, title),
 
+  // App Update
+  updateApp:          ()      => ipcRenderer.invoke('app:update'),
   getVersion:         ()      => ipcRenderer.invoke('app:version'),
 
   // LAN Sync
