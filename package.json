@@ -48,7 +48,11 @@
       "install-kill-ptpos-task.ps1",
       "kill-ptpos.ps1",
       "reset-runtime-db.cmd",
-      "reset-runtime-db.ps1"
+      "reset-runtime-db.ps1",
+      "save-runtime-db.cmd",
+      "export-runtime-db.cmd",
+      "import-runtime-db.cmd",
+      "yieldpos-db-state.ps1"
     ],
     "files": [
       "main.js",
@@ -64,6 +68,10 @@
       "kill-ptpos.ps1",
       "reset-runtime-db.cmd",
       "reset-runtime-db.ps1",
+      "save-runtime-db.cmd",
+      "export-runtime-db.cmd",
+      "import-runtime-db.cmd",
+      "yieldpos-db-state.ps1",
       "package.json",
       "products.json",
       "keyboard-layout.json",

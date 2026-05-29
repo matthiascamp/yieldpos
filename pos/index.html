@@ -335,35 +335,35 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 .weight-unit{text-align:center;color:#8891a5;margin-bottom:12px;font-size:13px}
 
 /* ═══ PIN Login ═══════════════════════════════════════════════════ */
-.login-overlay{position:fixed;inset:0;background:radial-gradient(circle at 50% 28%,rgba(240,216,156,.18),transparent 24%),radial-gradient(circle at 18% 10%,rgba(120,145,107,.13),transparent 30%),linear-gradient(180deg,#102418 0%,#08150f 58%,#020604 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200}
+.login-overlay{position:fixed;inset:0;background:radial-gradient(circle at 50% 28%,rgba(240,216,156,.20),transparent 24%),radial-gradient(circle at 52% 28%,rgba(247,240,220,.10),transparent 16%),radial-gradient(circle at 18% 10%,rgba(137,159,115,.13),transparent 30%),linear-gradient(180deg,#102418 0%,#08150f 58%,#020604 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200}
 .login-overlay.hidden{display:none}
+.login-phase{display:flex;flex-direction:column;align-items:center;animation:loginFadeIn 320ms ease both}
+@keyframes loginFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .login-logo{width:100px;height:100px;margin-bottom:16px;object-fit:cover;border-radius:50%;filter:drop-shadow(0 0 26px rgba(205,167,95,.24)) drop-shadow(0 8px 20px rgba(0,0,0,.38));box-shadow:0 0 0 1px rgba(205,167,95,.24)}
 .login-store{font-family:'Inter',system-ui,sans-serif;font-size:1.5rem;font-weight:900;color:var(--bound-cream);margin-bottom:4px;letter-spacing:-.04em;text-shadow:0 0 22px rgba(205,167,95,.25)}
-.login-subtitle{color:rgba(248,244,234,.6);margin-bottom:32px;font-size:13px}
+.login-subtitle{color:rgba(248,244,234,.5);margin-bottom:28px;font-size:13px;letter-spacing:.04em}
 .pin-display{font-size:2rem;letter-spacing:14px;margin-bottom:24px;min-height:40px;color:var(--bound-gold-bright);font-weight:700;text-shadow:0 0 18px rgba(205,167,95,.2)}
 .pin-pad{display:grid;grid-template-columns:repeat(3,clamp(82px,8.8vw,112px));gap:clamp(8px,1vw,12px)}
-.pin-btn{width:clamp(82px,8.8vw,112px);height:clamp(68px,8.4vh,92px);border-radius:14px;border:1px solid rgba(205,167,95,.28);background:#123c27;color:var(--bound-cream);font-size:clamp(1.35rem,2vw,1.75rem);font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .1s,filter .1s,background .1s}
-.pin-btn:active{background:#0d2216;transform:scale(.97)}
-.pin-btn.enter{background:#2e6b45;color:var(--bound-cream);border-color:rgba(240,216,156,.32)}
-.pin-btn.enter:active{background:#123c27}
-.pin-btn.clear{color:var(--bound-cream);font-size:clamp(1rem,1.45vw,1.25rem);font-weight:800;background:#6b4a32}
-.login-error{margin-top:16px;color:#f0d89c;font-size:13px;min-height:20px;font-weight:600}
-#floatOverlay{background:rgba(8,15,11,.88)}
-.float-panel{width:min(340px,92vw);padding:24px 22px;border-radius:16px;background:#fffdf7;border:1px solid rgba(205,167,95,.28);text-align:center;box-shadow:0 22px 60px rgba(0,0,0,.36)}
-.float-symbol{width:48px;height:48px;margin:0 auto 10px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#123c27;color:#f8f4ea;font-size:24px;font-weight:900;box-shadow:0 10px 22px rgba(18,60,39,.24)}
-.float-title{font-size:18px;font-weight:800;color:#0b2418;margin-bottom:4px}
-.float-copy{font-size:13px;color:#5e6b61;margin-bottom:18px;line-height:1.35}
-.float-suggested{font-size:12px;font-weight:800;color:#1f5d3c;background:#f8f4ea;border:1px solid #efe6d2;border-radius:8px;padding:8px 10px;margin-bottom:10px}
-.float-display{font-size:32px;font-weight:800;color:#123c27;background:#f8f4ea;border:2px solid #78916b;border-radius:10px;padding:12px;margin-bottom:14px;min-height:48px;letter-spacing:1px}
-.float-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
-.float-key{width:100%;height:56px;min-width:0;border-radius:10px;border:1px solid #efe6d2;background:#f8f4ea;color:#0b2418;font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 3px 10px rgba(11,36,24,.08);transition:transform .1s,background .1s,filter .1s;touch-action:manipulation}
-.float-key:active{background:#efe6d2;transform:scale(.97)}
-.float-key.clear{background:#6b4a32;color:#f8f4ea;border-color:#6b4a32}
-.float-key.double-zero{background:#1f5d3c;color:#f8f4ea;border-color:#1f5d3c}
-.float-actions{display:flex;gap:8px}
-.float-action{min-height:46px;border-radius:9px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation}
-.float-skip{flex:1;border:1px solid #efe6d2;background:#f8f4ea;color:#5e6b61}
-.float-confirm{flex:2;border:0;background:#123c27;color:#f8f4ea}
+.pin-btn{width:clamp(82px,8.8vw,112px);height:clamp(68px,8.4vh,92px);border-radius:14px;border:1px solid rgba(205,167,95,.18);background:rgba(16,36,24,.6);color:var(--bound-cream);font-size:clamp(1.35rem,2vw,1.75rem);font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .1s,background .1s;backdrop-filter:blur(8px)}
+.pin-btn:active{background:rgba(205,167,95,.14);transform:scale(.97)}
+.pin-btn.enter{background:rgba(205,167,95,.15);color:var(--bound-gold-bright);border-color:rgba(205,167,95,.36);box-shadow:0 6px 16px rgba(0,0,0,.32),0 0 14px rgba(205,167,95,.08),inset 0 1px 0 rgba(255,255,255,.06)}
+.pin-btn.enter:active{background:rgba(205,167,95,.28)}
+.pin-btn.clear{color:rgba(248,244,234,.55);font-size:clamp(1rem,1.45vw,1.25rem);font-weight:700;background:rgba(248,244,234,.04);border-color:rgba(248,244,234,.12)}
+.login-error{margin-top:16px;color:#fca5a5;font-size:13px;min-height:20px;font-weight:600}
+.float-phase .float-icon-wrap{width:52px;height:52px;margin-bottom:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(240,216,156,.22),rgba(205,167,95,.08) 60%);border:1px solid rgba(205,167,95,.28);box-shadow:0 0 30px rgba(205,167,95,.12)}
+.float-phase .float-icon{color:var(--bound-gold-bright);font-size:24px;font-weight:900;text-shadow:0 0 12px rgba(205,167,95,.3)}
+.float-title{font-family:'Inter',system-ui,sans-serif;font-size:1.3rem;font-weight:900;color:var(--bound-cream);margin-bottom:2px;letter-spacing:-.03em;text-shadow:0 0 22px rgba(205,167,95,.18)}
+.float-copy{font-size:12px;color:rgba(248,244,234,.42);margin-bottom:20px;letter-spacing:.03em}
+.float-suggested{font-size:11px;font-weight:700;color:var(--bound-gold);background:rgba(205,167,95,.08);border:1px solid rgba(205,167,95,.18);border-radius:8px;padding:7px 12px;margin-bottom:10px;letter-spacing:.02em}
+.float-display{font-size:2rem;font-weight:800;color:var(--bound-gold-bright);background:rgba(205,167,95,.05);border:1px solid rgba(205,167,95,.22);border-radius:12px;padding:12px;margin-bottom:16px;min-height:48px;letter-spacing:1px;text-shadow:0 0 18px rgba(205,167,95,.18)}
+.float-pad{display:grid;grid-template-columns:repeat(3,clamp(82px,8.8vw,112px));gap:clamp(8px,1vw,12px);margin-bottom:14px}
+.float-pad .pin-btn{touch-action:manipulation}
+.float-pad .pin-btn.double-zero{background:rgba(205,167,95,.12);color:var(--bound-gold-bright);border-color:rgba(205,167,95,.28)}
+.float-actions{display:flex;gap:10px;width:100%;max-width:calc(clamp(82px,8.8vw,112px) * 3 + clamp(8px,1vw,12px) * 2)}
+.float-action{min-height:clamp(42px,5.5vh,52px);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;transition:transform .1s,background .1s}
+.float-action:active{transform:scale(.97)}
+.float-skip{flex:1;border:1px solid rgba(248,244,234,.12);background:rgba(248,244,234,.04);color:rgba(248,244,234,.5)}
+.float-confirm{flex:2;border:1px solid rgba(205,167,95,.32);background:rgba(205,167,95,.15);color:var(--bound-gold-bright);box-shadow:0 0 14px rgba(205,167,95,.08)}
 
 /* ═══ Sale Complete & Toast ══════════════════════════════════════ */
 .sale-complete{position:fixed;inset:0;background:rgba(15,17,23,.5);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:150}
@@ -449,38 +449,38 @@ body.osk-open .modal-overlay.show .modal{margin-bottom:var(--osk-bottom-space,38
 </head>
 <body>
 
-<!-- ═══ PIN Login ═══════════════════════════════════════════════════ -->
+<!-- ═══ PIN Login + Float (unified overlay) ════════════════════════ -->
 <div class="login-overlay" id="loginOverlay">
-  <img src="YieldPOS.png" class="login-logo company-logo" alt="" style="width:140px;height:140px">
-  <div class="login-store" id="loginStoreName"></div>
-  <div class="login-subtitle">Enter your PIN to start</div>
-  <div class="pin-display" id="pinDisplay"></div>
-  <div class="pin-pad" id="pinPad">
-    <button class="pin-btn" data-val="1">1</button><button class="pin-btn" data-val="2">2</button><button class="pin-btn" data-val="3">3</button>
-    <button class="pin-btn" data-val="4">4</button><button class="pin-btn" data-val="5">5</button><button class="pin-btn" data-val="6">6</button>
-    <button class="pin-btn" data-val="7">7</button><button class="pin-btn" data-val="8">8</button><button class="pin-btn" data-val="9">9</button>
-    <button class="pin-btn clear" data-val="C">CLR</button><button class="pin-btn" data-val="0">0</button><button class="pin-btn enter" data-val="OK">GO</button>
+  <!-- PIN phase -->
+  <div class="login-phase" id="pinPhase">
+    <img src="YieldPOS.png" class="login-logo company-logo" alt="" style="width:140px;height:140px">
+    <div class="login-store" id="loginStoreName"></div>
+    <div class="login-subtitle">Enter your PIN to start</div>
+    <div class="pin-display" id="pinDisplay"></div>
+    <div class="pin-pad" id="pinPad">
+      <button class="pin-btn" data-val="1">1</button><button class="pin-btn" data-val="2">2</button><button class="pin-btn" data-val="3">3</button>
+      <button class="pin-btn" data-val="4">4</button><button class="pin-btn" data-val="5">5</button><button class="pin-btn" data-val="6">6</button>
+      <button class="pin-btn" data-val="7">7</button><button class="pin-btn" data-val="8">8</button><button class="pin-btn" data-val="9">9</button>
+      <button class="pin-btn clear" data-val="C">CLR</button><button class="pin-btn" data-val="0">0</button><button class="pin-btn enter" data-val="OK">GO</button>
+    </div>
+    <div class="login-error" id="loginError"></div>
   </div>
-  <div class="login-error" id="loginError"></div>
-</div>
-
-<!-- ═══ Float Entry Modal ══════════════════════════════════════════ -->
-<div class="login-overlay hidden" id="floatOverlay">
-  <div class="float-panel">
-    <div class="float-symbol">$</div>
-    <div class="float-title">Enter Drawer Float</div>
-    <div class="float-copy">Count the cash in the drawer and enter the total amount.</div>
+  <!-- Float phase (same overlay, crossfades in) -->
+  <div class="login-phase float-phase" id="floatPhase" style="display:none">
+    <div class="float-icon-wrap"><span class="float-icon">$</span></div>
+    <div class="float-title">Drawer Float</div>
+    <div class="float-copy">Count the cash and enter the total</div>
     <div id="floatSuggested" class="float-suggested">Suggested start float: $0.00</div>
     <div id="floatDisplay" class="float-display">$0.00</div>
     <div class="float-pad" id="floatPad">
-      <button class="float-key" data-val="1">1</button><button class="float-key" data-val="2">2</button><button class="float-key" data-val="3">3</button>
-      <button class="float-key" data-val="4">4</button><button class="float-key" data-val="5">5</button><button class="float-key" data-val="6">6</button>
-      <button class="float-key" data-val="7">7</button><button class="float-key" data-val="8">8</button><button class="float-key" data-val="9">9</button>
-      <button class="float-key clear" data-val="C">CLR</button><button class="float-key" data-val="0">0</button><button class="float-key double-zero" data-val="00">00</button>
+      <button class="pin-btn float-key" data-val="1">1</button><button class="pin-btn float-key" data-val="2">2</button><button class="pin-btn float-key" data-val="3">3</button>
+      <button class="pin-btn float-key" data-val="4">4</button><button class="pin-btn float-key" data-val="5">5</button><button class="pin-btn float-key" data-val="6">6</button>
+      <button class="pin-btn float-key" data-val="7">7</button><button class="pin-btn float-key" data-val="8">8</button><button class="pin-btn float-key" data-val="9">9</button>
+      <button class="pin-btn float-key clear" data-val="C">CLR</button><button class="pin-btn float-key" data-val="0">0</button><button class="pin-btn float-key double-zero" data-val="00">00</button>
     </div>
     <div class="float-actions">
       <button id="floatSkipBtn" class="float-action float-skip">Skip</button>
-      <button id="floatConfirmBtn" class="float-action float-confirm">Confirm Float</button>
+      <button id="floatConfirmBtn" class="float-action float-confirm">Confirm</button>
     </div>
   </div>
 </div>
@@ -1689,7 +1689,7 @@ function setFloatRequiredForShift (required) {
 
 async function maybeShowFloatPrompt () {
   if (await isFloatRequiredForShift()) await showFloatPrompt()
-  else si.focus()
+  else dismissLoginOverlay()
 }
 
 function showLogin () {
@@ -1703,7 +1703,8 @@ function showLogin () {
   pinBuf = ''
   $('#pinDisplay').textContent = ''
   $('#loginError').textContent = ''
-  $('#floatOverlay').classList.add('hidden')
+  $('#floatPhase').style.display = 'none'
+  $('#pinPhase').style.display = 'flex'
   $('#loginOverlay').classList.remove('hidden')
   $('#staffBadge').textContent = 'Not logged in'
 }
@@ -1711,9 +1712,13 @@ function showLogin () {
 function completeLogin (s) {
   currentStaff = s
   try { localStorage.setItem('tillaroo_staff', JSON.stringify(s)) } catch (_) {}
-  $('#loginOverlay').classList.add('hidden')
   $('#staffBadge').textContent = `${s.name} (${s.role})`
   $('#clerkInfo').textContent = `Clerk: ${s.name.toUpperCase()}`
+}
+function dismissLoginOverlay () {
+  $('#loginOverlay').classList.add('hidden')
+  $('#floatPhase').style.display = 'none'
+  $('#pinPhase').style.display = 'flex'
   si.focus()
 }
 
@@ -1776,7 +1781,7 @@ $('#pinPad').addEventListener('click', async e => {
 // Physical keyboard support for PIN login
 document.addEventListener('keydown', async e => {
   if ($('#loginOverlay').classList.contains('hidden')) return
-  if (!$('#floatOverlay').classList.contains('hidden')) return
+  if ($('#floatPhase').style.display !== 'none') return
   if (e.key >= '0' && e.key <= '9') { e.preventDefault(); pinInput(e.key) }
   else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); pinClear() }
   else if (e.key === 'Enter') { e.preventDefault(); await attemptPinLogin() }
@@ -1849,7 +1854,9 @@ async function showFloatPrompt () {
   $('#floatSuggested').style.display = suggested > 0 ? 'block' : 'none'
   $('#floatSuggested').textContent = suggested > 0 ? `Suggested start float: ${money(suggested)}` : ''
   updateFloatDisplay()
-  $('#floatOverlay').classList.remove('hidden')
+  $('#pinPhase').style.display = 'none'
+  $('#floatPhase').style.display = 'flex'
+  $('#loginOverlay').classList.remove('hidden')
 }
 function updateFloatDisplay () {
   $('#floatDisplay').textContent = money(moneyInputValue(floatBuf))
@@ -1872,8 +1879,7 @@ $('#floatConfirmBtn').addEventListener('click', async () => {
       await window.pos.logCashDrawer({ staff_id: currentStaff?.id, action: 'float', amount, note: `Float: $${amount.toFixed(2)}` })
     }
     setFloatRequiredForShift(false)
-    $('#floatOverlay').classList.add('hidden')
-    si.focus()
+    dismissLoginOverlay()
     if (amount > 0) showToast(`Float set: $${amount.toFixed(2)}`, 'success')
   } catch (e) {
     showToast('Failed to save float', 'error')
@@ -1882,13 +1888,12 @@ $('#floatConfirmBtn').addEventListener('click', async () => {
 
 $('#floatSkipBtn').addEventListener('click', () => {
   setFloatRequiredForShift(false)
-  $('#floatOverlay').classList.add('hidden')
-  si.focus()
+  dismissLoginOverlay()
 })
 
 // Keyboard support for float entry
 document.addEventListener('keydown', e => {
-  if ($('#floatOverlay').classList.contains('hidden')) return
+  if ($('#floatPhase').style.display === 'none') return
   if (e.key >= '0' && e.key <= '9') {
     e.preventDefault()
     if (floatReplaceOnInput) floatBuf = ''
@@ -2986,9 +2991,15 @@ function makePriceDealName (product, tiers) {
   return text ? `${label} ${text}` : `${label} Deal`
 }
 function currentPriceDealUnits (product) {
-  const saved = String(product?.unit || 'each').toLowerCase()
+  const saved = String(product?.unit || 'each').trim().toLowerCase()
   const unitSelect = $('#priceChangeUnit')
-  const selected = product?.id && priceChangeProduct?.id === product.id && unitSelect ? String(unitSelect.value || saved).toLowerCase() : saved
+  const selected = product?.id && priceChangeProduct?.id === product.id && unitSelect ? String(unitSelect.value || saved).trim().toLowerCase() : saved
+  return { saved, selected }
+}
+function currentPriceDealOpenPrice (product) {
+  const saved = Number(product?.open_price || 0) === 1
+  const openToggle = $('#priceChangeOpenPrice')
+  const selected = product?.id && priceChangeProduct?.id === product.id && openToggle ? !!openToggle.checked : saved
   return { saved, selected }
 }
 function priceDealBlockReason (product) {
@@ -2996,6 +3007,9 @@ function priceDealBlockReason (product) {
   const units = currentPriceDealUnits(product)
   if (units.selected !== 'each') return 'Deals are only available for products sold as Each.'
   if (units.saved !== 'each') return 'Save this product as Each before editing deals.'
+  const openPrice = currentPriceDealOpenPrice(product)
+  if (openPrice.selected) return 'Deals are only available for fixed-price Each products.'
+  if (openPrice.saved) return 'Save this product as fixed price before editing deals.'
   if (!String(product.plu || '').trim()) return 'This product needs a PLU before it can be used in deals.'
   return ''
 }
@@ -3160,6 +3174,11 @@ $('#priceChangePad').addEventListener('click', e => {
   appendPriceChangeInput(b.dataset.val)
 })
 $('#priceChangeUnit').addEventListener('change', () => {
+  if (!priceChangeProduct) return
+  $('#priceDealForm')?.classList.remove('active')
+  renderPriceDealList()
+})
+$('#priceChangeOpenPrice').addEventListener('change', () => {
   if (!priceChangeProduct) return
   $('#priceDealForm')?.classList.remove('active')
   renderPriceDealList()

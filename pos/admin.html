@@ -3000,11 +3000,28 @@
         <select id="auditAction" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text)">
           <option value="">All Actions</option>
           <option value="void_item">Void Item</option>
+          <option value="void_transaction">Void Transaction</option>
           <option value="no_sale">No Sale</option>
           <option value="discount_sale">Discount (Sale)</option>
           <option value="discount_item">Discount (Item)</option>
           <option value="price_change">Price Change</option>
           <option value="refund">Refund</option>
+          <option value="product_create">Product Created</option>
+          <option value="product_update">Product Updated</option>
+          <option value="product_delete">Product Deleted</option>
+          <option value="category_create">Category Created</option>
+          <option value="category_update">Category Updated</option>
+          <option value="category_delete">Category Deleted</option>
+          <option value="deal_create">Deal Created</option>
+          <option value="deal_update">Deal Updated</option>
+          <option value="deal_delete">Deal Deleted</option>
+          <option value="staff_create">Staff Created</option>
+          <option value="staff_update">Staff Updated</option>
+          <option value="stock_adjust">Stock Adjusted</option>
+          <option value="cash_float">Cash Float</option>
+          <option value="cash_pickup">Cash Pickup</option>
+          <option value="cash_drop">Cash Drop</option>
+          <option value="cash_close">Cash Close</option>
           <option value="settings_change">Settings Change</option>
         </select>
         <button class="btn btn-blue" id="auditSearchBtn">Search</button>
@@ -3539,7 +3556,25 @@
 
     // ── Dashboard ───────────────────────────────────────────────────
 
-    let dashboardDate = new Date().toISOString().slice(0, 10)
+    function localDateValue (date = new Date()) {
+      if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date
+      const d = date instanceof Date ? date : new Date(date)
+      const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+      return local.toISOString().slice(0, 10)
+    }
+
+    function productSearchMatches (p, query) {
+      const q = String(query || '').trim().toLowerCase()
+      if (!q) return true
+      return [p.name, p.plu, p.barcode, p.id, p.category_name].some(v => String(v || '').toLowerCase().includes(q))
+    }
+
+    async function getAdminProducts (query = '') {
+      const products = window.pos.getProducts ? await window.pos.getProducts() : await window.pos.searchProducts(query || '')
+      return products.filter(p => productSearchMatches(p, query))
+    }
+
+    let dashboardDate = localDateValue()
     $('#dashDate').value = dashboardDate
 
     function setDashDate (d) {
@@ -3547,7 +3582,7 @@
       $('#dashDate').value = d
       const dt = new Date(d + 'T12:00:00')
       const dayName = dt.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-      $('#dashDayLabel').textContent = d === new Date().toISOString().slice(0, 10) ? `Today - ${dayName}` : dayName
+      $('#dashDayLabel').textContent = d === localDateValue() ? `Today - ${dayName}` : dayName
       loadDashboard()
     }
 
@@ -3555,14 +3590,14 @@
     $('#dashPrev').addEventListener('click', () => {
       const d = new Date(dashboardDate + 'T12:00:00')
       d.setDate(d.getDate() - 1)
-      setDashDate(d.toISOString().slice(0, 10))
+      setDashDate(localDateValue(d))
     })
     $('#dashNext').addEventListener('click', () => {
       const d = new Date(dashboardDate + 'T12:00:00')
       d.setDate(d.getDate() + 1)
-      setDashDate(d.toISOString().slice(0, 10))
+      setDashDate(localDateValue(d))
     })
-    $('#dashToday').addEventListener('click', () => setDashDate(new Date().toISOString().slice(0, 10)))
+    $('#dashToday').addEventListener('click', () => setDashDate(localDateValue()))
 
     async function loadDashboard() {
       const date = dashboardDate
@@ -3653,32 +3688,30 @@
 
     async function loadProducts(query) {
       const searchQuery = query ?? $('#productSearch').value
-      let products = searchQuery
-        ? await window.pos.searchProducts(searchQuery)
-        : await window.pos.searchProducts('')
+      let products = await getAdminProducts(searchQuery)
 
       productCategories = await window.pos.getCategories()
       const catMap = Object.fromEntries(productCategories.map(c => [c.id, c.name]))
 
-      // Populate category filter dropdown if empty
+      // Keep category filter choices fresh after category edits/deletes.
       const catFilter = $('#productCatFilter')
-      if (catFilter.options.length <= 1) {
-        catFilter.innerHTML = '<option value="">All Categories</option>' + productCategories.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')
-      }
+      const selectedCat = catFilter.value
+      catFilter.innerHTML = '<option value="">All Categories</option>' + productCategories.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')
+      if (selectedCat && productCategories.some(c => c.id === selectedCat)) catFilter.value = selectedCat
 
       // Apply filters
       const catId = $('#productCatFilter').value
       const unitFilter = $('#productUnitFilter').value
       if (catId) products = products.filter(p => p.category_id === catId)
-      if (unitFilter) products = products.filter(p => (p.unit || 'each') === unitFilter)
+      if (unitFilter) products = products.filter(p => String(p.unit || 'each').trim() === unitFilter)
 
       // Apply sort
       const sort = $('#productSort').value
       if (sort === 'name-asc') products.sort((a, b) => a.name.localeCompare(b.name))
       else if (sort === 'name-desc') products.sort((a, b) => b.name.localeCompare(a.name))
-      else if (sort === 'price-asc') products.sort((a, b) => (a.active_price ?? a.price) - (b.active_price ?? b.price))
-      else if (sort === 'price-desc') products.sort((a, b) => (b.active_price ?? b.price) - (a.active_price ?? a.price))
-      else if (sort === 'stock-asc') products.sort((a, b) => (a.stock_qty || 999) - (b.stock_qty || 999))
+      else if (sort === 'price-asc') products.sort((a, b) => Number(a.active_price ?? a.price ?? 0) - Number(b.active_price ?? b.price ?? 0))
+      else if (sort === 'price-desc') products.sort((a, b) => Number(b.active_price ?? b.price ?? 0) - Number(a.active_price ?? a.price ?? 0))
+      else if (sort === 'stock-asc') products.sort((a, b) => (Number.isFinite(Number(a.stock_qty)) ? Number(a.stock_qty) : 999999) - (Number.isFinite(Number(b.stock_qty)) ? Number(b.stock_qty) : 999999))
       else if (sort === 'category') products.sort((a, b) => (catMap[a.category_id] || '').localeCompare(catMap[b.category_id] || ''))
       else if (sort === 'updated') products.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))
 
@@ -3722,7 +3755,7 @@
         $('#stockNoAlerts').style.display = 'block'
       }
 
-      const allProds = await window.pos.searchProducts('')
+      const allProds = await getAdminProducts()
       const tracked = allProds.filter(p => p.track_stock)
       const query = ($('#stockSearchInput').value || '').toLowerCase()
       const filtered = query ? tracked.filter(p => p.name.toLowerCase().includes(query)) : tracked
@@ -3799,7 +3832,7 @@
 
     async function loadCatManager () {
       const cats = await window.pos.getCategories()
-      const prods = await window.pos.searchProducts('')
+      const prods = await getAdminProducts()
       const countMap = {}
       prods.forEach(p => { countMap[p.category_id] = (countMap[p.category_id] || 0) + 1 })
       $('#catManagerTable').innerHTML = cats.map(c => `<tr data-cat-id="${esc(c.id)}">
@@ -3833,6 +3866,7 @@
         if (!name) { showToast('Name required', 'error'); return }
         await window.pos.upsertCategory({ id, name, colour, active: 1 })
         showToast('Category updated', 'success')
+        loadCatManager()
         loadProducts()
       }
       if (delBtn) {
@@ -3844,6 +3878,13 @@
         loadProducts()
       }
     })
+
+    function updateProductPriceFieldState () {
+      const isOpen = $('#pOpenPrice').value === '1'
+      $('#pPrice').disabled = isOpen
+      $('#pPrice').style.opacity = isOpen ? '.55' : ''
+      if (isOpen) $('#pPrice').value = '0'
+    }
 
     function openProductEdit (p) {
       const cats = productCategories
@@ -3885,9 +3926,12 @@
         $('#pDeleteBtn').style.display = 'none'
         $('#pDuplicateBtn').style.display = 'none'
       }
+      updateProductPriceFieldState()
       openModal('productEditPanel')
       $('#pName').focus()
     }
+
+    $('#pOpenPrice').addEventListener('change', updateProductPriceFieldState)
 
     $('#pSaveBtn').addEventListener('click', async () => {
       const name = $('#pName').value.trim()
@@ -3968,7 +4012,8 @@
 
     async function loadCategories () {
       const cats = await window.pos.getCategories()
-      const allProds = await window.pos.searchProducts('')
+      productCategories = cats
+      const allProds = await getAdminProducts()
       const countMap = {}
       for (const p of allProds) { countMap[p.category_id] = (countMap[p.category_id] || 0) + 1 }
 
@@ -4022,6 +4067,7 @@
       $('#catEditArea').style.display = 'none'
       productCategories = await window.pos.getCategories()
       loadCategories()
+      loadProducts()
     })
 
     $('#cancelCatBtn').addEventListener('click', () => { $('#catEditArea').style.display = 'none' })
@@ -4131,6 +4177,14 @@
       return code ? `<span style="font-family:monospace;font-size:10px;color:var(--text-dim)">${esc(code)}</span>` : '<span style="font-size:10px;color:var(--text-muted)">No PLU</span>'
     }
 
+    function dealProductBlockReason (p) {
+      if (!p) return 'Choose a product'
+      if (String(p.unit || 'each').trim().toLowerCase() !== 'each') return 'Each only'
+      if (Number(p.open_price || 0) === 1 || p.open_price === true) return 'Fixed price only'
+      if (!String(p.plu || p.barcode || '').trim()) return 'Needs PLU'
+      return ''
+    }
+
     function renderDealTiers () {
       $('#dealTiersArea').innerHTML = dealTiers.map((t, i) =>
         `<div style="display:flex;gap:8px;align-items:end;margin-bottom:6px">
@@ -4220,7 +4274,7 @@
         $('#dStartDate').value = deal.start_date || ''
         $('#dEndDate').value = deal.end_date || ''
         const prods = await window.pos.getDealProducts(deal.id)
-        dealProducts = prods.map(p => ({ id: p.product_id, name: p.product_name, price: p.price, plu: p.plu || p.barcode || '' }))
+        dealProducts = prods.map(p => ({ id: p.product_id, name: p.product_name, price: p.price, plu: p.plu || p.barcode || '', unit: p.unit || 'each', open_price: Number(p.open_price || 0) === 1 }))
         $('#dDeleteBtn').style.display = 'inline-block'
       } else {
         $('#dealEditTitle').textContent = 'New Deal'
@@ -4238,13 +4292,17 @@
 
     function renderDealProducts () {
       $('#dealProductList').innerHTML = dealProducts.length
-        ? dealProducts.map(p => `<span class="badge badge-green" style="padding:6px 10px;font-size:12px;display:inline-flex;align-items:center;gap:8px">
+        ? dealProducts.map(p => {
+          const reason = dealProductBlockReason(p)
+          return `<span class="badge badge-green" style="padding:6px 10px;font-size:12px;display:inline-flex;align-items:center;gap:8px${reason ? ';border-color:rgba(239,68,68,.45);background:rgba(239,68,68,.10)' : ''}">
             <span>
               <span>${esc(p.name)}</span>
               <span style="display:block;margin-top:2px">${productCodeHtml(p)}</span>
+              ${reason ? `<span style="display:block;margin-top:2px;color:var(--red);font-size:10px;font-weight:700">${esc(reason)}</span>` : ''}
             </span>
             <span style="cursor:pointer;opacity:.7;font-size:14px" data-remove-dp="${esc(p.id)}">&times;</span>
-          </span>`).join('')
+          </span>`
+        }).join('')
         : '<span style="color:var(--text-dim);font-size:12px">No products added yet</span>'
     }
 
@@ -4260,10 +4318,11 @@
       if (q.length < 2) { $('#dealProductResults').innerHTML = ''; return }
       const results = await window.pos.searchProducts(q)
       $('#dealProductResults').innerHTML = results.slice(0, 10).map(p => {
-        return `<div style="padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px" data-add-dp="${esc(p.id)}" data-dp-name="${esc(p.name)}" data-dp-price="${p.price}" data-dp-plu="${esc(p.plu || p.barcode || '')}">
+        const reason = dealProductBlockReason(p)
+        return `<div style="padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px${reason ? ';opacity:.55' : ''}" data-add-dp="${esc(p.id)}" data-dp-name="${esc(p.name)}" data-dp-price="${p.price}" data-dp-plu="${esc(p.plu || p.barcode || '')}" data-dp-unit="${esc(p.unit || 'each')}" data-dp-open="${p.open_price ? '1' : '0'}" data-dp-block="${esc(reason)}">
           <span style="flex:1">${esc(p.name)}</span>
           ${productCodeHtml(p)}
-          <span style="color:var(--green);font-weight:600;font-size:12px">${money(p.active_price ?? p.price)}</span>
+          <span style="color:${reason ? 'var(--red)' : 'var(--green)'};font-weight:600;font-size:12px">${reason ? esc(reason) : money(p.active_price ?? p.price)}</span>
         </div>`
       }).join('')
     }, 250))
@@ -4272,8 +4331,9 @@
       const row = e.target.closest('[data-add-dp]')
       if (!row) return
       const id = row.dataset.addDp
+      if (row.dataset.dpBlock) { showToast(row.dataset.dpBlock, 'error'); return }
       if (dealProducts.find(p => p.id === id)) return
-      dealProducts.push({ id, name: row.dataset.dpName, price: parseFloat(row.dataset.dpPrice), plu: row.dataset.dpPlu || '' })
+      dealProducts.push({ id, name: row.dataset.dpName, price: parseFloat(row.dataset.dpPrice), plu: row.dataset.dpPlu || '', unit: row.dataset.dpUnit || 'each', open_price: row.dataset.dpOpen === '1' })
       renderDealProducts()
       $('#dealProductSearch').value = ''
       $('#dealProductResults').innerHTML = ''
@@ -4333,7 +4393,7 @@
 
     function applyTxnPreset (preset) {
       const today = new Date()
-      const fmt = d => d.toISOString().slice(0, 10)
+      const fmt = d => localDateValue(d)
       switch (preset) {
         case 'today':
           $('#txnDateFrom').value = $('#txnDateTo').value = fmt(today); break
@@ -4582,10 +4642,10 @@
     }
 
     async function loadCashDrawer () {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = localDateValue()
       const tillFilter = $('#cdTillSelect').value || null
       const [summary, log] = await Promise.all([
-        window.pos.getCashDrawerSummary(today),
+        window.pos.getCashDrawerSummary(today, tillFilter),
         window.pos.getCashDrawerLog(today)
       ])
 
@@ -4595,13 +4655,8 @@
       const pickupTotal = filteredLog.filter(e => e.action === 'pickup').reduce((s, e) => s + (e.amount || 0), 0)
       const dropTotal = filteredLog.filter(e => e.action === 'drop').reduce((s, e) => s + (e.amount || 0), 0)
 
-      if (tillFilter) {
-        $('#cdFloat').textContent = money(floatTotal)
-        $('#cdExpected').textContent = money(floatTotal + summary.cash_sales - pickupTotal + dropTotal)
-      } else {
-        $('#cdFloat').textContent = money(summary.float)
-        $('#cdExpected').textContent = money(summary.expected)
-      }
+      $('#cdFloat').textContent = money(tillFilter ? floatTotal : summary.float)
+      $('#cdExpected').textContent = money(summary.expected)
       $('#cdCashSales').textContent = money(summary.cash_sales)
 
       if (filteredLog.length) {
@@ -5315,7 +5370,7 @@
     // ── Audit Log ────────────────────────────────────────────────────
 
     async function loadAuditLog () {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = localDateValue()
       $('#auditDate').value = today
       await searchAuditLog()
     }
@@ -5337,12 +5392,21 @@
         const actionLabel = {
           void_item: 'Void Item', no_sale: 'No Sale', discount_sale: 'Discount (Sale)',
           discount_item: 'Discount (Item)', price_change: 'Price Change', refund: 'Refund',
+          void_transaction: 'Void Transaction', product_create: 'Product Created',
+          product_update: 'Product Updated', product_delete: 'Product Deleted',
+          category_create: 'Category Created', category_update: 'Category Updated',
+          category_delete: 'Category Deleted', deal_create: 'Deal Created',
+          deal_update: 'Deal Updated', deal_delete: 'Deal Deleted',
+          staff_create: 'Staff Created', staff_update: 'Staff Updated',
+          stock_adjust: 'Stock Adjusted', cash_float: 'Cash Float',
+          cash_pickup: 'Cash Pickup', cash_drop: 'Cash Drop', cash_close: 'Cash Close',
           settings_change: 'Settings Change'
         }[r.action] || r.action
+        const actionKey = String(r.action || '')
         return `<tr style="border-bottom:1px solid var(--border)">
           <td style="padding:8px;white-space:nowrap">${t.toLocaleTimeString()}</td>
           <td style="padding:8px">${esc(r.staff_name || 'Unknown')}</td>
-          <td style="padding:8px"><span class="badge ${r.action.includes('void') || r.action.includes('refund') ? 'badge-red' : r.action.includes('discount') ? 'badge-yellow' : ''}" style="font-size:11px">${esc(actionLabel)}</span></td>
+          <td style="padding:8px"><span class="badge ${actionKey.includes('void') || actionKey.includes('refund') || actionKey.includes('delete') ? 'badge-red' : actionKey.includes('discount') || actionKey.includes('cash_') ? 'badge-yellow' : ''}" style="font-size:11px">${esc(actionLabel)}</span></td>
           <td style="padding:8px">${esc(r.detail || '')}</td>
         </tr>`
       }).join('')
@@ -5350,7 +5414,7 @@
 
     $('#auditSearchBtn').addEventListener('click', searchAuditLog)
     $('#auditTodayBtn').addEventListener('click', () => {
-      $('#auditDate').value = new Date().toISOString().slice(0, 10)
+      $('#auditDate').value = localDateValue()
       $('#auditAction').value = ''
       searchAuditLog()
     })
@@ -5912,17 +5976,17 @@
     let currentReportType = 'weekly'
 
     function reportWeekStartDate (date = new Date()) {
-      const d = new Date(date)
+      const d = date instanceof Date ? new Date(date) : new Date(`${date}T00:00:00`)
       const daysSinceMonday = (d.getDay() + 6) % 7
       d.setDate(d.getDate() - daysSinceMonday)
       return d
     }
 
     function initZReport () {
-      if (!$('#zDate').value) $('#zDate').value = new Date().toISOString().slice(0, 10)
+      if (!$('#zDate').value) $('#zDate').value = localDateValue()
       const mon = reportWeekStartDate()
-      if (!$('#wkDate').value) $('#wkDate').value = mon.toISOString().slice(0, 10)
-      if (!$('#analysisDate').value) $('#analysisDate').value = new Date().toISOString().slice(0, 10)
+      if (!$('#wkDate').value) $('#wkDate').value = localDateValue(mon)
+      if (!$('#analysisDate').value) $('#analysisDate').value = localDateValue()
       currentReportType = 'weekly'
       switchReportType('weekly')
     }
@@ -5945,7 +6009,7 @@
     $$('[data-z-preset]').forEach(btn => btn.addEventListener('click', () => {
       const today = new Date()
       if (btn.dataset.zPreset === 'yesterday') today.setDate(today.getDate() - 1)
-      $('#zDate').value = today.toISOString().slice(0, 10)
+      $('#zDate').value = localDateValue(today)
       $('#zGenerate').click()
     }))
 
@@ -5953,7 +6017,7 @@
     $$('[data-wk-preset]').forEach(btn => btn.addEventListener('click', () => {
       const mon = reportWeekStartDate()
       if (btn.dataset.wkPreset === 'last') mon.setDate(mon.getDate() - 7)
-      $('#wkDate').value = mon.toISOString().slice(0, 10)
+      $('#wkDate').value = localDateValue(mon)
       $('#wkGenerate').click()
     }))
 
@@ -6021,7 +6085,7 @@
 
       $('#wkDaysTable').innerHTML = r.days.map(d => {
         const dt = new Date(d.date + 'T00:00:00')
-        const isToday = d.date === new Date().toISOString().slice(0, 10)
+        const isToday = d.date === localDateValue()
         return `<tr style="${isToday ? 'background:rgba(79,189,119,0.08)' : ''}">
           <td style="font-weight:600">${d.dayName}</td>
           <td>${dt.toLocaleDateString('en-AU')}</td>
@@ -6095,7 +6159,7 @@
 
     $('#analysisGenerate').addEventListener('click', async () => {
       const days = Number($('#analysisDays').value || 30)
-      const date = $('#analysisDate').value || new Date().toISOString().slice(0, 10)
+      const date = $('#analysisDate').value || localDateValue()
       try {
         const [trend, heatmap, pairs, top] = await Promise.all([
           window.pos.getSalesTrend(days),
@@ -8726,7 +8790,7 @@
     async function loadLabelProducts () {
       const q = $('#labelProductSearch').value.trim()
       const cat = $('#labelCatFilter').value
-      let prods = await window.pos.searchProducts(q || '')
+      let prods = await getAdminProducts(q)
       if (cat) prods = prods.filter(p => p.category_id === cat)
       prods.sort((a, b) => a.name.localeCompare(b.name))
       labelProducts = prods
@@ -9004,8 +9068,11 @@
       } catch (e) { showToast('Failed to load insights: ' + e.message, 'error') }
 
       // Set default export dates
-      const today = new Date().toISOString().slice(0, 10)
-      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+      const todayDate = new Date()
+      const weekAgoDate = new Date()
+      weekAgoDate.setDate(weekAgoDate.getDate() - 7)
+      const today = localDateValue(todayDate)
+      const weekAgo = localDateValue(weekAgoDate)
       if ($('#xeroFrom')) $('#xeroFrom').value = weekAgo
       if ($('#xeroTo')) $('#xeroTo').value = today
     }
@@ -9022,7 +9089,7 @@
       $('#insightTrendEnd').textContent = data[data.length - 1]?.date || ''
       el.innerHTML = data.map(d => {
         const h = Math.max(2, (d.total / maxVal) * 100)
-        const isToday = d.date === new Date().toISOString().slice(0, 10)
+        const isToday = d.date === localDateValue()
         return `<div title="${d.date}: ${money(d.total)} (${d.count} txns)" style="flex:1;height:${h}%;background:${isToday ? 'var(--green)' : 'rgba(79,189,119,.4)'};border-radius:2px 2px 0 0;min-width:4px;transition:height .3s"></div>`
       }).join('')
     }

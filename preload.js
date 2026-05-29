@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('pos', {
   // Products
   searchProducts:     (query)  => ipcRenderer.invoke('db:products:search', query),
+  getProducts:        ()       => ipcRenderer.invoke('db:products:getAll'),
   getProductByBarcode:(code)   => ipcRenderer.invoke('db:products:getByBarcode', code),
   getProductById:     (id)     => ipcRenderer.invoke('db:products:getById', id),
   getProductsByCategory:(catId)=> ipcRenderer.invoke('db:products:getByCategory', catId),
@@ -151,7 +152,7 @@ contextBridge.exposeInMainWorld('pos', {
   // Cash Drawer
   logCashDrawer:      (entry) => ipcRenderer.invoke('db:cash_drawer:log', entry),
   getCashDrawerLog:   (date)  => ipcRenderer.invoke('db:cash_drawer:getLog', date),
-  getCashDrawerSummary:(date) => ipcRenderer.invoke('db:cash_drawer:summary', date),
+  getCashDrawerSummary:(date, registerId) => ipcRenderer.invoke('db:cash_drawer:summary', date, registerId),
   bulkUpsertCashDrawer:(arr)  => ipcRenderer.invoke('db:cashDrawer:bulkUpsert', arr),
 
   // Stock

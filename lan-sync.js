@@ -79,7 +79,8 @@ const LOCAL_ONLY_SETTINGS = new Set([
 ])
 
 function isLocalOnlySetting (key) {
-  return LOCAL_ONLY_SETTINGS.has(key)
+  const settingKey = String(key || '')
+  return LOCAL_ONLY_SETTINGS.has(settingKey) || settingKey.startsWith('migration_') || settingKey.startsWith('startup_')
 }
 
 const DELETABLE_TABLES = new Set([
@@ -175,6 +176,46 @@ function upsertWhitelistedRecord (table, payload) {
   db.dbRun(`INSERT OR REPLACE INTO ${table} (${present.join(', ')}) VALUES (${placeholders})`,
     present.map(c => payload[c]))
   return true
+}
+
+function firstNonBlank (...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim() !== '') return value
+  }
+  return null
+}
+
+function captureKeyboardThemeById () {
+  const byId = new Map()
+  if (!db) return byId
+  try {
+    const rows = db.dbAll("SELECT id, color, bg_color FROM keyboard_buttons")
+    for (const row of rows) {
+      if (!row?.id) continue
+      byId.set(String(row.id), { color: row.color, bg_color: row.bg_color })
+    }
+  } catch (_) {}
+  return byId
+}
+
+function replaceKeyboardButtonsFromServer (buttons) {
+  if (!Array.isArray(buttons)) return 0
+  const localThemeById = captureKeyboardThemeById()
+
+  db.dbRun("DELETE FROM keyboard_buttons")
+  for (const b of buttons) {
+    const localTheme = localThemeById.get(String(b.id))
+    db.dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)`,
+             [b.id, b.label, b.type, b.price || null, b.image || null, Number(b.image_scale || 100) || 100,
+              firstNonBlank(localTheme?.color, b.color, '#fff'),
+              firstNonBlank(localTheme?.bg_color, b.bg_color, '#1a3d2a'),
+              b.parent_id || null, b.category_filter || null,
+              b.alpha_range || null, b.sort_order || 0, b.position || 'grid',
+              b.page || 1, b.grid_row || 0, b.grid_col || 0, b.col_span || 1, b.row_span || 1,
+              b.product_id || null, b.active ?? 1, b.updated_at || null])
+  }
+  return buttons.length
 }
 
 function getStatus () {
@@ -903,19 +944,7 @@ async function doFullSync () {
   }
 
   if (data.keyboard_buttons) {
-    db.dbRun("DELETE FROM keyboard_buttons")
-
-    // Full replace from server: keyboard layout, size, image and product links are server-owned.
-    for (const b of data.keyboard_buttons) {
-      db.dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)`,
-               [b.id, b.label, b.type, b.price || null, b.image || null, Number(b.image_scale || 100) || 100, b.color || '#fff',
-                b.bg_color || '#1a3d2a', b.parent_id || null, b.category_filter || null,
-                b.alpha_range || null, b.sort_order || 0, b.position || 'grid',
-                b.page || 1, b.grid_row || 0, b.grid_col || 0, b.col_span || 1, b.row_span || 1,
-                b.product_id || null, b.active ?? 1, b.updated_at || null])
-    }
-
+    replaceKeyboardButtonsFromServer(data.keyboard_buttons)
   }
 
   if (data.keyboard_pages && data.keyboard_pages.length > 0) {
@@ -1081,18 +1110,9 @@ async function doSyncCycle () {
                [s.id, s.name, s.pin, s.role || 'cashier', s.active ?? 1, s.updated_at || null])
     }
 
-    // Keyboard buttons (full replace — server already filters deletions)
+    // Keyboard buttons: server owns layout/product links; local runtime owns colours.
     if (keyboard && keyboard.length > 0) {
-      db.dbRun("DELETE FROM keyboard_buttons")
-      for (const b of keyboard) {
-        db.dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
-                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)`,
-                 [b.id, b.label, b.type, b.price || null, b.image || null, Number(b.image_scale || 100) || 100, b.color || '#fff',
-                  b.bg_color || '#1a3d2a', b.parent_id || null, b.category_filter || null,
-                  b.alpha_range || null, b.sort_order || 0, b.position || 'grid',
-                  b.page || 1, b.grid_row || 0, b.grid_col || 0, b.col_span || 1, b.row_span || 1,
-                  b.product_id || null, b.active ?? 1, b.updated_at || null])
-      }
+      replaceKeyboardButtonsFromServer(keyboard)
     }
 
     // Deal products (full replace from server)

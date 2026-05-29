@@ -20,3 +20,5 @@ Thumbs.db
 
 db/crisp-pos.before-*.sqlite
 supabase/.temp/
+backups/
+exports/

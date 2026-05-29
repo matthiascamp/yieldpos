@@ -32,6 +32,11 @@ const APP_ICON_PATH = path.join(__dirname, 'pos', 'YieldPOS.png')
 app.setName(SOFTWARE_NAME)
 if (process.platform === 'win32') app.setAppUserModelId('com.yieldpos.client')
 const USER_DATA_DIR = app.getPath('userData')
+try {
+  const sessionDir = path.join(USER_DATA_DIR, 'chromium-session', runtimeAppMode)
+  fs.mkdirSync(sessionDir, { recursive: true })
+  app.setPath('sessionData', sessionDir)
+} catch (_) {}
 const LEGACY_USER_DATA_DIR = path.join(app.getPath('appData'), 'Bound' + 'OS Client')
 if (!fs.existsSync(path.join(USER_DATA_DIR, 'crisp-pos.sqlite')) && fs.existsSync(path.join(LEGACY_USER_DATA_DIR, 'crisp-pos.sqlite'))) {
   try {
@@ -44,6 +49,13 @@ const BUNDLED_DB_PATH = path.join(__dirname, 'db', 'crisp-pos.sqlite')
 const SCHEMA_PATH = path.join(__dirname, 'db', 'schema.sql')
 const LOG_DIR = path.join(USER_DATA_DIR, 'logs')
 const BACKUP_DIR = path.join(USER_DATA_DIR, 'backups')
+
+function localDateString (date = new Date()) {
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date
+  const d = date instanceof Date ? date : new Date(date)
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
+}
 
 function resolveExternalHelperPath (helperName) {
   const appDir = __dirname
@@ -564,8 +576,25 @@ async function initDatabase() {
     "INSERT OR IGNORE INTO settings (key, value) VALUES ('next_receipt_number', '1')",
     "ALTER TABLE products ADD COLUMN open_price INTEGER DEFAULT 0",
   ]
+  const legacyStartupDataDone = dbAll("SELECT value FROM settings WHERE key = 'migration_legacy_startup_data_v1'")
+  const keyboardButtonCount = Number(dbGet("SELECT COUNT(*) AS c FROM keyboard_buttons")?.c || 0)
+  const shouldRunLegacyStartupData = !legacyStartupDataDone.length && (!dbExists || keyboardButtonCount === 0)
   for (const m of migrations) {
+    const stripped = m.replace(/--[^\n]*/g, '').trim()
+    const upper = stripped.toUpperCase()
+    const safeEveryStartup =
+      upper.startsWith('ALTER TABLE') ||
+      upper.startsWith('CREATE INDEX') ||
+      upper.startsWith('CREATE TABLE') ||
+      upper.startsWith('INSERT OR IGNORE INTO SETTINGS')
+    if (dbExists && !shouldRunLegacyStartupData && !safeEveryStartup) continue
     try { db.run(m) } catch (_) {}
+  }
+  if (!legacyStartupDataDone.length && !shouldRunLegacyStartupData) {
+    db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_legacy_startup_data_v1', 'skipped-existing-runtime')")
+    appLog('info', 'database', 'Skipped legacy startup data migrations; existing runtime database is authoritative')
+  } else if (!legacyStartupDataDone.length) {
+    db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_legacy_startup_data_v1', '1')")
   }
 
   // â”€â”€ GST compliance: set correct tax rates per Australian law â”€â”€
@@ -876,7 +905,10 @@ async function initDatabase() {
     v4Check.bind([])
     const v4Row = v4Check.step() ? v4Check.getAsObject() : null
     v4Check.free()
-    if (!v4Row) {
+    if (!v4Row && dbExists && Number(dbGet("SELECT COUNT(*) AS c FROM keyboard_buttons WHERE page IN (1,2,3,4,5)")?.c || 0) > 0 && !bundledDbStartupRefreshAllowed()) {
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('pages_expanded_v4', 'skipped-existing-runtime')")
+      appLog('info', 'database', 'Skipped keyboard layout migration v4; existing runtime keyboard is authoritative')
+    } else if (!v4Row) {
       db.run("DELETE FROM keyboard_buttons WHERE page IN (1, 2, 3, 4, 5)")
       db.run("DELETE FROM keyboard_buttons WHERE page >= 7")
       const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8')
@@ -898,7 +930,10 @@ async function initDatabase() {
     v5Check.bind([])
     const v5Row = v5Check.step() ? v5Check.getAsObject() : null
     v5Check.free()
-    if (!v5Row) {
+    if (!v5Row && dbExists && Number(dbGet("SELECT COUNT(*) AS c FROM keyboard_buttons WHERE page IN (1,2,3,4,5)")?.c || 0) > 0 && !bundledDbStartupRefreshAllowed()) {
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('layout_v5_fix', 'skipped-existing-runtime')")
+      appLog('info', 'database', 'Skipped keyboard layout fix v5; existing runtime keyboard is authoritative')
+    } else if (!v5Row) {
       db.run("DELETE FROM keyboard_buttons WHERE page IN (1, 2, 3, 4, 5)")
       db.run("DELETE FROM keyboard_buttons WHERE page >= 7")
       const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8')
@@ -1396,8 +1431,9 @@ async function initDatabase() {
     }
   } catch (e) { appLog('error', 'migration', 'Register utility keyboard migration failed', e.message) }
 
-  // Merge products from bundled DB if local is missing any
-  if (dbExists && fs.existsSync(BUNDLED_DB_PATH)) {
+  // Merge products from bundled DB only when explicitly requested. The runtime
+  // DB is the store-owned source of truth after first install.
+  if (dbExists && fs.existsSync(BUNDLED_DB_PATH) && bundledDbStartupRefreshAllowed()) {
     try {
       const initSqlJs2 = require('sql.js')
       const SQL2 = await initSqlJs2()
@@ -1425,27 +1461,48 @@ async function initDatabase() {
       bundledDb.close()
       if (merged > 0) appLog('info', 'database', `Merged ${merged} products from bundled database`)
     } catch (e) { appLog('warn', 'database', 'Bundled DB merge failed', e.message) }
+  } else if (dbExists && fs.existsSync(BUNDLED_DB_PATH)) {
+    const mergeSkipDone = dbGet("SELECT value FROM settings WHERE key = 'startup_bundled_product_merge_v1'")
+    if (!mergeSkipDone) {
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_bundled_product_merge_v1', 'skipped-existing-runtime')")
+      appLog('info', 'database', 'Skipped bundled product merge; existing runtime database is authoritative')
+    }
   }
 
   // Populate keyboard category pages (2-5) from bundled JS data
   try {
     const kbCatpages = require('./db/keyboard-catpages')
-    const applied = kbCatpages.apply(db)
-    if (applied > 0) appLog('info', 'database', `Applied ${applied} keyboard category-page buttons (v${kbCatpages.VERSION})`)
+    const existingCategoryPageButtons = Number(dbGet("SELECT COUNT(*) AS c FROM keyboard_buttons WHERE page IN (2,3,4,5,37,38,39)")?.c || 0)
+    const canSeedBundledKeyboard = !dbExists || existingCategoryPageButtons === 0 || bundledDbStartupRefreshAllowed()
+    if (canSeedBundledKeyboard) {
+      const applied = kbCatpages.apply(db)
+      if (applied > 0) appLog('info', 'database', `Applied ${applied} keyboard category-page buttons (v${kbCatpages.VERSION})`)
+    } else if (!dbGet("SELECT value FROM settings WHERE key = 'kb_catpages_startup_seed_v1'")) {
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('kb_catpages_startup_seed_v1', 'skipped-existing-runtime')")
+      appLog('info', 'database', 'Skipped bundled category-page keyboard seed; existing runtime keyboard is authoritative')
+    }
   } catch (e) { appLog('error', 'database', 'Keyboard category-page apply failed', e.message) }
 
   // Populate keyboard sub-pages from bundled JS data (no SQLite-to-SQLite merge needed)
   try {
     const kbSubpages = require('./db/keyboard-subpages')
-    const applied = kbSubpages.apply(db)
-    if (applied > 0) appLog('info', 'database', `Applied ${applied} keyboard sub-page buttons (v${kbSubpages.VERSION})`)
+    const existingSubpageButtons = Number(dbGet("SELECT COUNT(*) AS c FROM keyboard_buttons WHERE page > 5")?.c || 0)
+    const canSeedBundledKeyboard = !dbExists || existingSubpageButtons === 0 || bundledDbStartupRefreshAllowed()
+    if (canSeedBundledKeyboard) {
+      const applied = kbSubpages.apply(db)
+      if (applied > 0) appLog('info', 'database', `Applied ${applied} keyboard sub-page buttons (v${kbSubpages.VERSION})`)
+    } else if (!dbGet("SELECT value FROM settings WHERE key = 'kb_subpages_startup_seed_v1'")) {
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('kb_subpages_startup_seed_v1', 'skipped-existing-runtime')")
+      appLog('info', 'database', 'Skipped bundled sub-page keyboard seed; existing runtime keyboard is authoritative')
+    }
   } catch (e) { appLog('error', 'database', 'Keyboard sub-page apply failed', e.message) }
 
   // Copy the current bundled register subpage layout into existing runtime DBs.
   // Pages 1-5 are deliberately excluded: main and top fruit/veg menu pages are touchy.
   try {
     const layoutDone = dbGet("SELECT value FROM settings WHERE key = 'register_subpage_layout_v1'")
-    if (!layoutDone && fs.existsSync(BUNDLED_DB_PATH)) {
+    const existingSubpageButtons = Number(dbGet("SELECT COUNT(*) AS c FROM keyboard_buttons WHERE page > 5")?.c || 0)
+    if (!layoutDone && fs.existsSync(BUNDLED_DB_PATH) && (existingSubpageButtons === 0 || bundledDbStartupRefreshAllowed())) {
       const initSqlJs3 = require('sql.js')
       const SQL3 = await initSqlJs3()
       const bundledDb = new SQL3.Database(fs.readFileSync(BUNDLED_DB_PATH))
@@ -1472,6 +1529,9 @@ async function initDatabase() {
       bundledDb.close()
       db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('register_subpage_layout_v1', '1')")
       appLog('info', 'database', 'Applied bundled register subpage layout; pages 1-5 left unchanged')
+    } else if (!layoutDone && fs.existsSync(BUNDLED_DB_PATH)) {
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('register_subpage_layout_v1', 'skipped-existing-runtime')")
+      appLog('info', 'database', 'Skipped bundled register subpage layout; existing runtime keyboard is authoritative')
     }
   } catch (e) { appLog('error', 'database', 'Register subpage layout migration failed', e.message) }
 
@@ -1847,6 +1907,11 @@ async function initDatabase() {
   try {
     const importDone = dbAll("SELECT value FROM settings WHERE key = 'migration_import_products_v1'")
     if (!importDone.length || !importDone[0].value) {
+      const existingProductRows = Number(dbGet("SELECT COUNT(*) AS c FROM products")?.c || 0)
+      if (dbExists && existingProductRows > 0 && !bundledDbStartupRefreshAllowed()) {
+        db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_import_products_v1', 'skipped-existing-runtime')")
+        appLog('info', 'migration', 'Skipped products.json import; existing runtime products are authoritative')
+      } else {
       const jsonPath = path.join(__dirname, 'products.json')
       if (fs.existsSync(jsonPath)) {
         const raw = fs.readFileSync(jsonPath, 'utf-8')
@@ -1880,6 +1945,7 @@ async function initDatabase() {
         db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_import_products_v1', '1')")
         appLog('info', 'migration', `Imported ${imported} products from products.json (${skipped} skipped as duplicates)`)
       }
+      }
     }
   } catch (e) { appLog('error', 'migration', 'Products import migration failed', e.message) }
 
@@ -1887,6 +1953,11 @@ async function initDatabase() {
   try {
     const kbDone = dbAll("SELECT value FROM settings WHERE key = 'migration_import_keyboard_v2'")
     if (!kbDone.length || !kbDone[0].value) {
+      const existingKeyboardRows = Number(dbGet("SELECT COUNT(*) AS c FROM keyboard_buttons")?.c || 0)
+      if (dbExists && existingKeyboardRows > 0 && !bundledDbStartupRefreshAllowed()) {
+        db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_import_keyboard_v2', 'skipped-existing-runtime')")
+        appLog('info', 'migration', 'Skipped keyboard-layout import; existing runtime keyboard is authoritative')
+      } else {
       const kbPath = path.join(__dirname, 'keyboard-layout.json')
       if (fs.existsSync(kbPath)) {
         const raw = fs.readFileSync(kbPath, 'utf-8')
@@ -1931,6 +2002,7 @@ async function initDatabase() {
         db.run("PRAGMA foreign_keys = ON")
         db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_import_keyboard_v2', '1')")
         appLog('info', 'migration', `Imported keyboard layout: ${btnCount} buttons, ${(data.pages || []).length} pages`)
+      }
       }
     }
   } catch (e) { appLog('error', 'migration', 'Keyboard import migration failed', e.message) }
@@ -2324,12 +2396,17 @@ async function initDatabase() {
   try {
     db.run(`UPDATE keyboard_buttons
       SET label = 'ADVANCED', type = 'management', grid_row = 0, grid_col = 1,
-          col_span = 1, row_span = 1, active = 1, bg_color = '#334155', color = '#fff',
+          col_span = 1, row_span = 1, active = 1, bg_color = '#0b2418', color = '#f8f4ea',
           updated_at = datetime('now')
       WHERE id = 'fn-advanced'`)
-    db.run(`INSERT OR REPLACE INTO keyboard_buttons
+    db.run(`INSERT OR IGNORE INTO keyboard_buttons
       (id, label, type, price, image, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
-      VALUES ('fn-pricechange-mode', 'PRICE\\nCHANGE', 'price_change', 0, NULL, '#fff', '#0f766e', NULL, NULL, NULL, 7, 'grid', 1, 0, 2, 1, 1, 1, NULL, datetime('now'))`)
+      VALUES ('fn-pricechange-mode', 'PRICE\\nMODE', 'price_change', 0, NULL, '#f8f4ea', '#4b6643', NULL, NULL, NULL, 7, 'grid', 1, 0, 2, 1, 1, 1, NULL, datetime('now'))`)
+    db.run(`UPDATE keyboard_buttons
+      SET label = 'PRICE\\nMODE', type = 'price_change', grid_row = 0, grid_col = 2,
+          col_span = 1, row_span = 1, active = 1, bg_color = '#4b6643', color = '#f8f4ea',
+          updated_at = datetime('now')
+      WHERE id = 'fn-pricechange-mode'`)
   } catch (e) { appLog('error', 'migration', 'Price change key repair failed', e.message) }
 
   // Register keyboard palette v3: DB-owned colours matching the YieldPOS splash theme.
@@ -2618,6 +2695,17 @@ async function initDatabase() {
       appLog('info', 'migration', 'Enforced final splash register keyboard theme')
     }
   } catch (e) { appLog('error', 'migration', 'Register final splash theme enforcement failed', e.message) }
+
+  // Register keyboard palette v14: repair installs that were repainted by an older LAN sync/server DB.
+  try {
+    const staleLanPaletteRepairDone = dbAll("SELECT value FROM settings WHERE key = 'migration_register_keyboard_restore_after_lan_palette_v1'")
+    if (!staleLanPaletteRepairDone.length) {
+      applyOrganisedRegisterKeyboardPalette()
+      db.run("UPDATE keyboard_buttons SET label = 'PRICE\\nMODE', type = 'price_change', updated_at = datetime('now') WHERE id = 'fn-pricechange-mode'")
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_register_keyboard_restore_after_lan_palette_v1', '1')")
+      appLog('info', 'migration', 'Restored register keyboard palette after stale LAN sync')
+    }
+  } catch (e) { appLog('error', 'migration', 'Register stale LAN palette repair failed', e.message) }
 
   try {
     const categoryButtonFixDone = dbAll("SELECT value FROM settings WHERE key = 'migration_department_category_buttons_v1'")
@@ -2930,7 +3018,7 @@ function deleteMissingSingleKeyRows(table, keyColumn, sourceRows) {
 }
 
 function shouldSyncBundledSetting(key) {
-  const localPrefixes = ['lan_', 'linkly_', 'opos_', 'opos2_', 'hw_', 'hw2_']
+  const localPrefixes = ['lan_', 'linkly_', 'opos_', 'opos2_', 'hw_', 'hw2_', 'migration_', 'startup_']
   if (localPrefixes.some(prefix => String(key).startsWith(prefix))) return false
   return !new Set([
     'app_mode',
@@ -2995,12 +3083,41 @@ function syncBundledTable(sourceDb, table, opts = {}) {
   return { table, rows, missing }
 }
 
+function runtimeTableCount(table) {
+  try {
+    return Number(dbGet(`SELECT COUNT(*) AS c FROM ${sqlIdent(table)}`)?.c || 0)
+  } catch (_) {
+    return 0
+  }
+}
+
+function bundledDbStartupRefreshAllowed() {
+  const setting = String(dbGet("SELECT value FROM settings WHERE key = 'startup_bundled_db_refresh_enabled'")?.value || '').trim().toLowerCase()
+  return setting === '1' || setting === 'true' || process.env.YIELDPOS_ALLOW_BUNDLED_DB_REFRESH === '1'
+}
+
 function applyBundledDatabaseContent(SQL) {
   if (!fs.existsSync(BUNDLED_DB_PATH) || path.resolve(BUNDLED_DB_PATH) === path.resolve(DB_PATH)) return
 
   const hash = fileSha256(BUNDLED_DB_PATH)
   const existingHash = dbGet("SELECT value FROM settings WHERE key = 'startup_bundled_db_content_hash_v1'")?.value
-  if (existingHash === hash) return
+  const refreshAllowed = bundledDbStartupRefreshAllowed()
+  if (existingHash === hash && !refreshAllowed) return
+
+  const runtimeCounts = {
+    products: runtimeTableCount('products'),
+    categories: runtimeTableCount('categories'),
+    deals: runtimeTableCount('deals'),
+    keyboard_buttons: runtimeTableCount('keyboard_buttons'),
+    transactions: runtimeTableCount('transactions')
+  }
+  const hasRuntimeData = Object.values(runtimeCounts).some(count => count > 0)
+  if (hasRuntimeData && !refreshAllowed) {
+    db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_bundled_db_content_hash_v1', ?1)", [hash])
+    db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('startup_keyboard_theme_source', 'runtime-db-authoritative')")
+    appLog('info', 'database', 'Skipped bundled DB catalog/keyboard refresh; runtime database is authoritative', runtimeCounts)
+    return
+  }
 
   let sourceDb = null
   try {
@@ -3774,13 +3891,13 @@ function getConfiguredLanMode () {
 function getRuntimeLanMode (configuredMode = getConfiguredLanMode()) {
   const mode = normalizeLanMode(configuredMode)
   if (!isRegisterApp) return 'server'
-  return mode === 'server' ? 'client' : mode
+  return mode === 'client' ? 'client' : 'off'
 }
 
 function coerceLanModeForThisApp (requestedMode) {
   const mode = normalizeLanMode(requestedMode)
   if (!isRegisterApp) return 'server'
-  return mode === 'server' ? 'client' : mode
+  return mode === 'client' ? 'client' : 'off'
 }
 
 function getRuntimeSettingsSnapshot () {
@@ -3806,6 +3923,9 @@ async function startLanForRuntime () {
   }
   lanStartupBlock = null
   clearLanServerConflictMonitor()
+  if (isRegisterApp && configuredMode === 'server') {
+    appLog('info', 'lan-sync', 'Register runtime left LAN sync off because configured mode is server/admin-owned')
+  }
   if (lanMode === 'client') {
     const serverIp = dbGet("SELECT value FROM settings WHERE key = 'lan_server_ip'")?.value || null
     const secret = dbGet("SELECT value FROM settings WHERE key = 'lan_secret'")?.value
@@ -4557,7 +4677,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   ipcMain.handle('app:logs:get', (_e, opts = {}) => {
     try {
       if (!fs.existsSync(LOG_DIR)) return []
-      const date = opts.date || new Date().toISOString().slice(0, 10)
+      const date = opts.date || localDateString()
       const logFile = path.join(LOG_DIR, `app-${date}.log`)
       if (!fs.existsSync(logFile)) return []
       const content = fs.readFileSync(logFile, 'utf-8')
@@ -4638,12 +4758,18 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
   // â”€â”€ Audit Log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  ipcMain.handle('db:audit:log', (_e, entry) => {
+  function writeAuditLog (entry = {}) {
     const id = uuid()
     dbRun(`INSERT INTO audit_log (id, staff_id, staff_name, action, detail, created_at)
       VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))`,
-      [id, entry.staff_id || null, entry.staff_name || null, entry.action, entry.detail || null])
+      [id, entry.staff_id || null, entry.staff_name || null, entry.action || 'admin_action', entry.detail || null])
     return { id }
+  }
+
+  ipcMain.handle('db:audit:log', (_e, entry) => {
+    const result = writeAuditLog(entry)
+    saveDBSync()
+    return result
   })
 
   ipcMain.handle('db:audit:search', (_e, opts = {}) => {
@@ -4651,7 +4777,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     const params = []
     let idx = 1
     if (opts.date) {
-      sql += ` AND date(created_at) = ?${idx}`
+      sql += ` AND date(created_at, 'localtime') = ?${idx}`
       params.push(opts.date); idx++
     }
     if (opts.action) {
@@ -4717,6 +4843,22 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     `, [q, query])
   })
 
+  ipcMain.handle('db:products:getAll', () => {
+    return dbAll(`
+      SELECT p.*, c.name as category_name, c.colour as category_color,
+        COALESCE(s.special_price, p.price) as active_price,
+        CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END as is_special
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN specials s ON s.product_id = p.id
+        AND s.active = 1
+        AND (s.start_date IS NULL OR s.start_date <= date('now'))
+        AND (s.end_date IS NULL OR s.end_date >= date('now'))
+      WHERE p.active = 1
+      ORDER BY p.name
+    `)
+  })
+
   ipcMain.handle('db:products:getByBarcode', (_e, barcode) => {
     return dbGet(`
       SELECT p.*, c.name as category_name, c.colour as category_color,
@@ -4777,7 +4919,9 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
   ipcMain.handle('db:products:upsert', (_e, product) => {
     const id = product.id || uuid()
+    const isUpdate = !!product.id
     const isOpenPrice = !!product.open_price
+    const productUnit = product.unit || 'each'
     const productPrice = isOpenPrice ? 0 : (product.price || 0)
     const productPlu = String(product.plu || '').trim()
     if (!productPlu) return { error: 'PLU is required for every product' }
@@ -4792,29 +4936,49 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       INSERT OR REPLACE INTO products (id, barcode, plu, name, category_id, price, cost_price, unit, tax_rate, track_stock, stock_qty, active, image_url, open_price, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, datetime('now'))
     `, [id, productPlu, productPlu, product.name, product.category_id || null,
-        productPrice, product.cost_price || 0, product.unit || 'each',
+        productPrice, product.cost_price || 0, productUnit,
         product.tax_rate ?? 0.10, product.track_stock ? 1 : 0,
         product.stock_qty || 0, product.active !== false ? 1 : 0, product.image_url || null,
         isOpenPrice ? 1 : 0])
     if (isOpenPrice) {
       dbRun("UPDATE specials SET active = 0, updated_at = datetime('now') WHERE product_id = ?1 AND active = 1", [id])
     }
+    if (isOpenPrice || String(productUnit).trim().toLowerCase() !== 'each') {
+      unlinkProductFromDeals(id)
+    }
     normalizeKeyboardProductRefs()
 
     queueSync('products', id, product.id ? 'update' : 'insert')
     lanSync.bumpVersion()
+    writeAuditLog({ action: isUpdate ? 'product_update' : 'product_create', detail: `${product.name || id} (PLU ${productPlu})` })
     saveDBSync()
     return { id }
   })
 
   ipcMain.handle('db:categories:upsert', (_e, cat) => {
     const id = cat.id || uuid()
+    const existing = cat.id ? dbGet("SELECT * FROM categories WHERE id = ?1", [cat.id]) : null
+    const nextActive = cat.active !== false ? 1 : 0
+    const oldProductIds = nextActive ? [] : dbAll("SELECT id FROM products WHERE category_id = ?1 AND active = 1", [id]).map(r => r.id)
     dbRun(`
       INSERT OR REPLACE INTO categories (id, name, sort_order, colour, family, active, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'))
-    `, [id, cat.name, cat.sort_order || 0, cat.colour || '#4fbd77', cat.family || '', cat.active !== false ? 1 : 0])
+    `, [
+      id,
+      cat.name ?? existing?.name ?? 'Category',
+      cat.sort_order ?? existing?.sort_order ?? 0,
+      cat.colour ?? existing?.colour ?? '#4fbd77',
+      cat.family ?? existing?.family ?? '',
+      nextActive
+    ])
+    if (!nextActive) {
+      dbRun("UPDATE products SET category_id = NULL, updated_at = datetime('now') WHERE category_id = ?1", [id])
+      for (const pid of oldProductIds) queueSync('products', pid, 'update')
+    }
 
     queueSync('categories', id, cat.id ? 'update' : 'insert')
+    lanSync.bumpVersion()
+    writeAuditLog({ action: nextActive ? (existing ? 'category_update' : 'category_create') : 'category_delete', detail: cat.name ?? existing?.name ?? id })
     saveDBSync()
     return { id }
   })
@@ -4865,8 +5029,13 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   })
 
   ipcMain.handle('db:products:delete', (_e, id) => {
+    const product = dbGet("SELECT name, plu FROM products WHERE id = ?1", [id])
     dbRun("UPDATE products SET active = 0, updated_at = datetime('now') WHERE id = ?1", [id])
+    dbRun("UPDATE specials SET active = 0, updated_at = datetime('now') WHERE product_id = ?1 AND active = 1", [id])
+    unlinkProductFromDeals(id)
     queueSync('products', id, 'update')
+    lanSync.bumpVersion()
+    writeAuditLog({ action: 'product_delete', detail: `${product?.name || id}${product?.plu ? ` (PLU ${product.plu})` : ''}` })
     saveDBSync()
     return true
   })
@@ -4943,21 +5112,40 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     return dbAll("SELECT * FROM deals ORDER BY active DESC, name")
   })
 
+  function isDealEligibleProduct (product) {
+    if (!product) return false
+    const hasPlu = !!String(product.plu || '').trim()
+    const isEach = String(product.unit || 'each').trim().toLowerCase() === 'each'
+    const isFixedPrice = Number(product.open_price || 0) !== 1
+    const isActive = Number(product.active ?? 1) === 1
+    return hasPlu && isEach && isFixedPrice && isActive
+  }
+
+  function unlinkProductFromDeals (productId) {
+    const links = dbAll("SELECT deal_id, product_id FROM deal_products WHERE product_id = ?1", [productId])
+    for (const link of links) {
+      dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
+        ['deal_products', `${link.deal_id}:${link.product_id}`, 'delete', JSON.stringify({ deal_id: link.deal_id, product_id: link.product_id })])
+    }
+    if (links.length) dbRun("DELETE FROM deal_products WHERE product_id = ?1", [productId])
+    return links.length
+  }
+
   function validateDealProductIds (productIds) {
     const ids = [...new Set((productIds || []).map(id => String(id || '').trim()).filter(Boolean))]
-    if (!ids.length) return { ok: false, error: 'Add at least one product with a PLU before saving this deal' }
-    const rows = dbAll(`SELECT id, name, plu, unit FROM products WHERE id IN (${ids.map(() => '?').join(',')})`, ids)
+    if (!ids.length) return { ok: false, error: 'Add at least one fixed-price Each product with a PLU before saving this deal' }
+    const rows = dbAll(`SELECT id, name, plu, unit, open_price, active FROM products WHERE id IN (${ids.map(() => '?').join(',')})`, ids)
     const byId = new Map(rows.map(row => [row.id, row]))
     const invalid = []
     for (const id of ids) {
       const product = byId.get(id)
-      if (!product || !String(product.plu || '').trim() || String(product.unit || 'each').toLowerCase() !== 'each') {
+      if (!isDealEligibleProduct(product)) {
         invalid.push(product?.name || id)
       }
     }
     if (invalid.length) {
       const names = invalid.slice(0, 3).join(', ')
-      return { ok: false, error: `Deals need Each products with PLUs: ${names}${invalid.length > 3 ? '...' : ''}` }
+      return { ok: false, error: `Deals need fixed-price Each products with PLUs: ${names}${invalid.length > 3 ? '...' : ''}` }
     }
     return { ok: true, ids }
   }
@@ -4969,7 +5157,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       if (!idsToValidate && deal.id) {
         idsToValidate = dbAll("SELECT product_id FROM deal_products WHERE deal_id = ?1", [deal.id]).map(r => r.product_id)
       }
-      if (!idsToValidate && !deal.id) return { error: 'Add at least one product with a PLU before saving this deal' }
+      if (!idsToValidate && !deal.id) return { error: 'Add at least one fixed-price Each product with a PLU before saving this deal' }
       if (idsToValidate) {
         const valid = validateDealProductIds(idsToValidate)
         if (!valid.ok) return { error: valid.error }
@@ -4982,11 +5170,13 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         deal.start_date || null, deal.end_date || null, deal.active !== false ? 1 : 0])
     queueSync('deals', id, deal.id ? 'update' : 'insert')
     lanSync.bumpVersion()
+    writeAuditLog({ action: deal.id ? 'deal_update' : 'deal_create', detail: deal.name || id })
     saveDBSync()
     return { id }
   })
 
   ipcMain.handle('db:deals:delete', (_e, id) => {
+    const deal = dbGet("SELECT name FROM deals WHERE id = ?1", [id])
     const linkedProducts = dbAll("SELECT product_id FROM deal_products WHERE deal_id = ?1", [id])
     for (const row of linkedProducts) {
       dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
@@ -4998,13 +5188,14 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     dbRun("DELETE FROM deal_products WHERE deal_id = ?1", [id])
     dbRun("DELETE FROM deals WHERE id = ?1", [id])
     lanSync.bumpVersion()
+    writeAuditLog({ action: 'deal_delete', detail: deal?.name || id })
     saveDBSync()
     return true
   })
 
   ipcMain.handle('db:deals:getProducts', (_e, dealId) => {
     return dbAll(`
-      SELECT dp.*, p.name as product_name, p.price, p.plu
+      SELECT dp.*, p.name as product_name, p.price, p.plu, p.barcode, p.unit, p.open_price
       FROM deal_products dp
       JOIN products p ON p.id = dp.product_id
       WHERE dp.deal_id = ?1
@@ -5060,6 +5251,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     let count = 0
     for (const dp of dealProducts) {
       if (!dp.deal_id || !dp.product_id) continue
+      const valid = validateDealProductIds([dp.product_id])
+      if (!valid.ok) continue
       dbRun(`INSERT OR REPLACE INTO deal_products (deal_id, product_id, role)
         VALUES (?1, ?2, ?3)`,
         [dp.deal_id, dp.product_id, dp.role || 'trigger'])
@@ -5136,6 +5329,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     }
     dbRun("UPDATE transactions SET status = 'voided' WHERE id = ?1", [txnId])
     queueSync('transactions', txnId, 'update')
+    writeAuditLog({ action: 'void_transaction', detail: txnId })
     saveDBSync()
     return true
   })
@@ -5149,6 +5343,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     }
     dbRun("UPDATE transactions SET status = 'refunded' WHERE id = ?1", [txnId])
     queueSync('transactions', txnId, 'update')
+    writeAuditLog({ action: 'refund', detail: txnId })
     saveDBSync()
     return true
   })
@@ -5184,8 +5379,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     let where = ["1=1"]
     let params = []
     let n = 1
-    if (opts.dateFrom) { where.push(`date(t.created_at) >= ?${n}`); params.push(opts.dateFrom); n++ }
-    if (opts.dateTo) { where.push(`date(t.created_at) <= ?${n}`); params.push(opts.dateTo); n++ }
+    if (opts.dateFrom) { where.push(`date(t.created_at, 'localtime') >= ?${n}`); params.push(opts.dateFrom); n++ }
+    if (opts.dateTo) { where.push(`date(t.created_at, 'localtime') <= ?${n}`); params.push(opts.dateTo); n++ }
     if (opts.status) { where.push(`t.status = ?${n}`); params.push(opts.status); n++ }
     if (opts.staffId) { where.push(`t.staff_id = ?${n}`); params.push(opts.staffId); n++ }
     let having = ''
@@ -5214,10 +5409,10 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   ipcMain.handle('db:deals:getActive', () => {
     return dbAll(`
       SELECT d.*,
-        GROUP_CONCAT(dp.product_id) as product_ids,
-        GROUP_CONCAT(COALESCE(p.plu, ''), '|') as product_plus,
-        GROUP_CONCAT(COALESCE(p.barcode, ''), '|') as product_barcodes,
-        GROUP_CONCAT(COALESCE(p.name, ''), '|') as product_names
+        GROUP_CONCAT(CASE WHEN p.id IS NOT NULL AND COALESCE(p.active, 1) = 1 AND COALESCE(p.open_price, 0) = 0 AND LOWER(COALESCE(p.unit, 'each')) = 'each' AND TRIM(COALESCE(p.plu, '')) != '' THEN dp.product_id END) as product_ids,
+        GROUP_CONCAT(CASE WHEN p.id IS NOT NULL AND COALESCE(p.active, 1) = 1 AND COALESCE(p.open_price, 0) = 0 AND LOWER(COALESCE(p.unit, 'each')) = 'each' AND TRIM(COALESCE(p.plu, '')) != '' THEN COALESCE(p.plu, '') END, '|') as product_plus,
+        GROUP_CONCAT(CASE WHEN p.id IS NOT NULL AND COALESCE(p.active, 1) = 1 AND COALESCE(p.open_price, 0) = 0 AND LOWER(COALESCE(p.unit, 'each')) = 'each' AND TRIM(COALESCE(p.plu, '')) != '' THEN COALESCE(p.barcode, '') END, '|') as product_barcodes,
+        GROUP_CONCAT(CASE WHEN p.id IS NOT NULL AND COALESCE(p.active, 1) = 1 AND COALESCE(p.open_price, 0) = 0 AND LOWER(COALESCE(p.unit, 'each')) = 'each' AND TRIM(COALESCE(p.plu, '')) != '' THEN COALESCE(p.name, '') END, '|') as product_names
       FROM deals d
       LEFT JOIN deal_products dp ON dp.deal_id = d.id
       LEFT JOIN products p ON p.id = dp.product_id
@@ -5234,8 +5429,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   ipcMain.handle('db:insights:salesHeatmap', (_e, opts = {}) => {
     const days = opts.days || 30
     return dbAll(`
-      SELECT CAST(strftime('%w', created_at) AS INTEGER) as day,
-             CAST(strftime('%H', created_at) AS INTEGER) as hour,
+      SELECT CAST(strftime('%w', created_at, 'localtime') AS INTEGER) as day,
+             CAST(strftime('%H', created_at, 'localtime') AS INTEGER) as hour,
              SUM(total) as total,
              COUNT(*) as count
       FROM transactions
@@ -5248,8 +5443,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
   ipcMain.handle('db:insights:demandForecast', () => {
     const rows = dbAll(`
-      SELECT CAST(strftime('%w', created_at) AS INTEGER) as day,
-             DATE(created_at) as sale_date,
+      SELECT CAST(strftime('%w', created_at, 'localtime') AS INTEGER) as day,
+             DATE(created_at, 'localtime') as sale_date,
              SUM(total) as day_total,
              COUNT(*) as day_txns
       FROM transactions
@@ -5280,7 +5475,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         FROM transaction_items ti
         JOIN transactions t ON t.id = ti.transaction_id
         WHERE t.status = 'completed'
-          AND CAST(strftime('%w', t.created_at) AS INTEGER) = ?1
+          AND CAST(strftime('%w', t.created_at, 'localtime') AS INTEGER) = ?1
           AND t.created_at >= datetime('now', '-28 days')
         GROUP BY ti.product_id
         ORDER BY total_qty DESC
@@ -5333,13 +5528,13 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   ipcMain.handle('db:insights:salesTrend', (_e, opts = {}) => {
     const days = opts.days || 30
     return dbAll(`
-      SELECT DATE(created_at) as date,
+      SELECT DATE(created_at, 'localtime') as date,
              SUM(total) as total,
              COUNT(*) as count
       FROM transactions
       WHERE status = 'completed'
         AND created_at >= datetime('now', ?1)
-      GROUP BY DATE(created_at)
+      GROUP BY DATE(created_at, 'localtime')
       ORDER BY date
     `, [`-${days} days`])
   })
@@ -5355,6 +5550,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'))
     `, [id, registerId, entry.staff_id || null, entry.action, entry.amount || null, entry.note || null])
     queueSync('cash_drawer', id, 'insert')
+    lanSync.bumpVersion()
+    writeAuditLog({ staff_id: entry.staff_id || null, action: `cash_${entry.action}`, detail: `${registerId}: ${entry.amount != null ? '$' + Number(entry.amount || 0).toFixed(2) : ''}${entry.note ? ` - ${entry.note}` : ''}` })
     saveDBSync()
     return { id }
   })
@@ -5378,22 +5575,26 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       SELECT cd.*, s.name as staff_name
       FROM cash_drawer cd
       LEFT JOIN staff s ON s.id = cd.staff_id
-      WHERE date(cd.created_at) = ?1
+      WHERE date(cd.created_at, 'localtime') = ?1
       ORDER BY cd.created_at DESC
-    `, [date || new Date().toISOString().slice(0, 10)])
+    `, [date || localDateString()])
   })
 
-  ipcMain.handle('db:cash_drawer:summary', (_e, date) => {
-    const d = date || new Date().toISOString().slice(0, 10)
-    const floatRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'float' AND date(created_at) = ?1`, [d])
-    const pickupRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'pickup' AND date(created_at) = ?1`, [d])
-    const dropRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'drop' AND date(created_at) = ?1`, [d])
+  ipcMain.handle('db:cash_drawer:summary', (_e, date, registerId = null) => {
+    const d = date || localDateString()
+    const registerClause = registerId ? ' AND register_id = ?2' : ''
+    const drawerParams = registerId ? [d, registerId] : [d]
+    const floatRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'float' AND date(created_at, 'localtime') = ?1${registerClause}`, drawerParams)
+    const pickupRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'pickup' AND date(created_at, 'localtime') = ?1${registerClause}`, drawerParams)
+    const dropRow = dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM cash_drawer WHERE action = 'drop' AND date(created_at, 'localtime') = ?1${registerClause}`, drawerParams)
+    const salesRegisterClause = registerId ? ' AND t.register_id = ?2' : ''
+    const salesParams = registerId ? [d, registerId] : [d]
     const cashSalesRow = dbGet(`
       SELECT COALESCE(SUM(p.amount), 0) as total
       FROM payments p
       JOIN transactions t ON t.id = p.transaction_id
-      WHERE p.method = 'cash' AND t.status = 'completed' AND date(t.created_at) = ?1
-    `, [d])
+      WHERE p.method = 'cash' AND t.status = 'completed' AND date(t.created_at, 'localtime') = ?1${salesRegisterClause}
+    `, salesParams)
     return {
       float: floatRow?.total || 0,
       pickups: pickupRow?.total || 0,
@@ -5415,17 +5616,21 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   })
 
   ipcMain.handle('db:stock:adjust', (_e, productId, qty, reason) => {
+    const product = dbGet("SELECT name, stock_qty FROM products WHERE id = ?1", [productId])
     dbRun("UPDATE products SET stock_qty = stock_qty + ?1, updated_at = datetime('now') WHERE id = ?2", [qty, productId])
     queueSync('products', productId, 'update')
+    lanSync.bumpVersion()
+    writeAuditLog({ action: 'stock_adjust', detail: `${product?.name || productId}: ${qty >= 0 ? '+' : ''}${qty} (${reason || 'Stock adjust'})` })
+    saveDBSync()
     return true
   })
 
   ipcMain.handle('db:reports:salesByHour', (_e, date) => {
     return dbAll(`
-      SELECT strftime('%H', created_at) as hour, COUNT(*) as txn_count, COALESCE(SUM(total), 0) as total
-      FROM transactions WHERE status = 'completed' AND date(created_at) = ?1
+      SELECT strftime('%H', created_at, 'localtime') as hour, COUNT(*) as txn_count, COALESCE(SUM(total), 0) as total
+      FROM transactions WHERE status = 'completed' AND date(created_at, 'localtime') = ?1
       GROUP BY hour ORDER BY hour
-    `, [date || new Date().toISOString().slice(0, 10)])
+    `, [date || localDateString()])
   })
 
   ipcMain.handle('db:reports:salesByMethod', (_e, date) => {
@@ -5433,9 +5638,9 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       SELECT p.method, COUNT(DISTINCT p.transaction_id) as txn_count, COALESCE(SUM(p.amount), 0) as total
       FROM payments p
       JOIN transactions t ON t.id = p.transaction_id
-      WHERE t.status = 'completed' AND date(t.created_at) = ?1
+      WHERE t.status = 'completed' AND date(t.created_at, 'localtime') = ?1
       GROUP BY p.method
-    `, [date || new Date().toISOString().slice(0, 10)])
+    `, [date || localDateString()])
   })
 
   ipcMain.handle('db:reports:salesByCategory', (_e, date) => {
@@ -5445,9 +5650,9 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       JOIN transactions t ON t.id = ti.transaction_id
       LEFT JOIN products p ON p.id = ti.product_id
       LEFT JOIN categories c ON c.id = p.category_id
-      WHERE t.status = 'completed' AND date(t.created_at) = ?1
+      WHERE t.status = 'completed' AND date(t.created_at, 'localtime') = ?1
       GROUP BY c.name ORDER BY total DESC
-    `, [date || new Date().toISOString().slice(0, 10)])
+    `, [date || localDateString()])
   })
 
   // â”€â”€ Staff â”€ï¿½ï¿½â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -5466,11 +5671,14 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
   ipcMain.handle('db:staff:upsert', (_e, s) => {
     const id = s.id || uuid()
+    const existing = s.id ? dbGet("SELECT name, active FROM staff WHERE id = ?1", [s.id]) : null
     dbRun(`
       INSERT OR REPLACE INTO staff (id, name, pin, role, active, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))
     `, [id, s.name, s.pin, s.role || 'cashier', s.active !== false ? 1 : 0])
     queueSync('staff', id, s.id ? 'update' : 'insert')
+    lanSync.bumpVersion()
+    writeAuditLog({ action: existing ? 'staff_update' : 'staff_create', detail: `${s.name || id} (${s.role || 'cashier'}, ${s.active !== false ? 'active' : 'inactive'})` })
     saveDBSync()
     return { id }
   })
@@ -5509,6 +5717,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       dbRun(`INSERT INTO sync_queue (table_name, record_id, action, payload) VALUES (?1, ?2, ?3, ?4)`,
             ['settings', key, 'update', JSON.stringify({ key, value })])
       lanSync.bumpVersion()
+      writeAuditLog({ action: 'settings_change', detail: `${key} updated` })
     }
     if (['store_name', 'store_address', 'store_hours'].includes(key) && customerWindow && !customerWindow.isDestroyed()) {
       customerWindow.webContents.send('customer:update', {
@@ -5566,8 +5775,8 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         COALESCE(SUM(discount), 0) as total_discounts
       FROM transactions
       WHERE status = 'completed'
-        AND date(created_at) = ?1
-    `, [date || new Date().toISOString().slice(0, 10)])
+        AND date(created_at, 'localtime') = ?1
+    `, [date || localDateString()])
   })
 
   ipcMain.handle('db:reports:voidRefundCount', (_e, date) => {
@@ -5577,42 +5786,42 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         COALESCE(SUM(CASE WHEN status='refunded' THEN 1 ELSE 0 END), 0) as refund_count,
         COALESCE(SUM(CASE WHEN status='refunded' THEN total ELSE 0 END), 0) as refund_total
       FROM transactions
-      WHERE date(created_at) = ?1
-    `, [date || new Date().toISOString().slice(0, 10)])
+      WHERE date(created_at, 'localtime') = ?1
+    `, [date || localDateString()])
   })
 
   ipcMain.handle('db:reports:zReport', (_e, date) => {
-    const d = date || new Date().toISOString().slice(0, 10)
+    const d = date || localDateString()
     const summary = dbGet(`
       SELECT COUNT(*) as txn_count, COALESCE(SUM(total),0) as total_sales,
         COALESCE(SUM(tax),0) as total_tax, COALESCE(SUM(discount),0) as total_discounts
-      FROM transactions WHERE status='completed' AND date(created_at)=?1
+      FROM transactions WHERE status='completed' AND date(created_at, 'localtime')=?1
     `, [d])
-    const voids = dbGet(`SELECT COUNT(*) as cnt FROM transactions WHERE status='voided' AND date(created_at)=?1`, [d])
+    const voids = dbGet(`SELECT COUNT(*) as cnt FROM transactions WHERE status='voided' AND date(created_at, 'localtime')=?1`, [d])
     const refunds = dbGet(`
       SELECT COUNT(*) as cnt, COALESCE(SUM(ABS(total)),0) as total
-      FROM transactions WHERE status='refunded' AND date(created_at)=?1
+      FROM transactions WHERE status='refunded' AND date(created_at, 'localtime')=?1
     `, [d])
     const methods = dbAll(`
       SELECT p.method, COUNT(DISTINCT p.transaction_id) as txn_count, COALESCE(SUM(p.amount),0) as total
       FROM payments p JOIN transactions t ON t.id=p.transaction_id
-      WHERE t.status='completed' AND date(t.created_at)=?1 GROUP BY p.method
+      WHERE t.status='completed' AND date(t.created_at, 'localtime')=?1 GROUP BY p.method
     `, [d])
     const categories = dbAll(`
       SELECT COALESCE(c.name,'Other') as category, SUM(ti.line_total) as total, SUM(ti.qty) as qty
       FROM transaction_items ti JOIN transactions t ON t.id=ti.transaction_id
       LEFT JOIN products p ON p.id=ti.product_id LEFT JOIN categories c ON c.id=p.category_id
-      WHERE t.status='completed' AND date(t.created_at)=?1 GROUP BY c.name ORDER BY total DESC
+      WHERE t.status='completed' AND date(t.created_at, 'localtime')=?1 GROUP BY c.name ORDER BY total DESC
     `, [d])
     const hourly = dbAll(`
-      SELECT strftime('%H',created_at) as hour, COUNT(*) as cnt, COALESCE(SUM(total),0) as total
-      FROM transactions WHERE status='completed' AND date(created_at)=?1 GROUP BY hour ORDER BY hour
+      SELECT strftime('%H', created_at, 'localtime') as hour, COUNT(*) as cnt, COALESCE(SUM(total),0) as total
+      FROM transactions WHERE status='completed' AND date(created_at, 'localtime')=?1 GROUP BY hour ORDER BY hour
     `, [d])
     const drawer = dbGet(`
       SELECT COALESCE(SUM(CASE WHEN action='float' THEN amount ELSE 0 END),0) as float_total,
         COALESCE(SUM(CASE WHEN action='pickup' THEN amount ELSE 0 END),0) as pickups,
         COALESCE(SUM(CASE WHEN action='drop' THEN amount ELSE 0 END),0) as drops
-      FROM cash_drawer WHERE date(created_at)=?1
+      FROM cash_drawer WHERE date(created_at, 'localtime')=?1
     `, [d])
     const cashSales = methods.find(m => m.method === 'cash')?.total || 0
     return {
@@ -5626,7 +5835,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   })
 
   ipcMain.handle('db:reports:eodRegisterTotals', (_e, opts = {}) => {
-    const d = opts.date || new Date().toISOString().slice(0, 10)
+    const d = opts.date || localDateString()
     const regRow = dbGet("SELECT value FROM settings WHERE key = 'register_id'")
     const registerId = opts.register_id || opts.registerId || regRow?.value || 'LANE01'
     const eftpos = dbGet(`
@@ -5635,7 +5844,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       JOIN transactions t ON t.id = p.transaction_id
       WHERE t.status = 'completed'
         AND t.register_id = ?1
-        AND date(t.created_at) = ?2
+        AND date(t.created_at, 'localtime') = ?2
         AND lower(p.method) IN ('eftpos', 'card')
     `, [registerId, d])
     return {
@@ -5648,23 +5857,23 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   ipcMain.handle('db:reports:weeklySummary', (_e, weekStartDate) => {
     const ws = weekStartDate || (() => {
       const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
-      return d.toISOString().slice(0, 10)
+      return localDateString(d)
     })()
     const days = []
     for (let i = 0; i < 7; i++) {
       const d = new Date(ws + 'T00:00:00')
       d.setDate(d.getDate() + i)
-      const ds = d.toISOString().slice(0, 10)
+      const ds = localDateString(d)
       const dayName = d.toLocaleDateString('en-AU', { weekday: 'short' })
       const summary = dbGet(`
         SELECT COUNT(*) as txn_count, COALESCE(SUM(total),0) as total_sales,
           COALESCE(SUM(tax),0) as total_tax, COALESCE(SUM(discount),0) as total_discounts
-        FROM transactions WHERE status='completed' AND date(created_at)=?1
+        FROM transactions WHERE status='completed' AND date(created_at, 'localtime')=?1
       `, [ds])
       const methods = dbAll(`
         SELECT p.method, COALESCE(SUM(p.amount),0) as total
         FROM payments p JOIN transactions t ON t.id=p.transaction_id
-        WHERE t.status='completed' AND date(t.created_at)=?1 GROUP BY p.method
+        WHERE t.status='completed' AND date(t.created_at, 'localtime')=?1 GROUP BY p.method
       `, [ds])
       const cash = methods.find(m => m.method === 'cash')?.total || 0
       const card = methods.reduce((s, m) => m.method !== 'cash' ? s + m.total : s, 0)
@@ -5690,11 +5899,11 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       FROM transaction_items ti
       JOIN transactions t ON t.id = ti.transaction_id
       WHERE t.status = 'completed'
-        AND date(t.created_at) = ?1
+        AND date(t.created_at, 'localtime') = ?1
       GROUP BY ti.product_id, ti.name
       ORDER BY total_qty DESC
       LIMIT 20
-    `, [date || new Date().toISOString().slice(0, 10)])
+    `, [date || localDateString()])
   })
 
   // â”€â”€ Keyboard Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -6246,6 +6455,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   let scannerBusyExit = false      // true when the last reader exit was a transient "busy" (claim_failed)
   let scannerRetryCount = 0
   const SCANNER_MAX_RETRIES = hardwareConfig2Active ? 30 : 3
+  const isOposNotRegisteredMessage = message => /class not registered|REGDB_E_CLASSNOTREG|80040154/i.test(String(message || ''))
 
   function startScannerListener () {
     if (!isWin) return
@@ -6365,7 +6575,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
         break
       case 'fatal':
         appLog('error', 'scanner', `Listener fatal: ${msg.message}`)
-        if (msg.message && msg.message.includes('not registered')) {
+        if (isOposNotRegisteredMessage(msg.message)) {
           scannerFatalStop = true
           try { dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('scanner_opos_unavailable', '1')"); saveDBSync() } catch (_) {}
         }
@@ -6373,6 +6583,10 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       case 'error':
       case 'poll_error':
         appLog('warn', 'scanner', `Listener error: ${msg.message}`)
+        if (isOposNotRegisteredMessage(msg.message)) {
+          scannerFatalStop = true
+          try { dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES ('scanner_opos_unavailable', '1')"); saveDBSync() } catch (_) {}
+        }
         break
       default:
         appLog('info', 'scanner', `Event: ${JSON.stringify(msg)}`)
@@ -7482,12 +7696,17 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       testPort.close(() => { clearTimeout(timer); resolve() })
     })
     try {
-      if (protocol === 'mt8217') {
+      const pythonScaleDisabled = getHwSetting('hw_scale_use_python') === 'false'
+      if (protocol === 'mt8217' && !pythonScaleDisabled) {
         if (pythonScaleProc && hwScale?.port === portPath && lastPythonReading) {
           return { ok: true, reading: lastPythonReading, protocol: 'mt8217', raw: 'python-live' }
         }
         const pyResult = await runPythonScaleReadOnce(portPath, baud || 9600, cmdTimeout + 2000)
         if (pyResult.ok) return pyResult
+        if (/No module named ['"]serial['"]|ModuleNotFoundError: No module named ['"]serial['"]/i.test(String(pyResult.error || ''))) {
+          try { setHwSetting('hw_scale_use_python', 'false'); saveDBSync() } catch (_) {}
+          appLog('warn', 'scale', `Python pyserial is not installed; disabled Python scale bridge for ${portPath} and using JS fallback`)
+        }
         appLog('warn', 'scale', `Python scale test failed on ${portPath}: ${pyResult.error}; trying JS 8217 fallback`)
       }
       const serialOpts = PROTOCOL_SERIAL_OPTS[protocol] || PROTOCOL_SERIAL_OPTS.sics
@@ -9278,8 +9497,12 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       appLog('info', 'scanner', 'OPOS scanner reader disabled (scanner_opos_enabled=0); using keyboard-wedge input')
       return
     }
-    // Always retry scanner on fresh register-mode startup â€” clear any previous "unavailable" flag
-    try { dbRun("DELETE FROM settings WHERE key='scanner_opos_unavailable'"); scheduleSave() } catch (_) {}
+    // If OPOS is not installed on this lane, stay quiet until Hardware > restart scanner is used.
+    const scannerUnavailable = dbGet("SELECT value FROM settings WHERE key = 'scanner_opos_unavailable'")?.value === '1'
+    if (scannerUnavailable) {
+      appLog('info', 'scanner', 'OPOS scanner previously marked unavailable; using keyboard-wedge input')
+      return
+    }
     scannerFatalStop = false
     scannerRetryCount = 0
     try { startScannerListener() } catch (e) { appLog('warn', 'scanner', `Failed to start listener: ${e.message}`) }

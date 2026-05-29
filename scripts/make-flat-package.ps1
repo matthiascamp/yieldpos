@@ -57,6 +57,10 @@ Copy-IfExists 'install-kill-ptpos-task.cmd'
 Copy-IfExists 'install-kill-ptpos-task.ps1'
 Copy-IfExists 'reset-runtime-db.cmd'
 Copy-IfExists 'reset-runtime-db.ps1'
+Copy-IfExists 'save-runtime-db.cmd'
+Copy-IfExists 'export-runtime-db.cmd'
+Copy-IfExists 'import-runtime-db.cmd'
+Copy-IfExists 'yieldpos-db-state.ps1'
 Copy-IfExists 'test-table-scanner.ps1'
 Copy-IfExists 'scan-test.js'
 
@@ -74,6 +78,8 @@ Recommended Desktop layout:
 The launchers also work if you keep them inside this YieldPOS folder with YieldPOS-Client-1.0.0.exe.
 
 The reset-runtime-db.cmd script replaces the PC's Electron runtime database with this package's bundled database.
+The save-runtime-db.cmd script saves the PC's current runtime database back into this package's bundled database.
+The export-runtime-db.cmd and import-runtime-db.cmd scripts move a full database state between PCs.
 The other scripts in this folder are scanner/PTPOS diagnostics and setup helpers.
 There is no dist2 or win-unpacked folder needed for normal use.
 "@
