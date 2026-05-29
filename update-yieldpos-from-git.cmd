@@ -12,14 +12,14 @@ if "%REMOTE_URL%"=="" set "REMOTE_URL=https://github.com/matthiascamp/yieldpos.g
 set "LOG=%REPO%\yieldpos-git-update-last.log"
 
 > "%LOG%" echo YieldPOS Git update started %DATE% %TIME%
-call :log "Repo: %REPO%"
+call :log "Folder: %REPO%"
 call :log "Mode: %MODE%"
 call :log "Remote: %REMOTE_URL%"
 echo.
 echo YieldPOS Git updater
 echo --------------------
-echo This updater uses Git directly. It does not download ZIP files, install a helper EXE,
-echo run hidden scripts, or reset the runtime database.
+echo This runs in a visible terminal and uses Git directly.
+echo It does not reset the runtime database.
 echo.
 
 where git.exe >nul 2>nul
@@ -28,7 +28,10 @@ if errorlevel 1 (
   exit /b 1
 )
 
-cd /d "%REPO%" || (call :fail "Could not open the YieldPOS folder." & exit /b 1)
+cd /d "%REPO%" || (
+  call :fail "Could not open the YieldPOS folder."
+  exit /b 1
+)
 
 if "%PARENT_PID%"=="" goto skip_parent_wait
 echo Waiting for YieldPOS to close...
@@ -42,31 +45,15 @@ set /a WAIT_COUNT+=1
 goto wait_parent
 :parent_closed
 :skip_parent_wait
-
 timeout /t 2 /nobreak >nul
 
-if not exist "%REPO%\.git" (
-  echo This folder is not a Git checkout yet.
-  echo Bootstrapping Git from:
-  echo %REMOTE_URL%
-  call :log "Bootstrapping Git checkout"
-  git -C "%REPO%" init >> "%LOG%" 2>&1
-  if errorlevel 1 (
-    call :fail "git init failed. Check folder permissions."
-    exit /b 1
-  )
-  git -C "%REPO%" remote remove origin >> "%LOG%" 2>&1
-  git -C "%REPO%" remote add origin "%REMOTE_URL%" >> "%LOG%" 2>&1
-  if errorlevel 1 (
-    call :fail "Could not add the update repo URL. Check that the address is correct."
-    exit /b 1
-  )
-) else (
-  git -C "%REPO%" remote set-url origin "%REMOTE_URL%" >> "%LOG%" 2>&1
-  if errorlevel 1 (
-    call :log "Could not change origin URL; continuing with existing remote"
-  )
-)
+if exist "%REPO%\.git" goto repo_update
+goto staged_update
+
+:repo_update
+echo Updating existing Git checkout...
+git -C "%REPO%" remote set-url origin "%REMOTE_URL%" >> "%LOG%" 2>&1
+if errorlevel 1 call :log "Could not change origin URL; continuing with existing remote"
 
 for /f "delims=" %%H in ('git -C "%REPO%" rev-parse --short HEAD 2^>nul') do set "BEFORE=%%H"
 if "%BEFORE%"=="" set "BEFORE=unknown"
@@ -96,17 +83,6 @@ set "NEED_NPM=0"
 git -C "%REPO%" diff --name-only HEAD origin/main | findstr /R /I /C:"^package.json$" /C:"^package-lock.json$" >nul
 if not errorlevel 1 set "NEED_NPM=1"
 
-if "%BEFORE%"=="unknown" (
-  set "NEED_NPM=1"
-  echo Applying first Git checkout...
-  git -C "%REPO%" reset --hard origin/main >> "%LOG%" 2>&1
-  if errorlevel 1 (
-    call :fail "Initial checkout failed. Check folder permissions and repo access."
-    exit /b 1
-  )
-  goto after_pull
-)
-
 git -C "%REPO%" diff --quiet HEAD origin/main
 if not errorlevel 1 (
   echo YieldPOS is already up to date at %BEFORE%.
@@ -114,14 +90,13 @@ if not errorlevel 1 (
   goto relaunch
 )
 
+call :backup_launch_files
 echo Applying update with git pull --ff-only...
 git -C "%REPO%" pull --ff-only origin main >> "%LOG%" 2>&1
 if errorlevel 1 (
   call :fail "git pull failed. If this folder has local code edits, commit or stash them first."
   exit /b 1
 )
-
-:after_pull
 
 if "%NEED_NPM%"=="1" (
   where npm.cmd >nul 2>nul
@@ -141,6 +116,76 @@ for /f "delims=" %%H in ('git -C "%REPO%" rev-parse --short HEAD 2^>nul') do set
 if "%AFTER%"=="" set "AFTER=unknown"
 echo Updated YieldPOS from %BEFORE% to %AFTER%.
 call :log "Updated from %BEFORE% to %AFTER%"
+goto relaunch
+
+:staged_update
+echo This folder is not a Git checkout.
+echo Using a safe staged update from:
+echo %REMOTE_URL%
+call :log "Starting safe staged update"
+
+set "STAMP=%DATE:/=-%-%TIME::=-%"
+set "STAMP=%STAMP: =-%"
+set "STAMP=%STAMP:.=-%"
+set "STAGE=%TEMP%\yieldpos-update-stage-%RANDOM%-%RANDOM%"
+
+if exist "%STAGE%" rmdir /s /q "%STAGE%" >> "%LOG%" 2>&1
+echo Cloning latest main branch into a temporary staging folder...
+git clone --depth 1 --branch main "%REMOTE_URL%" "%STAGE%" >> "%LOG%" 2>&1
+if errorlevel 1 (
+  call :fail "Could not clone the update repo. Check the repo URL and internet connection."
+  exit /b 1
+)
+
+if not exist "%STAGE%\YieldPOS-Client-1.0.0.exe" (
+  call :fail "The staged update did not contain YieldPOS-Client-1.0.0.exe, so the live app was left untouched."
+  exit /b 1
+)
+if not exist "%STAGE%\YieldPOS Register.exe" (
+  call :fail "The staged update did not contain YieldPOS Register.exe, so the live app was left untouched."
+  exit /b 1
+)
+if not exist "%STAGE%\YieldPOS Admin.exe" (
+  call :fail "The staged update did not contain YieldPOS Admin.exe, so the live app was left untouched."
+  exit /b 1
+)
+
+if /I "%MODE%"=="check" (
+  echo Git updater staged check OK.
+  call :log "Staged check completed"
+  rmdir /s /q "%STAGE%" >> "%LOG%" 2>&1
+  exit /b 0
+)
+
+call :backup_launch_files
+echo Copying staged update into the YieldPOS folder...
+robocopy "%STAGE%" "%REPO%" /E /XD ".git" "node_modules" "dist" "dist2" "release" "out" "backups" "exports" "supabase\.temp" /XF ".env" ".env.*" "*.log" "*.tmp" >> "%LOG%" 2>&1
+if errorlevel 8 (
+  call :fail "Copy failed. The previous launch files are backed up in %BACKUP%."
+  exit /b 1
+)
+
+if not exist "%REPO%\YieldPOS-Client-1.0.0.exe" (
+  call :fail "Copy finished but the app EXE is missing. Restore from %BACKUP%."
+  exit /b 1
+)
+
+for /f "delims=" %%H in ('git -C "%STAGE%" rev-parse --short HEAD 2^>nul') do set "AFTER=%%H"
+if "%AFTER%"=="" set "AFTER=staged"
+call :log "Staged update copied from %AFTER%"
+rmdir /s /q "%STAGE%" >> "%LOG%" 2>&1
+goto relaunch
+
+:backup_launch_files
+set "BACKUP=%REPO%\.yieldpos-update-backup-%STAMP%"
+if "%STAMP%"=="" set "BACKUP=%REPO%\.yieldpos-update-backup"
+mkdir "%BACKUP%" >> "%LOG%" 2>&1
+if exist "%REPO%\YieldPOS-Client-1.0.0.exe" copy /y "%REPO%\YieldPOS-Client-1.0.0.exe" "%BACKUP%\" >> "%LOG%" 2>&1
+if exist "%REPO%\YieldPOS Register.exe" copy /y "%REPO%\YieldPOS Register.exe" "%BACKUP%\" >> "%LOG%" 2>&1
+if exist "%REPO%\YieldPOS Admin.exe" copy /y "%REPO%\YieldPOS Admin.exe" "%BACKUP%\" >> "%LOG%" 2>&1
+if exist "%REPO%\update-yieldpos-from-git.cmd" copy /y "%REPO%\update-yieldpos-from-git.cmd" "%BACKUP%\" >> "%LOG%" 2>&1
+call :log "Backed up current launch files to %BACKUP%"
+exit /b 0
 
 :relaunch
 echo Relaunching YieldPOS...
