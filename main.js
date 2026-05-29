@@ -4267,6 +4267,7 @@ function setupIPC() {
     }
 
     const { execFileSync, spawn } = require('child_process')
+    const os = require('os')
     try {
       execFileSync('git', ['--version'], { encoding: 'utf-8', timeout: 5000, windowsHide: true })
     } catch (_) {
@@ -4321,6 +4322,12 @@ function setupIPC() {
     if (!fs.existsSync(updaterPath)) {
       return { error: 'update-yieldpos-from-git.cmd was not found. Pull the latest code once manually, then the in-app updater can use it.' }
     }
+    const updaterRunPath = path.join(os.tmpdir(), `yieldpos-git-updater-${Date.now()}.cmd`)
+    try {
+      fs.copyFileSync(updaterPath, updaterRunPath)
+    } catch (e) {
+      return { error: `Could not stage updater script: ${e.message}` }
+    }
 
     let before = 'unknown'
     if (repoRoot) try {
@@ -4333,7 +4340,7 @@ function setupIPC() {
     createBackup('pre-git-update')
 
     const mode = isRegisterApp ? 'register' : 'admin'
-    const startCommand = `start "YieldPOS Update" /D ${cmdQuote(updateRoot)} ${cmdQuote(updaterPath)} ${cmdQuote(updateRoot)} ${cmdQuote(mode)} ${cmdQuote(String(process.pid))} ${cmdQuote(repoUrl)}`
+    const startCommand = `start "YieldPOS Update" /D ${cmdQuote(updateRoot)} ${cmdQuote(updaterRunPath)} ${cmdQuote(updateRoot)} ${cmdQuote(mode)} ${cmdQuote(String(process.pid))} ${cmdQuote(repoUrl)}`
     try {
       const child = spawn('cmd.exe', ['/d', '/s', '/c', startCommand], {
         cwd: updateRoot,

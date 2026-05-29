@@ -188,6 +188,12 @@ call :log "Backed up current launch files to %BACKUP%"
 exit /b 0
 
 :relaunch
+if "%YIELDPOS_UPDATE_TEST_NO_RELAUNCH%"=="1" (
+  call :log "Relaunch skipped by test mode"
+  echo Test mode: update completed and relaunch was skipped.
+  exit /b 0
+)
+
 echo Relaunching YieldPOS...
 if /I "%MODE%"=="admin" (
   set "LAUNCHER=YieldPOS Admin.exe"
