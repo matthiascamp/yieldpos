@@ -2080,7 +2080,7 @@ function renderPosGrid () {
     cartPanel.classList.remove('cart-in-grid')
   }
 
-  const pageButtons = posAllButtons.filter(b => (b.page || 1) === posCurrentPage && b.active)
+  const pageButtons = posAllButtons.filter(b => (b.page || 1) === posCurrentPage && b.active && posButtonEffectiveType(b) !== 'num_display')
 
   // Per-page grid dimensions (default 10×7)
   const ps = posPageSizes[String(posCurrentPage)] || {}
@@ -2188,7 +2188,7 @@ function renderPosButton (btn, gridStyle) {
 
   // Numpad display — not a button but an indicator cell
   if (type === 'num_display') {
-    return `<div class="pos-grid-btn num-display-cell" style="${gridStyle};background:${bg};color:${color}">${numBuf || ''}</div>`
+    return ''
   }
 
   // Numpad digit/action buttons — let CSS handle colors
