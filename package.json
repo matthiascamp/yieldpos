@@ -52,6 +52,7 @@
       "save-runtime-db.cmd",
       "export-runtime-db.cmd",
       "import-runtime-db.cmd",
+      "update-yieldpos-from-git.cmd",
       "yieldpos-db-state.ps1"
     ],
     "files": [
@@ -71,6 +72,7 @@
       "save-runtime-db.cmd",
       "export-runtime-db.cmd",
       "import-runtime-db.cmd",
+      "update-yieldpos-from-git.cmd",
       "yieldpos-db-state.ps1",
       "package.json",
       "products.json",

@@ -4259,385 +4259,107 @@ function setupIPC() {
     }
   })
 
-  // â”€â”€ App Update (git pull from GitHub) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // App Update (visible Git updater)
 
-  ipcMain.handle('app:update', async () => {
-    const { execSync } = require('child_process')
-    const https = require('https')
-    const os = require('os')
-    const appDir = __dirname
-    const updateRoot = app.isPackaged ? path.dirname(process.execPath) : appDir
-    const looksLikeAppRoot = dir => !!dir && fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'main.js'))
-    const resolveZipSourceRoot = tmpDir => {
-      const skip = new Set(['node_modules', '.git', 'dist', 'dist2', 'backups'])
-      const queue = [{ dir: tmpDir, depth: 0 }]
-      while (queue.length) {
-        const { dir, depth } = queue.shift()
-        if (looksLikeAppRoot(dir)) return dir
-        if (depth >= 3) continue
-        let entries = []
-        try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch (_) {}
-        for (const entry of entries) {
-          if (!entry.isDirectory() || skip.has(entry.name)) continue
-          queue.push({ dir: path.join(dir, entry.name), depth: depth + 1 })
-        }
-      }
-      return tmpDir
+  ipcMain.handle('app:update', async (_e, requestedRepoUrl) => {
+    if (process.platform !== 'win32') {
+      return { error: 'The built-in updater is Windows-only. Run git pull origin main from the YieldPOS folder.' }
     }
-    const { spawn } = require('child_process')
-    const psQuote = value => `'${String(value).replace(/'/g, "''")}'`
-    const run = (cmd, args, opts = {}) => new Promise((resolve, reject) => {
-      const child = spawn(cmd, args, { windowsHide: true, ...opts })
-      let stdout = ''
-      let stderr = ''
-      child.stdout?.on('data', d => { stdout += d.toString() })
-      child.stderr?.on('data', d => { stderr += d.toString() })
-      child.on('error', reject)
-      child.on('close', code => {
-        if (code === 0) resolve({ stdout, stderr })
-        else reject(new Error(stderr || stdout || `${cmd} exited with code ${code}`))
-      })
-    })
 
-    // Git updater: close YieldPOS first, then let an external PowerShell process
-    // update the real repo folder and relaunch the same register/admin mode.
+    const { execFileSync, spawn } = require('child_process')
     try {
-      const gitVersion = execSync('git --version', { encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-      const candidates = Array.from(new Set([
-        process.cwd(),
-        path.dirname(process.execPath),
-        appDir,
-        path.resolve(appDir, '..', '..'),
-        path.resolve(appDir, '..', '..', '..')
-      ].filter(Boolean)))
-      let repoRoot = ''
-      for (const candidate of candidates) {
-        try {
-          const root = execSync(`git -C "${candidate.replace(/"/g, '\\"')}" rev-parse --show-toplevel`, { encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-          if (root && fs.existsSync(path.join(root, '.git'))) { repoRoot = root; break }
-        } catch (_) {}
-      }
-      if (!repoRoot) {
-        throw new Error('NO_GIT_CHECKOUT')
-      }
-
-      const before = execSync('git rev-parse HEAD', { cwd: repoRoot, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-      const remote = execSync('git remote get-url origin', { cwd: repoRoot, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-      execSync('git fetch origin main --prune', { cwd: repoRoot, encoding: 'utf-8', timeout: 60000, windowsHide: true })
-      const remoteHead = execSync('git rev-parse origin/main', { cwd: repoRoot, encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim()
-      const alreadyLatest = before === remoteHead
-
-      saveDBSync()
-      createBackup('pre-update')
-
-      const mode = isRegisterApp ? 'register' : 'admin'
-      const launcherPath = path.join(repoRoot, isRegisterApp ? 'YieldPOS Register.exe' : 'YieldPOS Admin.exe')
-      const clientExe = path.join(repoRoot, 'YieldPOS-Client-1.0.0.exe')
-      const logPath = path.join(repoRoot, 'yieldpos-update-last.log')
-      const updaterScript = path.join(os.tmpdir(), `yieldpos-git-update-${Date.now()}.ps1`)
-      const script = `
-param(
-  [string]$RepoRoot,
-  [int]$ParentPid,
-  [string]$Mode,
-  [string]$LauncherPath,
-  [string]$ClientExe,
-  [string]$LogPath
-)
-$ErrorActionPreference = 'Continue'
-function Log([string]$Message) {
-  $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-  Add-Content -LiteralPath $LogPath -Value "[$stamp] $Message"
-}
-Set-Content -LiteralPath $LogPath -Value "YieldPOS Git update started $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-try { Wait-Process -Id $ParentPid -Timeout 90 } catch { Start-Sleep -Seconds 5 }
-Get-Process | Where-Object {
-  $_.Id -ne $PID -and (
-    $_.ProcessName -like '*YieldPOS*' -or
-    $_.ProcessName -like '*scanner-bridge*' -or
-    $_.ProcessName -like '*opos*'
-  )
-} | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-try {
-  Log 'Removing stale git lock if present'
-  Remove-Item -LiteralPath (Join-Path $RepoRoot '.git\\index.lock') -Force -ErrorAction SilentlyContinue
-  Log 'Fetching origin/main'
-  & git -C $RepoRoot fetch origin main --prune *>> $LogPath
-  if ($LASTEXITCODE -ne 0) { throw "git fetch failed with exit code $LASTEXITCODE" }
-  Log 'Resetting working tree to origin/main'
-  & git -C $RepoRoot reset --hard origin/main *>> $LogPath
-  if ($LASTEXITCODE -ne 0) { throw "git reset failed with exit code $LASTEXITCODE" }
-  $after = (& git -C $RepoRoot rev-parse --short HEAD)
-  Log "Updated to $after"
-  $resetScript = Join-Path $RepoRoot 'reset-runtime-db.ps1'
-  if (Test-Path -LiteralPath $resetScript) {
-    Log 'Applying bundled database to Electron runtime data'
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $resetScript *>> $LogPath
-    if ($LASTEXITCODE -ne 0) { Log "Runtime database reset exited with code $LASTEXITCODE" }
-  } else {
-    Log 'reset-runtime-db.ps1 not found; runtime database was not reset'
-  }
-} catch {
-  Log "Update failed: $($_.Exception.Message)"
-}
-if (Test-Path -LiteralPath $LauncherPath) {
-  Log "Starting launcher $LauncherPath"
-  Start-Process -FilePath $LauncherPath -WorkingDirectory $RepoRoot
-} elseif (Test-Path -LiteralPath $ClientExe) {
-  $arg = if ($Mode -eq 'admin') { 'admin' } else { 'register' }
-  Log "Starting client $ClientExe $arg"
-  Start-Process -FilePath $ClientExe -ArgumentList $arg -WorkingDirectory $RepoRoot
-} else {
-  Log 'Could not find launcher or client exe after update'
-}
-`
-      fs.writeFileSync(updaterScript, script, 'utf-8')
-      const child = spawn('powershell.exe', [
-        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', updaterScript,
-        repoRoot, String(process.pid), mode, launcherPath, clientExe, logPath
-      ], { detached: true, stdio: 'ignore', windowsHide: true })
-      child.unref()
-
-      appLog('info', 'update', `Staged Git update for ${repoRoot} (${before.slice(0,7)} from ${remote})`)
-      setTimeout(() => {
-        try { lanSync.stopAll() } catch (_) {}
-        runHardwareCleanup('git-update')
-        app.quit()
-        setTimeout(() => app.exit(0), 10000)
-      }, 800)
-      return {
-        updated: !alreadyLatest,
-        staged: true,
-        log: `${alreadyLatest ? 'Already on latest code; database refresh staged.' : 'Git update staged.'}\nRepo: ${repoRoot}\nRemote: ${remote}\nCurrent: ${before.slice(0, 7)}\n\nYieldPOS will close, apply the bundled database to this PC, then relaunch ${mode}.`
-      }
-    } catch (e) {
-      const msg = (e.stderr || e.message || String(e)).trim()
-      appLog('warn', 'update', `Git updater unavailable, trying GitHub ZIP fallback: ${msg}`)
+      execFileSync('git', ['--version'], { encoding: 'utf-8', timeout: 5000, windowsHide: true })
+    } catch (_) {
+      return { error: 'Git for Windows was not found. Install Git, then try Update again.' }
     }
-
-    // Git is not available on client machines. Use the GitHub source ZIP and
-    // apply it after YieldPOS exits so hardware handlers are not holding files.
-    try {
-      const zipUrl = 'https://github.com/matthiascamp/yieldpos/archive/refs/heads/main.zip'
-      const tmpZip = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}.zip`)
-      const tmpDir = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}`)
-
-      await new Promise((resolve, reject) => {
-        const follow = (url) => {
-          https.get(url, { headers: { 'User-Agent': SOFTWARE_NAME } }, res => {
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) return follow(res.headers.location)
-            if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`))
-            const ws = fs.createWriteStream(tmpZip)
-            res.pipe(ws)
-            ws.on('finish', () => ws.close(resolve))
-            ws.on('error', reject)
-          }).on('error', reject)
-        }
-        follow(zipUrl)
-      })
-
-      if (os.platform() === 'win32') {
-        await run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
-          `Expand-Archive -LiteralPath ${psQuote(tmpZip)} -DestinationPath ${psQuote(tmpDir)} -Force`])
-      } else {
-        fs.mkdirSync(tmpDir, { recursive: true })
-        await run('unzip', ['-o', tmpZip, '-d', tmpDir])
-      }
-
-      const extracted = resolveZipSourceRoot(tmpDir)
-      if (!looksLikeAppRoot(extracted)) return { error: 'Download succeeded but extraction failed - folder not found' }
-      try { fs.unlinkSync(tmpZip) } catch (_) {}
-
-      saveDBSync()
-      createBackup('pre-update')
-
-      const relaunchArgs = process.argv.slice(1).filter(arg => !String(arg).includes('--squirrel-'))
-      const updaterScript = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}.ps1`)
-      const logPath = path.join(updateRoot, 'yieldpos-update-last.log')
-      const script = `
-param(
-  [string]$Source,
-  [string]$Destination,
-  [int]$ParentPid,
-  [string]$ExePath,
-  [string]$ArgsJson,
-  [string]$TempRoot,
-  [string]$LogPath
-)
-$ErrorActionPreference = 'Stop'
-function Log([string]$Message) {
-  $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-  Add-Content -LiteralPath $LogPath -Value "[$stamp] $Message"
-}
-Set-Content -LiteralPath $LogPath -Value "YieldPOS ZIP update started $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-try { Wait-Process -Id $ParentPid -Timeout 60 } catch { Start-Sleep -Seconds 4 }
-$excludeDirs = @('node_modules', '.git', 'dist', 'dist2', 'backups')
-$excludeFiles = @('package-lock.json')
-$preserveRelative = @()
-function Copy-BoundTree([string]$src, [string]$dst) {
-  if (!(Test-Path -LiteralPath $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
-  Get-ChildItem -LiteralPath $src -Force | ForEach-Object {
-    if ($_.PSIsContainer -and $excludeDirs -contains $_.Name) { return }
-    if (!$_.PSIsContainer -and $excludeFiles -contains $_.Name) { return }
-    $relative = $_.FullName.Substring($Source.Length).TrimStart('\\', '/')
-    if ($preserveRelative -contains $relative) { return }
-    $target = Join-Path $dst $_.Name
-    if ($_.PSIsContainer) {
-      Copy-BoundTree $_.FullName $target
-    } else {
-      Copy-Item -LiteralPath $_.FullName -Destination $target -Force
+    const DEFAULT_UPDATE_REPO = 'https://github.com/matthiascamp/yieldpos.git'
+    const repoUrl = String(requestedRepoUrl || DEFAULT_UPDATE_REPO).trim() || DEFAULT_UPDATE_REPO
+    if (!/^(https:\/\/|git@)/i.test(repoUrl)) {
+      return { error: 'Enter a valid Git repo URL, for example https://github.com/matthiascamp/yieldpos.git' }
     }
-  }
-}
-try {
-  Log "Copying update from $Source to $Destination"
-  Copy-BoundTree $Source $Destination
-  Log 'Copy completed'
-  $resetScript = Join-Path $Destination 'reset-runtime-db.ps1'
-  if (Test-Path -LiteralPath $resetScript) {
-    Log 'Applying bundled database to Electron runtime data'
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $resetScript *>> $LogPath
-    if ($LASTEXITCODE -ne 0) { Log "Runtime database reset exited with code $LASTEXITCODE" }
-  } else {
-    Log 'reset-runtime-db.ps1 not found; runtime database was not reset'
-  }
-} catch {
-  Log "Copy failed: $($_.Exception.Message)"
-  throw
-}
-try { Remove-Item -LiteralPath $TempRoot -Recurse -Force } catch {}
-$args = @()
-if ($ArgsJson) { $args = [string[]]($ArgsJson | ConvertFrom-Json) }
-Log "Relaunching $ExePath"
-Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destination
-`
-      fs.writeFileSync(updaterScript, script, 'utf-8')
-      const child = spawn('powershell.exe', [
-        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', updaterScript,
-        extracted, updateRoot, String(process.pid), process.execPath, JSON.stringify(relaunchArgs), tmpDir, logPath
-      ], { detached: true, stdio: 'ignore', windowsHide: true })
-      child.unref()
-
-      appLog('info', 'update', `Staged GitHub ZIP update into ${updateRoot}; app will quit before files are replaced`)
-      setTimeout(() => {
-        try { lanSync.stopAll() } catch (_) {}
-        runHardwareCleanup('zip-update')
-        app.quit()
-        setTimeout(() => app.exit(0), 10000)
-      }, 800)
-      return { updated: true, staged: true, log: `Downloaded update from GitHub ZIP.\nDestination: ${updateRoot}\nYieldPOS will close, apply the update after hardware handlers stop, and relaunch.` }
-    } catch (e) {
-      return { error: `Download update failed: ${e.message}`, log: e.message }
-    }
-
-    // Try git first
-    let hasGit = false
-    try { execSync('git --version', { timeout: 3000, encoding: 'utf-8' }); hasGit = true } catch (_) {}
-
-    if (hasGit) {
+    const cmdQuote = value => `"${String(value).replace(/"/g, '""')}"`
+    const looksLikeRepo = dir => !!dir && fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'main.js'))
+    const looksLikeInstallRoot = dir => !!dir && (
+      looksLikeRepo(dir) ||
+      fs.existsSync(path.join(dir, 'YieldPOS-Client-1.0.0.exe')) ||
+      fs.existsSync(path.join(dir, 'YieldPOS Register.exe')) ||
+      fs.existsSync(path.join(dir, 'YieldPOS Admin.exe'))
+    )
+    const gitRootFor = dir => {
       try {
-        // Remove stale git lock if it exists (from a previous interrupted git operation)
-        const lockFile = path.join(appDir, '.git', 'index.lock')
-        if (fs.existsSync(lockFile)) {
-          try { fs.unlinkSync(lockFile) } catch (_) {}
-        }
-        // Kill scanner-bridge.exe so git can overwrite it on Windows
-        try { execSync('taskkill /F /IM scanner-bridge.exe', { timeout: 5000, encoding: 'utf-8' }) } catch (_) {}
-        const before = execSync('git rev-parse HEAD', { cwd: appDir, encoding: 'utf-8', timeout: 5000 }).trim()
-        // Stash local changes so pull doesn't fail on dirty working tree
-        let stashed = false
-        try {
-          const stashOut = execSync('git stash --include-untracked', { cwd: appDir, encoding: 'utf-8', timeout: 10000 })
-          stashed = !stashOut.includes('No local changes')
-        } catch (_) {}
-        let pullOutput
-        try {
-          pullOutput = execSync('git pull origin main', { cwd: appDir, encoding: 'utf-8', timeout: 30000 })
-        } finally {
-          if (stashed) try { execSync('git stash pop', { cwd: appDir, encoding: 'utf-8', timeout: 10000 }) } catch (_) {}
-        }
-        const after = execSync('git rev-parse HEAD', { cwd: appDir, encoding: 'utf-8', timeout: 5000 }).trim()
-        if (before === after) return { upToDate: true, log: pullOutput.trim() }
-        const diffLog = execSync(`git log --oneline ${before}..${after}`, { cwd: appDir, encoding: 'utf-8', timeout: 5000 }).trim()
-        appLog('info', 'update', `Updated from ${before.slice(0,7)} to ${after.slice(0,7)}`)
-        setTimeout(() => {
-          runHardwareCleanup('legacy-git-update-relaunch')
-          app.relaunch()
-          setTimeout(() => app.exit(0), 10000)
-        }, 1500)
-        return { updated: true, log: `${pullOutput.trim()}\n\nNew commits:\n${diffLog}`, from: before.slice(0,7), to: after.slice(0,7) }
-      } catch (e) {
-        const msg = (e.stderr || e.message || '').trim()
-        if (!msg.includes('not a git repository')) return { error: msg, log: msg }
-      }
+        const root = execFileSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], {
+          encoding: 'utf-8', timeout: 5000, windowsHide: true
+        }).trim()
+        return root && fs.existsSync(path.join(root, '.git')) ? root : ''
+      } catch (_) { return '' }
     }
 
-    // Fallback: download zip from GitHub
+    const candidates = Array.from(new Set([
+      process.env.PORTABLE_EXECUTABLE_DIR,
+      process.env.PORTABLE_EXECUTABLE_FILE ? path.dirname(process.env.PORTABLE_EXECUTABLE_FILE) : '',
+      process.cwd(),
+      path.dirname(process.execPath),
+      __dirname,
+      path.resolve(__dirname, '..'),
+      path.resolve(__dirname, '..', '..'),
+      path.resolve(__dirname, '..', '..', '..')
+    ].filter(Boolean)))
+
+    let repoRoot = ''
+    for (const candidate of candidates) {
+      const root = gitRootFor(candidate)
+      if (root && looksLikeRepo(root)) { repoRoot = root; break }
+    }
+    const updateRoot = repoRoot || candidates.find(looksLikeInstallRoot) || path.dirname(process.execPath)
+
+    const updaterCandidates = [
+      path.join(updateRoot, 'update-yieldpos-from-git.cmd'),
+      path.join(__dirname, 'update-yieldpos-from-git.cmd'),
+      process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', 'update-yieldpos-from-git.cmd') : ''
+    ].filter(Boolean)
+    const updaterPath = updaterCandidates.find(p => fs.existsSync(p)) || ''
+    if (!fs.existsSync(updaterPath)) {
+      return { error: 'update-yieldpos-from-git.cmd was not found. Pull the latest code once manually, then the in-app updater can use it.' }
+    }
+
+    let before = 'unknown'
+    if (repoRoot) try {
+      before = execFileSync('git', ['-C', repoRoot, 'rev-parse', '--short', 'HEAD'], {
+        encoding: 'utf-8', timeout: 5000, windowsHide: true
+      }).trim()
+    } catch (_) {}
+
+    saveDBSync()
+    createBackup('pre-git-update')
+
+    const mode = isRegisterApp ? 'register' : 'admin'
+    const startCommand = `start "YieldPOS Update" /D ${cmdQuote(updateRoot)} ${cmdQuote(updaterPath)} ${cmdQuote(updateRoot)} ${cmdQuote(mode)} ${cmdQuote(String(process.pid))} ${cmdQuote(repoUrl)}`
     try {
-      const zipUrl = 'https://github.com/matthiascamp/yieldpos/archive/refs/heads/main.zip'
-      const tmpZip = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}.zip`)
-      const tmpDir = path.join(os.tmpdir(), `yieldpos-update-${Date.now()}`)
-
-      await new Promise((resolve, reject) => {
-        const follow = (url) => {
-          https.get(url, { headers: { 'User-Agent': SOFTWARE_NAME } }, res => {
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-              return follow(res.headers.location)
-            }
-            if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`))
-            const ws = fs.createWriteStream(tmpZip)
-            res.pipe(ws)
-            ws.on('finish', () => ws.close(resolve))
-            ws.on('error', reject)
-          }).on('error', reject)
-        }
-        follow(zipUrl)
+      const child = spawn('cmd.exe', ['/d', '/s', '/c', startCommand], {
+        cwd: updateRoot,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: false
       })
-
-      if (os.platform() === 'win32') {
-        execSync(`powershell -NoProfile -Command "Expand-Archive -Path '${tmpZip}' -DestinationPath '${tmpDir}' -Force"`, { timeout: 30000 })
-      } else {
-        fs.mkdirSync(tmpDir, { recursive: true })
-        execSync(`unzip -o "${tmpZip}" -d "${tmpDir}"`, { timeout: 30000 })
-      }
-
-      const extracted = resolveZipSourceRoot(tmpDir)
-      if (!looksLikeAppRoot(extracted)) return { error: 'Download succeeded but extraction failed - folder not found' }
-
-      const skipDirs = new Set(['node_modules', '.git', 'yieldpos'])
-      const skipFiles = new Set(['package-lock.json'])
-      const copyRecursive = (src, dest) => {
-        const entries = fs.readdirSync(src, { withFileTypes: true })
-        for (const entry of entries) {
-          if (skipDirs.has(entry.name) || skipFiles.has(entry.name)) continue
-          const srcPath = path.join(src, entry.name)
-          const destPath = path.join(dest, entry.name)
-          if (entry.isDirectory()) {
-            fs.mkdirSync(destPath, { recursive: true })
-            copyRecursive(srcPath, destPath)
-          } else {
-            fs.copyFileSync(srcPath, destPath)
-          }
-        }
-      }
-      copyRecursive(extracted, appDir)
-
-      try { fs.unlinkSync(tmpZip) } catch (_) {}
-      try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch (_) {}
-
-      appLog('info', 'update', 'Updated from GitHub zip download')
-      setTimeout(() => {
-        runHardwareCleanup('legacy-zip-update-relaunch')
-        app.relaunch()
-        setTimeout(() => app.exit(0), 10000)
-      }, 1500)
-      return { updated: true, log: 'Downloaded latest version from GitHub and applied.\nApp will restart now.' }
+      child.unref()
     } catch (e) {
-      return { error: `Download update failed: ${e.message}`, log: e.message }
+      return { error: `Could not open update terminal: ${e.message}` }
+    }
+
+    appLog('info', 'update', `Opened visible Git updater for ${updateRoot} at ${before} using ${repoUrl}`)
+    setTimeout(() => {
+      try { lanSync.stopAll() } catch (_) {}
+      runHardwareCleanup('git-update')
+      app.quit()
+      setTimeout(() => app.exit(0), 10000)
+    }, 800)
+
+    return {
+      updated: true,
+      staged: true,
+      log: `Opened a visible Git updater terminal.\nFolder: ${updateRoot}\nRepo URL: ${repoUrl}\nCurrent: ${before}\n\nYieldPOS will close now. The updater will bootstrap Git if needed, fetch/pull origin/main, run npm install only if package files changed, and relaunch ${mode}. Runtime database data is not reset.`
     }
   })
-
   // â”€â”€ Backups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   ipcMain.handle('db:backup:create', () => {
@@ -5573,7 +5295,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       const avgSales = entry.totals.reduce((a, b) => a + b, 0) / weeks
       const avgTxns = entry.txns.reduce((a, b) => a + b, 0) / weeks
       const topProducts = dbAll(`
-        SELECT ti.name, SUM(ti.qty) as total_qty
+        SELECT ti.name, ROUND(COALESCE(SUM(ti.qty), 0), 3) as total_qty
         FROM transaction_items ti
         JOIN transactions t ON t.id = ti.transaction_id
         WHERE t.status = 'completed'
@@ -5747,7 +5469,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
 
   ipcMain.handle('db:reports:salesByCategory', (_e, date) => {
     return dbAll(`
-      SELECT COALESCE(c.name, 'Other') as category, SUM(ti.line_total) as total, SUM(ti.qty) as qty
+      SELECT COALESCE(c.name, 'Other') as category, SUM(ti.line_total) as total, ROUND(COALESCE(SUM(ti.qty), 0), 3) as qty
       FROM transaction_items ti
       JOIN transactions t ON t.id = ti.transaction_id
       LEFT JOIN products p ON p.id = ti.product_id
@@ -5910,7 +5632,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
       WHERE t.status='completed' AND date(t.created_at, 'localtime')=?1 GROUP BY p.method
     `, [d])
     const categories = dbAll(`
-      SELECT COALESCE(c.name,'Other') as category, SUM(ti.line_total) as total, SUM(ti.qty) as qty
+      SELECT COALESCE(c.name,'Other') as category, SUM(ti.line_total) as total, ROUND(COALESCE(SUM(ti.qty), 0), 3) as qty
       FROM transaction_items ti JOIN transactions t ON t.id=ti.transaction_id
       LEFT JOIN products p ON p.id=ti.product_id LEFT JOIN categories c ON c.id=p.category_id
       WHERE t.status='completed' AND date(t.created_at, 'localtime')=?1 GROUP BY c.name ORDER BY total DESC
@@ -5996,7 +5718,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     return dbAll(`
       SELECT
         ti.product_id, ti.name,
-        SUM(ti.qty) as total_qty,
+        ROUND(COALESCE(SUM(ti.qty), 0), 3) as total_qty,
         SUM(ti.line_total) as total_revenue
       FROM transaction_items ti
       JOIN transactions t ON t.id = ti.transaction_id

@@ -3580,6 +3580,15 @@
       return local.toISOString().slice(0, 10)
     }
 
+    function formatQty (value, decimals = 3) {
+      const n = Number(value)
+      if (!Number.isFinite(n)) return '0'
+      const factor = 10 ** decimals
+      const rounded = Math.round((n + Number.EPSILON) * factor) / factor
+      if (Math.abs(rounded - Math.round(rounded)) < 1 / factor) return String(Math.round(rounded))
+      return rounded.toFixed(decimals).replace(/\.?0+$/, '')
+    }
+
     function productSearchMatches (p, query) {
       const q = String(query || '').trim().toLowerCase()
       if (!q) return true
@@ -3682,7 +3691,7 @@
           const pct = ((c.total / totalCat) * 100).toFixed(1)
           return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px">
             <span>${esc(c.category)}</span>
-            <span style="color:var(--text-dim)">${money(c.total)} (${c.qty} items)</span>
+            <span style="color:var(--text-dim)">${money(c.total)} (${formatQty(c.qty)} items)</span>
           </div>`
         }).join('')
       } else {
@@ -3693,7 +3702,7 @@
       $('#topProductsTable').innerHTML = top.map(p => `
         <tr>
           <td>${esc(p.name)}</td>
-          <td>${p.total_qty}</td>
+          <td>${formatQty(p.total_qty)}</td>
           <td>${money(p.total_revenue)}</td>
         </tr>
       `).join('') || '<tr><td colspan="3" style="color:var(--text-dim)">No sales yet</td></tr>'
@@ -6088,7 +6097,7 @@
 
       $('#zCategories').innerHTML = r.categories.length ? r.categories.map(c =>
         `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px">
-          <span>${esc(c.category)}</span><span style="color:var(--text-dim)">${money(c.total)} (${c.qty} items)</span>
+          <span>${esc(c.category)}</span><span style="color:var(--text-dim)">${money(c.total)} (${formatQty(c.qty)} items)</span>
         </div>`
       ).join('') : '<p style="color:var(--text-dim)">No sales</p>'
 
@@ -6227,7 +6236,7 @@
         $('#analysisTopProducts').innerHTML = top?.length ? top.map(p => `
           <tr>
             <td>${esc(p.name)}</td>
-            <td style="text-align:right">${p.total_qty}</td>
+            <td style="text-align:right">${formatQty(p.total_qty)}</td>
             <td style="text-align:right">${money(p.total_revenue)}</td>
           </tr>
         `).join('') : '<tr><td colspan="3" style="color:var(--text-dim)">No products sold on this date</td></tr>'

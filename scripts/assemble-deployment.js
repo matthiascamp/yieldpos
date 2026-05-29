@@ -30,6 +30,7 @@ const ROOT_FILES = [
   'save-runtime-db.cmd',
   'export-runtime-db.cmd',
   'import-runtime-db.cmd',
+  'update-yieldpos-from-git.cmd',
   'yieldpos-db-state.ps1',
   'update-runtime-db.cmd',
   'pull-from-supabase.js',

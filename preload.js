@@ -170,7 +170,7 @@ contextBridge.exposeInMainWorld('pos', {
   printHTML:           (html, title) => ipcRenderer.invoke('window:printHTML', html, title),
 
   // App Update
-  updateApp:          ()      => ipcRenderer.invoke('app:update'),
+  updateApp:          (repoUrl) => ipcRenderer.invoke('app:update', repoUrl),
   getVersion:         ()      => ipcRenderer.invoke('app:version'),
 
   // LAN Sync
