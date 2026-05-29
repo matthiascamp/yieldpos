@@ -370,9 +370,9 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,.55);
-      backdrop-filter: blur(6px);
-      z-index: 900;
+      background: rgba(7,21,13,.34);
+      backdrop-filter: none;
+      z-index: 5000;
       animation: fadeIn .15s ease;
     }
     .modal-backdrop.active { display: block; }
@@ -383,7 +383,7 @@
       top: 50%;
       left: calc(50% + var(--sidebar-w) / 2);
       transform: translate(-50%, -50%) scale(.97);
-      z-index: 950;
+      z-index: 5010;
       width: 92%;
       max-width: 660px;
       max-height: 88vh;
@@ -1310,8 +1310,8 @@
 
     /* ── Modals ────────────────────────────────────────────────── */
     .modal-backdrop {
-      background: rgba(7,21,13,.40);
-      backdrop-filter: blur(8px);
+      background: rgba(7,21,13,.34);
+      backdrop-filter: none;
     }
 
     .modal-panel {
@@ -2217,7 +2217,7 @@
     <!-- ── Deals ─────────────────────────────────────────────────── -->
     <div class="tab-content" id="tab-deals">
       <h1>Deals</h1>
-      <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px">Simple multi-buy deals: X for $Y. Add multiple tiers for the same product (e.g. 2 for $10, 3 for $12).</p>
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px">Simple multi-buy deals: X for $Y. Add multiple tiers and optionally match a family, such as all Cocobella flavours.</p>
       <div class="section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <h2 style="margin:0">Active Deals</h2>
@@ -2248,8 +2248,14 @@
           <div class="form-field"><label>End Date (optional)</label><input type="date" id="dEndDate"></div>
         </div>
 
+        <div class="form-field" style="margin-top:10px">
+          <label>Product Family (optional)</label>
+          <input type="text" id="dFamily" placeholder="e.g. COCOBELLA">
+          <div style="font-size:11px;color:var(--text-dim);margin-top:5px;line-height:1.35">Matches active fixed-price Each products with PLUs by name, PLU, or barcode. Use this for mix-and-match families like all Cocobella flavours.</div>
+        </div>
+
         <div style="margin-top:14px">
-          <label style="font-size:12px;color:var(--text-dim);text-transform:uppercase;display:block;margin-bottom:6px">Products in this deal</label>
+          <label style="font-size:12px;color:var(--text-dim);text-transform:uppercase;display:block;margin-bottom:6px">Specific products in this deal</label>
           <div class="form-row">
             <div class="form-field" style="flex:2"><input type="text" id="dealProductSearch" placeholder="Search products to add..."></div>
           </div>
@@ -3487,10 +3493,21 @@
     // ── Modal Helpers ───────────────────────────────────────────────
 
     const modalBackdrop = $('#modalBackdrop')
+    const adminModalPanels = $$('.modal-panel')
+
+    // Keep panels out of tab/content stacking contexts so the backdrop can never
+    // cover the dialog itself.
+    adminModalPanels.forEach(panel => {
+      if (panel.parentElement !== document.body) document.body.appendChild(panel)
+    })
 
     function openModal(panelId) {
       const el = document.getElementById(panelId)
       if (!el) return
+      if (el.parentElement !== document.body) document.body.appendChild(el)
+      $$('.modal-panel.modal-open').forEach(panel => {
+        if (panel !== el) panel.classList.remove('modal-open')
+      })
       el.classList.add('modal-open')
       modalBackdrop.classList.add('active')
     }
@@ -3498,7 +3515,7 @@
       const el = document.getElementById(panelId)
       if (!el) return
       el.classList.remove('modal-open')
-      modalBackdrop.classList.remove('active')
+      if (!$('.modal-panel.modal-open')) modalBackdrop.classList.remove('active')
     }
 
     // Close modals on backdrop click
@@ -4177,6 +4194,18 @@
       return code ? `<span style="font-family:monospace;font-size:10px;color:var(--text-dim)">${esc(code)}</span>` : '<span style="font-size:10px;color:var(--text-muted)">No PLU</span>'
     }
 
+    function dealFamilyTermsFromConfig (cfg = {}) {
+      const values = []
+      if (Array.isArray(cfg.families)) values.push(...cfg.families)
+      if (Array.isArray(cfg.family_terms)) values.push(...cfg.family_terms)
+      if (cfg.family) values.push(cfg.family)
+      if (cfg.family_match) values.push(cfg.family_match)
+      return [...new Set(values
+        .flatMap(value => String(value || '').split(/[,\n]/))
+        .map(value => value.trim())
+        .filter(value => value.length >= 2))]
+    }
+
     function dealProductBlockReason (p) {
       if (!p) return 'Choose a product'
       if (String(p.unit || 'each').trim().toLowerCase() !== 'each') return 'Each only'
@@ -4230,13 +4259,17 @@
           ? `${d.start_date || '...'} to ${d.end_date || '...'}`
           : '<span style="color:var(--text-dim)">Always</span>'
         const products = productMap.get(d.id) || []
+        const families = dealFamilyTermsFromConfig(cfg)
+        const familySummary = families.length
+          ? `<div style="line-height:1.25;margin-bottom:4px"><strong>Family:</strong> ${esc(families.join(', '))}</div>`
+          : ''
         const productSummary = products.length
-          ? products.slice(0, 3).map(p => `
+          ? familySummary + products.slice(0, 3).map(p => `
               <div style="line-height:1.25;margin-bottom:3px">
                 <div>${esc(p.product_name || p.name || 'Product')}</div>
                 ${productCodeHtml(p)}
               </div>`).join('') + (products.length > 3 ? `<div style="font-size:10px;color:var(--text-dim)">+${products.length - 3} more</div>` : '')
-          : '<span style="color:var(--text-dim);font-size:12px">No products</span>'
+          : (familySummary || '<span style="color:var(--text-dim);font-size:12px">No products</span>')
         return `<tr style="cursor:pointer" data-edit-deal="${esc(d.id)}">
           <td><strong>${esc(d.name)}</strong></td>
           <td>${detail}</td>
@@ -4273,6 +4306,7 @@
         }
         $('#dStartDate').value = deal.start_date || ''
         $('#dEndDate').value = deal.end_date || ''
+        $('#dFamily').value = dealFamilyTermsFromConfig(cfg).join(', ')
         const prods = await window.pos.getDealProducts(deal.id)
         dealProducts = prods.map(p => ({ id: p.product_id, name: p.product_name, price: p.price, plu: p.plu || p.barcode || '', unit: p.unit || 'each', open_price: Number(p.open_price || 0) === 1 }))
         $('#dDeleteBtn').style.display = 'inline-block'
@@ -4283,6 +4317,7 @@
         dealTiers = [{ qty: 2, price: 4.00 }]
         $('#dStartDate').value = ''
         $('#dEndDate').value = ''
+        $('#dFamily').value = ''
         $('#dDeleteBtn').style.display = 'none'
       }
       renderDealTiers()
@@ -4346,7 +4381,8 @@
         showToast('Each tier needs a quantity of at least 1', 'error'); return
       }
       const tiers = dealTiers.sort((a, b) => a.qty - b.qty)
-      const config = { tiers }
+      const family = $('#dFamily').value.trim()
+      const config = family ? { tiers, family } : { tiers }
 
       const deal = {
         id: $('#dEditId').value || undefined,
@@ -4358,10 +4394,8 @@
       }
       const res = await window.pos.upsertDeal(deal)
       if (res?.error) { showToast(res.error, 'error'); return }
-      if (dealProducts.length) {
-        const linkRes = await window.pos.setDealProducts(res.id || deal.id, dealProducts.map(p => p.id))
-        if (linkRes?.error) { showToast(linkRes.error, 'error'); return }
-      }
+      const linkRes = await window.pos.setDealProducts(res.id || deal.id, dealProducts.map(p => p.id))
+      if (linkRes?.error) { showToast(linkRes.error, 'error'); return }
       showToast(`Deal "${name}" saved`, 'success')
       closeModal('dealEditPanel')
       loadDeals()

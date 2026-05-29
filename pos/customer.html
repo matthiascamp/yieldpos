@@ -861,8 +861,8 @@ body{
       <div class="idle-footer-left">
         <img src="YieldPOS.png" alt="YieldPOS" class="idle-footer-logo company-logo">
         <div>
-          <div class="idle-footer-text" id="storeAddress">1164 Cavendish Rd, Mt Gravatt East QLD 4122</div>
-          <div class="idle-footer-text" id="storeHours">Open 6am - 7pm every day</div>
+          <div class="idle-footer-text" id="storeAddress"></div>
+          <div class="idle-footer-text" id="storeHours"></div>
         </div>
       </div>
       <div class="powered-by">Powered by YieldPOS</div>
@@ -886,7 +886,7 @@ body{
       <div class="latest-card" id="latestCard">
         <div class="latest-label">Just added</div>
         <div class="latest-main">
-          <div class="latest-emoji" id="latestEmoji">🧺</div>
+            <div class="latest-emoji" id="latestEmoji"></div>
           <div class="latest-info">
             <div class="latest-name" id="latestName">Waiting for first item</div>
             <div class="latest-meta" id="latestMeta">Items will appear here as they are scanned</div>
@@ -904,8 +904,8 @@ body{
       </div>
       <div class="sidebar-deals" id="sidebarDeals"></div>
       <div class="sidebar-footer">
-        <div class="sidebar-footer-text" id="activeStoreAddress">1164 Cavendish Rd, Mt Gravatt East QLD 4122</div>
-        <div class="sidebar-footer-text" id="activeStoreHours">Open 6am - 7pm every day</div>
+        <div class="sidebar-footer-text" id="activeStoreAddress"></div>
+        <div class="sidebar-footer-text" id="activeStoreHours"></div>
         <div class="powered-by">Powered by YieldPOS</div>
       </div>
     </div>
@@ -925,18 +925,73 @@ body{
 <script>
   const { ipcRenderer } = require('electron')
 
-  function money(n) { return '$' + (n || 0).toFixed(2) }
-  function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+  function isKnownText(value) {
+    const text = String(value ?? '').trim()
+    return !!text && !['undefined', 'null', 'nan'].includes(text.toLowerCase())
+  }
+  function cleanText(value) {
+    return isKnownText(value) ? String(value).trim() : ''
+  }
+  function finiteNumber(value) {
+    const n = Number(value)
+    return Number.isFinite(n) ? n : null
+  }
+  function money(n) {
+    const value = finiteNumber(n)
+    return value === null ? '' : '$' + value.toFixed(2)
+  }
+  function esc(s) { return cleanText(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
   function itemQtyText(item) {
-    const qty = Math.abs(Number(item.qty || 0))
+    const qtyRaw = finiteNumber(item?.qty)
+    if (qtyRaw === null) return ''
+    const qty = Math.abs(qtyRaw)
     if ((item.unit || 'each') === 'kg') return `${qty.toFixed(3)} kg`
     if ((item.unit || 'each') === '100g') return `${qty.toFixed(2)} x 100g`
-    return `${qty || 1}x`
+    return qty ? `${qty}x` : ''
   }
   function itemUnitMeta(item) {
-    if (!item.unit_price) return ''
+    const unitPrice = finiteNumber(item?.unit_price)
+    if (unitPrice === null) return ''
     const unit = item.unit === 'kg' ? '/kg' : item.unit === '100g' ? '/100g' : 'each'
-    return `${money(item.unit_price)} ${unit}`
+    return `${money(unitPrice)} ${unit}`
+  }
+  function dealTierText(cfg = {}) {
+    const tiers = Array.isArray(cfg.tiers) ? cfg.tiers : []
+    const validTier = tiers.find(t => finiteNumber(t?.qty) !== null && finiteNumber(t?.price) !== null)
+    const qty = finiteNumber(validTier?.qty ?? cfg.qty)
+    const price = finiteNumber(validTier?.price ?? cfg.price)
+    return qty !== null && price !== null ? `${qty} for ${money(price)}` : ''
+  }
+  function safeDeal(deal) {
+    const name = cleanText(deal?.name)
+    if (!name) return null
+    const specialPrice = finiteNumber(deal.specialPrice)
+    const normalPrice = finiteNumber(deal.normalPrice)
+    const specialText = cleanText(deal.specialText)
+    return {
+      ...deal,
+      name,
+      unit: cleanText(deal.unit),
+      badge: cleanText(deal.badge),
+      specialText,
+      specialPrice,
+      normalPrice,
+    }
+  }
+  function normaliseCustomerItem(item) {
+    const name = cleanText(item?.name)
+    if (!name) return null
+    const qty = finiteNumber(item.qty)
+    const unitPrice = finiteNumber(item.unit_price)
+    const lineTotal = finiteNumber(item.line_total)
+    return {
+      ...item,
+      name,
+      unit: cleanText(item.unit) || 'each',
+      qty,
+      unit_price: unitPrice,
+      line_total: lineTotal,
+    }
   }
   function updateClock() {
     const el = document.getElementById('customerClock')
@@ -951,48 +1006,56 @@ body{
   }
 
   function emojiForProduct(name) {
-    const n = String(name || '').toLowerCase()
+    const n = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+    const has = (...terms) => terms.some(term => {
+      const clean = String(term || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+      return clean && (` ${n} `).includes(` ${clean} `)
+    })
     const checks = [
-      [/banana|plantain/, '🍌'],
-      [/apple|pink lady|granny|fuji|gala|delicious|jazz|braeburn|golden/, '🍎'],
-      [/orange|mandarin|tangello|clementine|navel|valencia/, '🍊'],
-      [/lemon/, '🍋'],
-      [/lime/, '🟢'],
-      [/grape|raisin/, '🍇'],
-      [/melon|watermelon|rockmelon|honeydew/, '🍉'],
-      [/mango/, '🥭'],
-      [/pineapple/, '🍍'],
-      [/kiwi/, '🥝'],
-      [/peach|nectarine|apricot/, '🍑'],
-      [/pear|nashi/, '🍐'],
-      [/cherry|cherries/, '🍒'],
-      [/strawberr|berr|blueberr|raspberr|blackberr/, '🍓'],
-      [/coconut/, '🥥'],
-      [/avocado/, '🥑'],
-      [/tomato/, '🍅'],
-      [/chilli|chili|capsicum|pepper/, '🌶️'],
-      [/carrot|parsnip/, '🥕'],
-      [/corn/, '🌽'],
-      [/potato|spud|kipfler|desiree|brushed|washed/, '🥔'],
-      [/mushroom/, '🍄'],
-      [/onion|garlic|shallot|leek/, '🧅'],
-      [/broccoli|broccolini/, '🥦'],
-      [/lettuce|kale|spinach|rocket|herb|cabbage|wombok|asian vege|celery/, '🥬'],
-      [/eggplant|aubergine/, '🍆'],
-      [/cucumber|zucchini|gourd|choko/, '🥒'],
-      [/pumpkin|squash/, '🎃'],
-      [/beans|peas|snow pea|sugar snap/, '🫛'],
-      [/nut|almond|cashew|walnut|pistachio|peanut/, '🥜'],
-      [/bread|croissant|baguette|loaf|roll/, '🥐'],
-      [/cheese|dairy|milk|yoghurt/, '🧀'],
-      [/coffee/, '☕'],
-      [/flower|rose|bouquet/, '💐'],
-      [/meat|beef|lamb|chicken|pork/, '🥩'],
-      [/gas|bottle/, '⛽'],
-      [/bag/, '🛍️']
+      [() => has('banana', 'bananas', 'plantain'), '🍌'],
+      [() => has('pineapple'), '🍍'],
+      [() => has('apple', 'apples', 'pink lady', 'granny smith', 'fuji', 'gala', 'royal gala', 'jazz', 'braeburn', 'kanzi'), '🍎'],
+      [() => has('orange', 'oranges', 'mandarin', 'mandarins', 'tangello', 'clementine', 'navel', 'valencia'), '🍊'],
+      [() => has('lemon', 'lemons'), '🍋'],
+      [() => has('lime', 'limes'), '🟢'],
+      [() => has('grape', 'grapes', 'raisin', 'raisins'), '🍇'],
+      [() => has('watermelon', 'rockmelon', 'honeydew', 'melon'), '🍉'],
+      [() => has('mango', 'mangoes'), '🥭'],
+      [() => has('kiwi', 'kiwifruit'), '🥝'],
+      [() => has('peach', 'peaches', 'nectarine', 'nectarines', 'apricot', 'apricots'), '🍑'],
+      [() => has('pear', 'pears', 'nashi'), '🍐'],
+      [() => has('cherry', 'cherries'), '🍒'],
+      [() => has('strawberry', 'strawberries', 'blueberry', 'blueberries', 'raspberry', 'raspberries', 'blackberry', 'blackberries'), '🍓'],
+      [() => has('coconut', 'coconuts'), '🥥'],
+      [() => has('avocado', 'avocados'), '🥑'],
+      [() => has('tomato', 'tomatoes'), '🍅'],
+      [() => has('chilli', 'chili', 'capsicum', 'pepper', 'peppers'), '🌶️'],
+      [() => has('carrot', 'carrots', 'parsnip', 'parsnips'), '🥕'],
+      [() => has('corn'), '🌽'],
+      [() => has('potato', 'potatoes', 'spud', 'spuds', 'kipfler', 'desiree'), '🥔'],
+      [() => has('mushroom', 'mushrooms'), '🍄'],
+      [() => has('onion', 'onions', 'garlic', 'shallot', 'shallots', 'leek', 'leeks'), '🧅'],
+      [() => has('broccoli', 'broccolini'), '🥦'],
+      [() => has('lettuce', 'kale', 'spinach', 'rocket', 'herb', 'herbs', 'cabbage', 'wombok', 'celery', 'fennel'), '🥬'],
+      [() => has('eggplant', 'aubergine'), '🍆'],
+      [() => has('cucumber', 'cucumbers', 'zucchini', 'zucchinis', 'gourd', 'choko'), '🥒'],
+      [() => has('pumpkin', 'squash'), '🎃'],
+      [() => has('bean', 'beans', 'pea', 'peas', 'snow pea', 'snow peas', 'sugar snap'), '🫛'],
+      [() => has('nut', 'nuts', 'almond', 'almonds', 'cashew', 'cashews', 'walnut', 'walnuts', 'pistachio', 'pistachios', 'peanut', 'peanuts'), '🥜'],
+      [() => has('bread', 'croissant', 'baguette', 'loaf', 'roll', 'rolls'), '🥐'],
+      [() => has('cheese', 'dairy', 'milk', 'yoghurt'), '🧀'],
+      [() => has('coffee'), '☕'],
+      [() => has('flower', 'flowers', 'rose', 'roses', 'bouquet'), '💐'],
+      [() => has('meat', 'beef', 'lamb', 'chicken', 'pork'), '🥩'],
+      [() => has('gas', 'bottle'), '⛽'],
+      [() => has('bag', 'bags'), '🛍️']
     ]
-    const found = checks.find(([re]) => re.test(n))
-    return found ? found[1] : '🧺'
+    const found = checks.find(([matches]) => matches())
+    return found ? found[1] : ''
+  }
+  function emojiHtml(tag, className, name) {
+    const emoji = emojiForProduct(name)
+    return emoji ? `<${tag} class="${className}">${emoji}</${tag}>` : ''
   }
 
   // ═══ Deals Data & Helpers ═══════════════════════════════════════════════════
@@ -1004,7 +1067,7 @@ body{
       const specials = await ipcRenderer.invoke('db:specials:getAll')
       const activeSpecials = (specials || []).filter(s => s.active)
       for (const s of activeSpecials) {
-        cachedDeals.push({
+        const deal = safeDeal({
           id: s.id,
           name: s.product_name,
           normalPrice: s.product_price,
@@ -1015,22 +1078,24 @@ body{
           isSpecial: true,
           displayPriority: cachedDeals.length + 1,
         })
+        if (deal) cachedDeals.push(deal)
       }
       const deals = await ipcRenderer.invoke('db:deals:getActive')
       for (const d of (deals || [])) {
-        const cfg = typeof d.config === 'string' ? JSON.parse(d.config) : d.config
-        let text = d.name
-        if (d.type === 'multi_buy' && cfg) text = `${cfg.qty} for $${cfg.price}`
-        cachedDeals.push({ id: d.id, name: d.name, specialText: text, emoji: emojiForProduct(d.name), badge: 'special', isSpecial: true, displayPriority: cachedDeals.length + 1 })
+        let cfg = {}
+        try { cfg = typeof d.config === 'string' ? JSON.parse(d.config) : (d.config || {}) } catch (_) { cfg = {} }
+        const text = d.type === 'multi_buy' ? dealTierText(cfg) : cleanText(d.name)
+        const deal = safeDeal({ id: d.id, name: d.name, specialText: text, emoji: emojiForProduct(d.name), badge: 'special', isSpecial: true, displayPriority: cachedDeals.length + 1 })
+        if (deal) cachedDeals.push(deal)
       }
     } catch (e) { console.warn('Failed to load deals from DB:', e) }
   }
 
   function getActiveDeals() {
-    return cachedDeals.slice(0, 5)
+    return cachedDeals.map(safeDeal).filter(Boolean).slice(0, 5)
   }
 
-  function formatPrice(price) { return '$' + Number(price).toFixed(2) }
+  function formatPrice(price) { return money(price) }
 
   function getBadgeClass(badge) {
     return { special: 'badge-special', today: 'badge-today', fresh: 'badge-fresh', popular: 'badge-popular' }[badge] || 'badge-fresh'
@@ -1074,15 +1139,15 @@ body{
       ipcRenderer.invoke('db:settings:get', 'company_logo_fit'),
       ipcRenderer.invoke('db:settings:get', 'company_logo_scale')
     ])
-    const name = storeName || 'YieldPOS'
+    const name = cleanText(storeName) || 'YieldPOS'
     document.title = 'YieldPOS Client - Customer Display'
     document.getElementById('storeName').textContent = name
     document.querySelector('.thank-store').textContent = `Thank you for shopping at ${name}`
-    const address = storeAddress || '1164 Cavendish Rd, Mt Gravatt East QLD 4122'
-    if (storeAddress) document.getElementById('storeAddress').textContent = address
+    const address = cleanText(storeAddress)
+    document.getElementById('storeAddress').textContent = address
     const activeAddress = document.getElementById('activeStoreAddress')
     if (activeAddress) activeAddress.textContent = address
-    const hours = storeHours || ''
+    const hours = cleanText(storeHours)
     document.getElementById('storeHours').textContent = hours
     const activeHours = document.getElementById('activeStoreHours')
     if (activeHours) activeHours.textContent = hours
@@ -1101,7 +1166,6 @@ body{
     if (!deals.length) {
       document.getElementById('dealsGrid').innerHTML = `
         <div class="deal-card" style="grid-column:1/-1;align-items:center;justify-content:center;text-align:center;min-height:20vh">
-          <div class="deal-emoji">🧺</div>
           <div class="deal-name">Welcome in</div>
           <div class="deal-unit">Your items will appear here when the sale starts.</div>
         </div>`
@@ -1110,16 +1174,16 @@ body{
     document.getElementById('dealsGrid').innerHTML = deals.map(deal => `
       <div class="deal-card">
         <div class="deal-card-top">
-          <div class="deal-emoji">${emojiForProduct(deal.name)}</div>
+          ${emojiHtml('div', 'deal-emoji', deal.name)}
           <div class="deal-info">
             <div class="deal-name">${esc(deal.name)}</div>
             ${deal.badge ? `<span class="deal-badge ${getBadgeClass(deal.badge)}">${getBadgeLabel(deal.badge)}</span>` : ''}
           </div>
         </div>
         <div class="deal-pricing">
-          ${deal.specialPrice ? `<span class="deal-special-price">${formatPrice(deal.specialPrice)}</span>` : ''}
-          ${deal.specialText && !deal.specialPrice ? `<span class="deal-special-text">${esc(deal.specialText)}</span>` : ''}
-          ${deal.normalPrice && deal.specialPrice ? `<span class="deal-normal-price">${formatPrice(deal.normalPrice)}</span>` : ''}
+          ${deal.specialPrice !== null ? `<span class="deal-special-price">${formatPrice(deal.specialPrice)}</span>` : ''}
+          ${deal.specialText && deal.specialPrice === null ? `<span class="deal-special-text">${esc(deal.specialText)}</span>` : ''}
+          ${deal.normalPrice !== null && deal.specialPrice !== null ? `<span class="deal-normal-price">${formatPrice(deal.normalPrice)}</span>` : ''}
           ${deal.unit ? `<span class="deal-unit">${esc(deal.unit)}</span>` : ''}
         </div>
       </div>
@@ -1129,16 +1193,16 @@ body{
   function renderSidebarDeals() {
     const deals = getActiveDeals()
     if (!deals.length) {
-      document.getElementById('sidebarDeals').innerHTML = '<div class="mini-deal"><div class="mini-deal-emoji">🧺</div><div class="mini-deal-info"><div class="mini-deal-name">Fresh picks updating</div><div class="mini-deal-price">Ask staff for todays specials</div></div></div>'
+      document.getElementById('sidebarDeals').innerHTML = '<div class="mini-deal"><div class="mini-deal-info"><div class="mini-deal-name">Fresh picks updating</div><div class="mini-deal-price">Ask staff for todays specials</div></div></div>'
       return
     }
     document.getElementById('sidebarDeals').innerHTML = deals.map(deal => `
       <div class="mini-deal">
-        <div class="mini-deal-emoji">${emojiForProduct(deal.name)}</div>
+        ${emojiHtml('div', 'mini-deal-emoji', deal.name)}
         <div class="mini-deal-info">
           <div class="mini-deal-name">${esc(deal.name)}</div>
           <div class="mini-deal-price">
-            ${deal.specialPrice ? formatPrice(deal.specialPrice) : ''}${deal.specialText && !deal.specialPrice ? esc(deal.specialText) : ''}
+            ${deal.specialPrice !== null ? formatPrice(deal.specialPrice) : ''}${deal.specialText && deal.specialPrice === null ? esc(deal.specialText) : ''}
             <span class="mini-deal-unit">${deal.unit ? esc(deal.unit) : ''}</span>
           </div>
           ${deal.badge ? `<div class="mini-deal-badge">${getBadgeLabel(deal.badge)}</div>` : ''}
@@ -1158,17 +1222,22 @@ body{
 
   // ═══ IPC Listeners ══════════════════════════════════════════════════════════
 
-  ipcRenderer.on('customer:update', (_e, data) => {
-    const { items, total, tax, count, storeName } = data
+  ipcRenderer.on('customer:update', (_e, rawData) => {
+    const data = rawData && typeof rawData === 'object' ? rawData : {}
+    const storeName = cleanText(data.storeName)
+    const items = Array.isArray(data.items) ? data.items.map(normaliseCustomerItem).filter(Boolean) : []
+    const total = finiteNumber(data.total)
+    const tax = finiteNumber(data.tax)
 
     if (storeName) document.getElementById('storeName').textContent = storeName
-    if (data.storeAddress) {
-      document.getElementById('storeAddress').textContent = data.storeAddress
+    if (Object.prototype.hasOwnProperty.call(data, 'storeAddress')) {
+      const address = cleanText(data.storeAddress)
+      document.getElementById('storeAddress').textContent = address
       const activeAddress = document.getElementById('activeStoreAddress')
-      if (activeAddress) activeAddress.textContent = data.storeAddress
+      if (activeAddress) activeAddress.textContent = address
     }
     if (Object.prototype.hasOwnProperty.call(data, 'storeHours')) {
-      const hours = data.storeHours || ''
+      const hours = cleanText(data.storeHours)
       document.getElementById('storeHours').textContent = hours
       const activeHours = document.getElementById('activeStoreHours')
       if (activeHours) activeHours.textContent = hours
@@ -1176,7 +1245,7 @@ body{
 
     if (!Object.prototype.hasOwnProperty.call(data, 'items')) return
 
-    if (!items || items.length === 0) {
+    if (!items.length) {
       document.getElementById('idleScreen').style.display = 'flex'
       document.getElementById('saleView').style.display = 'none'
       document.getElementById('saleComplete').style.display = 'none'
@@ -1189,34 +1258,39 @@ body{
 
     document.getElementById('itemsList').innerHTML = items.map((item, i) =>
       `<div class="item-row${i === items.length - 1 ? ' item-new' : ''}">
-        <span class="item-emoji">${emojiForProduct(item.name)}</span>
-        <span class="item-qty">${esc(itemQtyText(item))}</span>
+        ${emojiHtml('span', 'item-emoji', item.name)}
+        ${itemQtyText(item) ? `<span class="item-qty">${esc(itemQtyText(item))}</span>` : ''}
         <div class="item-details">
           <div class="item-name">${esc(item.name)}</div>
-          ${item.unit_price ? `<div class="item-unit-price">${esc(itemUnitMeta(item))}</div>` : ''}
+          ${itemUnitMeta(item) ? `<div class="item-unit-price">${esc(itemUnitMeta(item))}</div>` : ''}
         </div>
-        <span class="item-price">${money(item.line_total)}</span>
+        ${item.line_total !== null ? `<span class="item-price">${money(item.line_total)}</span>` : ''}
       </div>`
     ).join('')
 
     const itemLineCount = items.length
     document.getElementById('cdItemCount').textContent = itemLineCount
     document.getElementById('itemsHeaderCount').textContent = `${itemLineCount} item${itemLineCount === 1 ? '' : 's'}`
-    document.getElementById('cdTax').textContent = money(tax)
-    document.getElementById('cdTotal').textContent = money(total)
+    document.getElementById('cdTax').textContent = tax === null ? '' : money(tax)
+    document.getElementById('cdTotal').textContent = total === null ? '' : money(total)
     const latest = items[items.length - 1]
     if (latest) {
-      document.getElementById('latestEmoji').textContent = emojiForProduct(latest.name)
-      document.getElementById('latestName').textContent = latest.name || 'Item'
+      const latestEmoji = emojiForProduct(latest.name)
+      document.getElementById('latestEmoji').textContent = latestEmoji
+      document.getElementById('latestEmoji').style.display = latestEmoji ? '' : 'none'
+      document.getElementById('latestName').textContent = latest.name
       document.getElementById('latestMeta').textContent = itemUnitMeta(latest) || itemQtyText(latest)
-      document.getElementById('latestPrice').textContent = money(latest.line_total)
+      document.getElementById('latestPrice').textContent = latest.line_total === null ? '' : money(latest.line_total)
     }
 
     const list = document.getElementById('itemsList')
     list.scrollTop = list.scrollHeight
   })
 
-  ipcRenderer.on('customer:saleComplete', (_e, data) => {
+  ipcRenderer.on('customer:saleComplete', (_e, rawData) => {
+    const data = rawData && typeof rawData === 'object' ? rawData : {}
+    const total = finiteNumber(data.total)
+    const change = finiteNumber(data.change)
     document.getElementById('idleScreen').style.display = 'none'
     document.getElementById('saleView').style.display = 'none'
     document.getElementById('saleComplete').style.display = 'flex'
@@ -1225,14 +1299,14 @@ body{
     const changeEl = document.getElementById('cdChange')
     const totalPaidEl = document.getElementById('cdTotalPaid')
 
-    if (data.total) {
-      totalPaidEl.textContent = `Total: ${money(data.total)}`
+    if (total !== null) {
+      totalPaidEl.textContent = `Total: ${money(total)}`
     } else {
       totalPaidEl.textContent = ''
     }
 
-    if (data.change > 0) {
-      changeEl.textContent = `Change: ${money(data.change)}`
+    if (change !== null && change > 0) {
+      changeEl.textContent = `Change: ${money(change)}`
     } else {
       changeEl.textContent = ''
     }

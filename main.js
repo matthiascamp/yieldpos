@@ -4793,15 +4793,51 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   })
 
   // â”€â”€ Customer Display â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const cleanCustomerText = value => {
+    const text = String(value ?? '').trim()
+    return text && !['undefined', 'null', 'nan'].includes(text.toLowerCase()) ? text : ''
+  }
+  const cleanCustomerNumber = value => {
+    const n = Number(value)
+    return Number.isFinite(n) ? n : null
+  }
+  function sanitiseCustomerDisplayPayload (payload) {
+    const data = payload && typeof payload === 'object' ? payload : {}
+    const out = {}
+    for (const key of ['storeName', 'storeAddress', 'storeHours']) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) out[key] = cleanCustomerText(data[key])
+    }
+    for (const key of ['total', 'tax', 'count', 'change']) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) out[key] = cleanCustomerNumber(data[key])
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'items')) {
+      out.items = Array.isArray(data.items)
+        ? data.items.map(item => {
+            const name = cleanCustomerText(item?.name)
+            if (!name) return null
+            return {
+              ...item,
+              name,
+              unit: cleanCustomerText(item?.unit) || 'each',
+              qty: cleanCustomerNumber(item?.qty),
+              unit_price: cleanCustomerNumber(item?.unit_price),
+              line_total: cleanCustomerNumber(item?.line_total),
+            }
+          }).filter(Boolean)
+        : []
+    }
+    return out
+  }
+
   ipcMain.handle('customer:update', (_e, data) => {
     if (customerWindow && !customerWindow.isDestroyed()) {
-      customerWindow.webContents.send('customer:update', data)
+      customerWindow.webContents.send('customer:update', sanitiseCustomerDisplayPayload(data))
     }
   })
 
   ipcMain.handle('customer:saleComplete', (_e, data) => {
     if (customerWindow && !customerWindow.isDestroyed()) {
-      customerWindow.webContents.send('customer:saleComplete', data)
+      customerWindow.webContents.send('customer:saleComplete', sanitiseCustomerDisplayPayload(data))
     }
   })
 
@@ -5150,15 +5186,69 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     return { ok: true, ids }
   }
 
+  function normaliseDealFamilyText (value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  }
+
+  function compactDealFamilyText (value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+  }
+
+  function dealFamilyTermsFromConfig (config = {}) {
+    const values = []
+    if (Array.isArray(config.families)) values.push(...config.families)
+    if (Array.isArray(config.family_terms)) values.push(...config.family_terms)
+    if (config.family) values.push(config.family)
+    if (config.family_match) values.push(config.family_match)
+    return [...new Set(values
+      .flatMap(value => String(value || '').split(/[,\n]/))
+      .map(value => value.trim())
+      .filter(value => value.length >= 2))]
+  }
+
+  function dealFamilyMatchesProduct (term, product) {
+    const termNorm = normaliseDealFamilyText(term)
+    const termCompact = compactDealFamilyText(term)
+    if (!termNorm && !termCompact) return false
+    const fields = [product?.name, product?.plu, product?.barcode]
+    return fields.some(value => {
+      const fieldNorm = normaliseDealFamilyText(value)
+      const fieldCompact = compactDealFamilyText(value)
+      return (termNorm && fieldNorm.includes(termNorm)) || (termCompact && fieldCompact.includes(termCompact))
+    })
+  }
+
+  function validateDealFamilyConfig (config = {}) {
+    const terms = dealFamilyTermsFromConfig(config)
+    if (!terms.length) return { ok: true, hasFamily: false, terms, count: 0 }
+    const eligibleProducts = dbAll(`
+      SELECT id, name, plu, barcode, unit, open_price, active
+      FROM products
+      WHERE COALESCE(active, 1) = 1
+        AND COALESCE(open_price, 0) = 0
+        AND LOWER(COALESCE(unit, 'each')) = 'each'
+        AND TRIM(COALESCE(plu, '')) != ''
+    `)
+    const matches = eligibleProducts.filter(product => terms.some(term => dealFamilyMatchesProduct(term, product)))
+    if (!matches.length) {
+      return { ok: false, hasFamily: true, terms, count: 0, error: `No fixed-price Each products with PLUs match family "${terms.join(', ')}"` }
+    }
+    return { ok: true, hasFamily: true, terms, count: matches.length }
+  }
+
   ipcMain.handle('db:deals:upsert', (_e, deal) => {
     const id = deal.id || uuid()
+    const config = deal.config || {}
     if (deal.active !== false) {
       let idsToValidate = Array.isArray(deal.product_ids) ? deal.product_ids : null
       if (!idsToValidate && deal.id) {
         idsToValidate = dbAll("SELECT product_id FROM deal_products WHERE deal_id = ?1", [deal.id]).map(r => r.product_id)
       }
-      if (!idsToValidate && !deal.id) return { error: 'Add at least one fixed-price Each product with a PLU before saving this deal' }
-      if (idsToValidate) {
+      const familyValid = validateDealFamilyConfig(config)
+      if (!familyValid.ok) return { error: familyValid.error }
+      const hasProducts = Array.isArray(idsToValidate) && idsToValidate.some(id => String(id || '').trim())
+      if (!hasProducts && !familyValid.hasFamily) return { error: 'Add at least one fixed-price Each product with a PLU, or enter a product family, before saving this deal' }
+      if (hasProducts) {
         const valid = validateDealProductIds(idsToValidate)
         if (!valid.ok) return { error: valid.error }
       }
@@ -5166,7 +5256,7 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
     dbRun(`
       INSERT OR REPLACE INTO deals (id, name, type, config, start_date, end_date, active, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))
-    `, [id, deal.name, deal.type, JSON.stringify(deal.config || {}),
+    `, [id, deal.name, deal.type, JSON.stringify(config),
         deal.start_date || null, deal.end_date || null, deal.active !== false ? 1 : 0])
     queueSync('deals', id, deal.id ? 'update' : 'insert')
     lanSync.bumpVersion()
@@ -5203,10 +5293,22 @@ Start-Process -FilePath $ExePath -ArgumentList $args -WorkingDirectory $Destinat
   })
 
   ipcMain.handle('db:deals:setProducts', (_e, dealId, productIds) => {
-    const valid = validateDealProductIds(productIds)
-    if (!valid.ok) return { error: valid.error }
+    const requestedIds = [...new Set((productIds || []).map(id => String(id || '').trim()).filter(Boolean))]
+    const deal = dbGet("SELECT config FROM deals WHERE id = ?1", [dealId])
+    let config = {}
+    try { config = deal?.config ? JSON.parse(deal.config) : {} } catch (_) { config = {} }
+    const familyValid = validateDealFamilyConfig(config)
+    let productIdsToSave = requestedIds
+    if (requestedIds.length) {
+      const valid = validateDealProductIds(requestedIds)
+      if (!valid.ok) return { error: valid.error }
+      productIdsToSave = valid.ids
+    } else if (!familyValid.hasFamily) {
+      return { error: 'Add at least one fixed-price Each product with a PLU, or enter a product family, before saving this deal' }
+    } else if (!familyValid.ok) {
+      return { error: familyValid.error }
+    }
     const existing = dbAll("SELECT product_id FROM deal_products WHERE deal_id = ?1", [dealId]).map(r => r.product_id)
-    const productIdsToSave = valid.ids
     const nextIds = new Set(productIdsToSave)
     for (const oldPid of existing) {
       if (!nextIds.has(oldPid)) {
