@@ -28,16 +28,35 @@ function Copy-IfExists([string]$relativePath, [string]$destinationName = '') {
   Copy-IfExistsTo $relativePath $out $destinationName
 }
 
-$portableCandidates = @(
-  (Join-Path $root 'dist2\YieldPOS-Client-1.0.0.exe'),
-  (Join-Path $root 'YieldPOS-Client-1.0.0.exe')
-)
-$portable = $portableCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not $portable) {
-  throw 'Could not find YieldPOS-Client-1.0.0.exe. Run npm run build:portable first.'
+function Find-PortableExe([string[]]$dirs) {
+  $packagePath = Join-Path $root 'package.json'
+  if (Test-Path -LiteralPath $packagePath) {
+    $version = (Get-Content -Raw -LiteralPath $packagePath | ConvertFrom-Json).version
+    if ($version) {
+      foreach ($dir in $dirs) {
+        $expected = Join-Path $dir "YieldPOS-Client-$version.exe"
+        if (Test-Path -LiteralPath $expected) {
+          return Get-Item -LiteralPath $expected
+        }
+      }
+    }
+  }
+  $matches = @()
+  foreach ($dir in $dirs) {
+    if (Test-Path -LiteralPath $dir) {
+      $matches += Get-ChildItem -LiteralPath $dir -Filter 'YieldPOS-Client-*.exe' -File -ErrorAction SilentlyContinue
+    }
+  }
+  $matches | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
 }
 
-Copy-Item -LiteralPath $portable -Destination (Join-Path $out 'YieldPOS-Client-1.0.0.exe') -Force
+$portable = Find-PortableExe @((Join-Path $root 'dist2'), $root)
+if (-not $portable) {
+  throw 'Could not find YieldPOS-Client-*.exe. Run npm run build:portable first.'
+}
+$portableName = $portable.Name
+
+Copy-Item -LiteralPath $portable.FullName -Destination (Join-Path $out $portableName) -Force
 Copy-IfExists 'YieldPOS Admin.exe'
 Copy-IfExists 'YieldPOS Register.exe'
 if (-not [string]::Equals($launcherOut, $out, [StringComparison]::OrdinalIgnoreCase)) {
@@ -73,9 +92,9 @@ Use YieldPOS Admin.exe to open admin.
 Recommended Desktop layout:
 - $launcherOut\YieldPOS Register.exe
 - $launcherOut\YieldPOS Admin.exe
-- $out\YieldPOS-Client-1.0.0.exe
+- $out\$portableName
 
-The launchers also work if you keep them inside this YieldPOS folder with YieldPOS-Client-1.0.0.exe.
+The launchers also work if you keep them inside this YieldPOS folder with the YieldPOS-Client EXE.
 
 The reset-runtime-db.cmd script replaces the PC's Electron runtime database with this package's bundled database.
 The save-runtime-db.cmd script saves the PC's current runtime database back into this package's bundled database.

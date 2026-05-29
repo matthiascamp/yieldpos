@@ -39,9 +39,10 @@ const ROOT_FILES = [
   'diagnose-scale.ps1',
 ];
 const DIRS = ['pos', 'db', 'scripts', 'supabase'];
-const EXES = [
-  path.join(ROOT, 'dist3', 'YieldPOS-Client-1.0.0.exe'),
-  path.join(ROOT, 'dist2', 'YieldPOS-Client-1.0.0.exe'),
+const EXE_DIRS = [
+  path.join(ROOT, 'dist3'),
+  path.join(ROOT, 'dist2'),
+  ROOT,
 ];
 
 function main() {
@@ -49,7 +50,7 @@ function main() {
 
   for (const file of ROOT_FILES) copyFileIfExists(path.join(ROOT, file), path.join(OUT, file));
   for (const dir of DIRS) copyDir(path.join(ROOT, dir), path.join(OUT, dir));
-  const portableExe = EXES.find(exe => fs.existsSync(exe));
+  const portableExe = findPortableExe();
   if (portableExe) copyFileIfExists(portableExe, path.join(OUT, path.basename(portableExe)));
 
   fs.writeFileSync(path.join(OUT, 'README-FIRST.txt'), [
@@ -58,7 +59,7 @@ function main() {
     'Use "YieldPOS Register.exe" to launch the register app.',
     'Use "YieldPOS Admin.exe" to launch the admin app.',
     '',
-    'The portable app executable is included as YieldPOS-Client-1.0.0.exe.',
+    `The portable app executable is included as ${portableExe ? path.basename(portableExe) : 'YieldPOS-Client-*.exe'}.`,
     'The source files that make up the app are included in pos/, db/, scripts/, and supabase/.',
     'Web-hosted product/keyboard images have been copied into pos/images/remote and database references point at local files.',
     '',
@@ -87,6 +88,37 @@ function copyDir(src, dest) {
 
 function shouldSkip(name) {
   return ['.git', 'node_modules', 'dist', 'dist2', '__pycache__'].includes(name);
+}
+
+function findPortableExe() {
+  const version = readPackageVersion(ROOT);
+  if (version) {
+    for (const dir of EXE_DIRS) {
+      const expected = path.join(dir, `YieldPOS-Client-${version}.exe`);
+      if (fs.existsSync(expected)) return expected;
+    }
+  }
+  const matches = [];
+  for (const dir of EXE_DIRS) {
+    if (!fs.existsSync(dir)) continue;
+    for (const name of fs.readdirSync(dir)) {
+      if (!/^YieldPOS-Client-.+\.exe$/i.test(name)) continue;
+      const fullPath = path.join(dir, name);
+      try {
+        matches.push({ fullPath, mtime: fs.statSync(fullPath).mtimeMs });
+      } catch (_) {}
+    }
+  }
+  matches.sort((a, b) => b.mtime - a.mtime);
+  return matches[0]?.fullPath || '';
+}
+
+function readPackageVersion(dir) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version || '';
+  } catch (_) {
+    return '';
+  }
 }
 
 main();

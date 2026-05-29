@@ -5,7 +5,7 @@ using System.Windows.Forms;
 
 internal static class YieldPosLauncher
 {
-    private const string PortableExeName = "YieldPOS-Client-1.0.0.exe";
+    private const string PortableExePattern = "YieldPOS-Client-*.exe";
 
     [STAThread]
     private static int Main(string[] args)
@@ -19,7 +19,7 @@ internal static class YieldPosLauncher
             if (string.IsNullOrEmpty(portableExe))
             {
                 MessageBox.Show(
-                    "Cannot find " + PortableExeName + ".\n\nPut the YieldPOS folder on the Desktop or in Downloads, with this launcher beside it. The launcher also works if it is in the same folder as " + PortableExeName + ".",
+                    "Cannot find a YieldPOS-Client app EXE.\n\nPut the YieldPOS folder on the Desktop or in Downloads, with this launcher beside it. The launcher also works if it is in the same folder as the YieldPOS-Client EXE.",
                     "YieldPOS launcher",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
@@ -49,8 +49,8 @@ internal static class YieldPosLauncher
 
     private static string FindPortableExe(string launcherDir)
     {
-        string local = Path.Combine(launcherDir, PortableExeName);
-        if (File.Exists(local)) return local;
+        string local = FindPreferredPortableExe(launcherDir);
+        if (!string.IsNullOrEmpty(local)) return local;
 
         foreach (string candidate in GetPortableExeCandidates(launcherDir))
         {
@@ -92,8 +92,8 @@ internal static class YieldPosLauncher
 
     private static void AddCandidatesFromRoot(System.Collections.Generic.List<string> results, string root)
     {
-        AddIfExists(results, Path.Combine(root, PortableExeName));
-        AddIfExists(results, Path.Combine(root, "dist2", PortableExeName));
+        AddNewestIfExists(results, root);
+        AddNewestIfExists(results, Path.Combine(root, "dist2"));
 
         string[] preferredFolders = {
             "YieldPOS",
@@ -102,8 +102,8 @@ internal static class YieldPosLauncher
 
         foreach (string folder in preferredFolders)
         {
-            AddIfExists(results, Path.Combine(root, folder, PortableExeName));
-            AddIfExists(results, Path.Combine(root, folder, "dist2", PortableExeName));
+            AddNewestIfExists(results, Path.Combine(root, folder));
+            AddNewestIfExists(results, Path.Combine(root, folder, "dist2"));
         }
 
         try
@@ -117,8 +117,8 @@ internal static class YieldPosLauncher
             dirs.Sort((a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
             foreach (DirectoryInfo dir in dirs)
             {
-                AddIfExists(results, Path.Combine(dir.FullName, PortableExeName));
-                AddIfExists(results, Path.Combine(dir.FullName, "dist2", PortableExeName));
+                AddNewestIfExists(results, dir.FullName);
+                AddNewestIfExists(results, Path.Combine(dir.FullName, "dist2"));
             }
         }
         catch {}
@@ -143,5 +143,58 @@ internal static class YieldPosLauncher
             if (string.Equals(existing, path, StringComparison.OrdinalIgnoreCase)) return;
         }
         results.Add(path);
+    }
+
+    private static void AddNewestIfExists(System.Collections.Generic.List<string> results, string dir)
+    {
+        string exe = FindPreferredPortableExe(dir);
+        if (!string.IsNullOrEmpty(exe)) AddIfExists(results, exe);
+    }
+
+    private static string FindPreferredPortableExe(string dir)
+    {
+        string packageVersion = ReadPackageVersion(dir);
+        if (!string.IsNullOrEmpty(packageVersion))
+        {
+            string expected = Path.Combine(dir, "YieldPOS-Client-" + packageVersion + ".exe");
+            if (File.Exists(expected)) return expected;
+        }
+        return FindNewestPortableExe(dir);
+    }
+
+    private static string FindNewestPortableExe(string dir)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
+            FileInfo[] files = new DirectoryInfo(dir).GetFiles(PortableExePattern);
+            if (files.Length == 0) return null;
+            Array.Sort(files, (a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
+            return files[0].FullName;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string ReadPackageVersion(string dir)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(dir)) return null;
+            string packagePath = Path.Combine(dir, "package.json");
+            if (!File.Exists(packagePath)) return null;
+            foreach (string line in File.ReadAllLines(packagePath))
+            {
+                string trimmed = line.Trim();
+                if (!trimmed.StartsWith("\"version\"", StringComparison.OrdinalIgnoreCase)) continue;
+                int colon = trimmed.IndexOf(':');
+                if (colon < 0) return null;
+                return trimmed.Substring(colon + 1).Trim().Trim(',').Trim('"');
+            }
+        }
+        catch {}
+        return null;
     }
 }

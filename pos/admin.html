@@ -3406,7 +3406,7 @@
               Uses Git to pull the latest version from GitHub. YieldPOS closes first, updates this folder, then relaunches so hardware handlers do not block file replacement.
             </p>
             <div style="display:flex;gap:8px;align-items:center">
-              <button class="btn btn-blue" id="updateAppBtn" style="padding:10px 20px;font-size:14px">Check for Updates</button>
+              <button class="btn btn-blue" id="updateAppBtn" style="padding:10px 20px;font-size:14px">Update Now</button>
               <span id="updateStatus" style="font-size:13px;color:var(--text-dim)"></span>
             </div>
             <div id="updateLog" style="margin-top:10px;font-size:11px;font-family:monospace;color:var(--text-dim);max-height:120px;overflow-y:auto;display:none;background:var(--surface2);padding:8px;border-radius:var(--radius);white-space:pre-wrap"></div>
@@ -5161,16 +5161,16 @@
       const status = $('#updateStatus')
       const log = $('#updateLog')
       btn.disabled = true
-      btn.textContent = 'Updating...'
-      status.textContent = 'Checking GitHub for updates...'
+      btn.textContent = 'Opening updater...'
+      status.textContent = 'Opening visible Git updater...'
       log.style.display = 'block'
       log.textContent = ''
       try {
         const result = await window.pos.updateApp()
         log.textContent = result.log || ''
         if (result.updated) {
-          status.innerHTML = '<span style="color:var(--green)">Update staged. Closing to apply...</span>'
-          showToast('Update staged - YieldPOS will restart', 'success')
+          status.innerHTML = '<span style="color:var(--green)">Updater opened. Closing to apply...</span>'
+          showToast('Updater opened - YieldPOS will restart', 'success')
         } else if (result.upToDate) {
           status.innerHTML = '<span style="color:var(--green)">Already up to date</span>'
           showToast('Already on the latest version', 'info')
@@ -5183,7 +5183,7 @@
         log.textContent = e.message
       }
       btn.disabled = false
-      btn.textContent = 'Check for Updates'
+      btn.textContent = 'Update Now'
     })
 
     $('#saveSupaBtn').addEventListener('click', async () => {

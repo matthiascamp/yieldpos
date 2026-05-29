@@ -4280,9 +4280,27 @@ function setupIPC() {
     }
     const cmdQuote = value => `"${String(value).replace(/"/g, '""')}"`
     const looksLikeRepo = dir => !!dir && fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'main.js'))
+    const findPortableExe = dir => {
+      if (!dir || !fs.existsSync(dir)) return ''
+      const exact = path.join(dir, `YieldPOS-Client-${app.getVersion()}.exe`)
+      if (fs.existsSync(exact)) return exact
+      try {
+        return fs.readdirSync(dir)
+          .filter(name => /^YieldPOS-Client-.+\.exe$/i.test(name))
+          .map(name => {
+            const fullPath = path.join(dir, name)
+            let mtime = 0
+            try { mtime = fs.statSync(fullPath).mtimeMs } catch (_) {}
+            return { fullPath, mtime }
+          })
+          .sort((a, b) => b.mtime - a.mtime)[0]?.fullPath || ''
+      } catch (_) {
+        return ''
+      }
+    }
     const looksLikeInstallRoot = dir => !!dir && (
       looksLikeRepo(dir) ||
-      fs.existsSync(path.join(dir, 'YieldPOS-Client-1.0.0.exe')) ||
+      !!findPortableExe(dir) ||
       fs.existsSync(path.join(dir, 'YieldPOS Register.exe')) ||
       fs.existsSync(path.join(dir, 'YieldPOS Admin.exe'))
     )

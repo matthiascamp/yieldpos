@@ -10,6 +10,9 @@ if "%REPO%"=="" set "REPO=%~dp0"
 if "%MODE%"=="" set "MODE=register"
 if "%REMOTE_URL%"=="" set "REMOTE_URL=https://github.com/matthiascamp/yieldpos.git"
 set "LOG=%REPO%\yieldpos-git-update-last.log"
+set "STAMP=%DATE:/=-%-%TIME::=-%"
+set "STAMP=%STAMP: =-%"
+set "STAMP=%STAMP:.=-%"
 
 > "%LOG%" echo YieldPOS Git update started %DATE% %TIME%
 call :log "Folder: %REPO%"
@@ -33,6 +36,9 @@ cd /d "%REPO%" || (
   exit /b 1
 )
 
+if /I "%MODE%"=="check" goto skip_parent_wait
+echo(%PARENT_PID%| findstr /R "^[0-9][0-9]*$" >nul
+if errorlevel 1 set "PARENT_PID="
 if "%PARENT_PID%"=="" goto skip_parent_wait
 echo Waiting for YieldPOS to close...
 set /a WAIT_COUNT=0
@@ -45,7 +51,9 @@ set /a WAIT_COUNT+=1
 goto wait_parent
 :parent_closed
 :skip_parent_wait
+if /I "%MODE%"=="check" goto after_parent_wait
 timeout /t 2 /nobreak >nul
+:after_parent_wait
 
 if exist "%REPO%\.git" goto repo_update
 goto staged_update
@@ -94,9 +102,10 @@ call :backup_launch_files
 echo Applying update with git pull --ff-only...
 git -C "%REPO%" pull --ff-only origin main >> "%LOG%" 2>&1
 if errorlevel 1 (
-  call :fail "git pull failed. If this folder has local code edits, commit or stash them first."
+  call :fail "git pull failed. Local tracked changes may be blocking the update. Commit or stash code edits first; no hard reset was run."
   exit /b 1
 )
+call :cleanup_old_portable_exes "%REPO%"
 
 if "%NEED_NPM%"=="1" (
   where npm.cmd >nul 2>nul
@@ -124,9 +133,6 @@ echo Using a safe staged update from:
 echo %REMOTE_URL%
 call :log "Starting safe staged update"
 
-set "STAMP=%DATE:/=-%-%TIME::=-%"
-set "STAMP=%STAMP: =-%"
-set "STAMP=%STAMP:.=-%"
 set "STAGE=%TEMP%\yieldpos-update-stage-%RANDOM%-%RANDOM%"
 
 if exist "%STAGE%" rmdir /s /q "%STAGE%" >> "%LOG%" 2>&1
@@ -137,8 +143,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "%STAGE%\YieldPOS-Client-1.0.0.exe" (
-  call :fail "The staged update did not contain YieldPOS-Client-1.0.0.exe, so the live app was left untouched."
+call :find_portable_exe "%STAGE%" STAGE_PORTABLE
+if "%STAGE_PORTABLE%"=="" (
+  call :fail "The staged update did not contain a YieldPOS-Client-*.exe portable app, so the live app was left untouched."
   exit /b 1
 )
 if not exist "%STAGE%\YieldPOS Register.exe" (
@@ -164,8 +171,10 @@ if errorlevel 8 (
   call :fail "Copy failed. The previous launch files are backed up in %BACKUP%."
   exit /b 1
 )
+call :cleanup_old_portable_exes "%REPO%"
 
-if not exist "%REPO%\YieldPOS-Client-1.0.0.exe" (
+call :find_portable_exe "%REPO%" LIVE_PORTABLE
+if "%LIVE_PORTABLE%"=="" (
   call :fail "Copy finished but the app EXE is missing. Restore from %BACKUP%."
   exit /b 1
 )
@@ -180,7 +189,8 @@ goto relaunch
 set "BACKUP=%REPO%\.yieldpos-update-backup-%STAMP%"
 if "%STAMP%"=="" set "BACKUP=%REPO%\.yieldpos-update-backup"
 mkdir "%BACKUP%" >> "%LOG%" 2>&1
-if exist "%REPO%\YieldPOS-Client-1.0.0.exe" copy /y "%REPO%\YieldPOS-Client-1.0.0.exe" "%BACKUP%\" >> "%LOG%" 2>&1
+call :find_portable_exe "%REPO%" CURRENT_PORTABLE
+if not "%CURRENT_PORTABLE%"=="" copy /y "%REPO%\%CURRENT_PORTABLE%" "%BACKUP%\" >> "%LOG%" 2>&1
 if exist "%REPO%\YieldPOS Register.exe" copy /y "%REPO%\YieldPOS Register.exe" "%BACKUP%\" >> "%LOG%" 2>&1
 if exist "%REPO%\YieldPOS Admin.exe" copy /y "%REPO%\YieldPOS Admin.exe" "%BACKUP%\" >> "%LOG%" 2>&1
 if exist "%REPO%\update-yieldpos-from-git.cmd" copy /y "%REPO%\update-yieldpos-from-git.cmd" "%BACKUP%\" >> "%LOG%" 2>&1
@@ -206,8 +216,9 @@ if exist "%REPO%\%LAUNCHER%" (
   goto done
 )
 
-if exist "%REPO%\YieldPOS-Client-1.0.0.exe" (
-  start "" /D "%REPO%" "%REPO%\YieldPOS-Client-1.0.0.exe" --%MODE%
+call :find_portable_exe "%REPO%" LIVE_PORTABLE
+if not "%LIVE_PORTABLE%"=="" (
+  start "" /D "%REPO%" "%REPO%\%LIVE_PORTABLE%" --%MODE%
   goto done
 )
 
@@ -244,3 +255,45 @@ echo %LOG%
 echo.
 pause
 exit /b 1
+
+:find_portable_exe
+set "%~2="
+set "YIELDPOS_PACKAGE_VERSION="
+call :read_package_version "%~1" YIELDPOS_PACKAGE_VERSION
+if not "%YIELDPOS_PACKAGE_VERSION%"=="" (
+  if exist "%~1\YieldPOS-Client-%YIELDPOS_PACKAGE_VERSION%.exe" (
+    set "%~2=YieldPOS-Client-%YIELDPOS_PACKAGE_VERSION%.exe"
+    exit /b 0
+  )
+)
+for /f "delims=" %%F in ('dir /b /a-d /o-d "%~1\YieldPOS-Client-*.exe" 2^>nul') do (
+  set "%~2=%%F"
+  exit /b 0
+)
+exit /b 1
+
+:read_package_version
+set "%~2="
+set "YIELDPOS_VERSION_RAW="
+if not exist "%~1\package.json" exit /b 1
+for /f "usebackq tokens=2 delims=:," %%V in (`findstr /R /C:"\"version\"[ ]*:" "%~1\package.json" 2^>nul`) do (
+  set "YIELDPOS_VERSION_RAW=%%~V"
+  goto package_version_found
+)
+exit /b 1
+:package_version_found
+set "YIELDPOS_VERSION_RAW=%YIELDPOS_VERSION_RAW: =%"
+set "YIELDPOS_VERSION_RAW=%YIELDPOS_VERSION_RAW:"=%"
+set "%~2=%YIELDPOS_VERSION_RAW%"
+exit /b 0
+
+:cleanup_old_portable_exes
+set "YIELDPOS_PACKAGE_VERSION="
+call :read_package_version "%~1" YIELDPOS_PACKAGE_VERSION
+if "%YIELDPOS_PACKAGE_VERSION%"=="" exit /b 0
+for %%F in ("%~1\YieldPOS-Client-*.exe") do (
+  if exist "%%~fF" (
+    if /I not "%%~nxF"=="YieldPOS-Client-%YIELDPOS_PACKAGE_VERSION%.exe" del /f /q "%%~fF" >> "%LOG%" 2>&1
+  )
+)
+exit /b 0
