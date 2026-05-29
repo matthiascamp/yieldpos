@@ -6500,6 +6500,7 @@ function setupIPC() {
     0x065A: 'Opticon', 0x1EAB: 'Newland', 0x2DD6: 'Generic scanner',
     0x04B4: 'Cypress (scanner HID)',
   }
+  const SCANNER_NAME_KEYWORDS = ['scanner', 'barcode', 'reader', 'magellan', 'datalogic', 'quickscan', 'gryphon', 'powerscan']
   const SCALE_USAGE_PAGE = 0x8D
   const RECEIPT_KEYWORDS = ['epson', 'tm-t', 'tm-u', 'tm-m', 'star ', 'tsp', 'bixolon', 'srp-', 'citizen', 'ct-s', 'ct-e', 'custom', 'sewoo', 'slk-', 'thermal', 'receipt', 'pos printer', '80mm', '58mm', '80normal', '58normal', 'generic / text only', 'generic/text']
   const EPSON_MODELS = {
@@ -6667,8 +6668,8 @@ function setupIPC() {
     if (d.vendorId && SCANNER_VENDORS[d.vendorId]) return { type: 'scanner', vendor: SCANNER_VENDORS[d.vendorId] }
     if (d.usagePage === SCALE_USAGE_PAGE) return { type: 'scale', vendor: d.manufacturer || 'HID Scale' }
     if (d.source === 'serial') return { type: 'serial', vendor: d.manufacturer || 'Serial Port' }
-    const name = (d.product || '').toLowerCase()
-    if (name.includes('scanner') || name.includes('barcode') || name.includes('reader')) return { type: 'scanner', vendor: d.manufacturer || '' }
+    const name = `${d.product || ''} ${d.manufacturer || ''}`.toLowerCase()
+    if (SCANNER_NAME_KEYWORDS.some(k => name.includes(k))) return { type: 'scanner', vendor: d.manufacturer || '' }
     if (RECEIPT_KEYWORDS.some(k => name.includes(k))) return { type: 'printer', vendor: d.manufacturer || '' }
     if (name.includes('scale') || name.includes('weigh')) return { type: 'scale', vendor: d.manufacturer || '' }
     return { type: 'unknown', vendor: d.manufacturer || '' }
@@ -8916,15 +8917,24 @@ function setupIPC() {
 
     // Scanner diagnosis
     diag.scannerScan = {}
-    const scannerDevices = HID ? HID.devices().filter(d => d.vendorId && SCANNER_VENDORS[d.vendorId]) : []
+    const scannerDevices = HID ? HID.devices().filter(d => classifyDevice(d).type === 'scanner') : []
     diag.scannerScan.hidMatches = scannerDevices.map(d => ({
-      vid: '0x' + d.vendorId.toString(16).padStart(4, '0'),
-      pid: '0x' + d.productId.toString(16).padStart(4, '0'),
-      vendor: SCANNER_VENDORS[d.vendorId],
+      vid: d.vendorId ? '0x' + d.vendorId.toString(16).padStart(4, '0') : '',
+      pid: d.productId ? '0x' + d.productId.toString(16).padStart(4, '0') : '',
+      vendor: SCANNER_VENDORS[d.vendorId] || d.manufacturer || '',
       product: d.product || '',
       manufacturer: d.manufacturer || '',
     }))
     diag.scannerScan.currentScanner = hwScanner
+    try {
+      const oposListed = listOposDevices()
+      const oposDevices = oposListed.ok ? (oposListed.data?.devices || []) : []
+      diag.scannerScan.oposProfiles = oposDevices
+        .filter(d => /scanner/i.test(String(d.type || '')))
+        .map(d => ({ name: d.name, type: d.type, path: d.path }))
+    } catch (e) {
+      diag.scannerScan.oposProfilesError = e.message
+    }
     // Also list any HID keyboard-mode devices (scanners often present as keyboards)
     diag.scannerScan.hidKeyboards = HID ? HID.devices().filter(d => d.usagePage === 1 && d.usage === 6 && d.vendorId).map(d => ({
       vid: '0x' + d.vendorId.toString(16).padStart(4, '0'),
@@ -8936,7 +8946,7 @@ function setupIPC() {
 
     // Saved config from DB
     diag.savedConfig = {}
-    for (const key of ['hw_scale_type', 'hw_scale_port', 'hw_scale_path', 'hw_scale_baud', 'hw_scale_protocol', 'hw_printer_interface', 'hw_printer_name', 'hw_printer_port', 'hw_printer_ip']) {
+    for (const key of ['hw_scale_type', 'hw_scale_port', 'hw_scale_path', 'hw_scale_baud', 'hw_scale_protocol', 'hw_printer_interface', 'hw_printer_name', 'hw_printer_port', 'hw_printer_ip', 'opos_scanner_name', 'scanner_opos_enabled', 'scanner_opos_unavailable']) {
       const row = dbGet("SELECT value FROM settings WHERE key = ?1", [hwDbKey(key)])
       if (row) diag.savedConfig[key] = row.value
     }

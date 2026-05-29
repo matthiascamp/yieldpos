@@ -455,6 +455,13 @@ public class ScannerBridge
         List<string> registered = GetRegisteredScannerNames();
         string[] preferred = {
             "TableScanner",
+            "Magellan1500i",
+            "Magellan1500iScanner",
+            "Magellan1500i-USB",
+            "Magellan1500i-USB-OEM",
+            "MGL1500i",
+            "MGL1500iScanner",
+            "MagellanSC",
             "USBScanner",
             "Bologna-USB-HID",
             "USBHHScanner",
@@ -467,10 +474,8 @@ public class ScannerBridge
 
         foreach (string preferredName in preferred)
         {
-            if (registered.Count == 0 || ContainsName(registered, preferredName))
-            {
-                AddDeviceName(result, seen, preferredName);
-            }
+            if (registered.Count == 0) AddDeviceName(result, seen, preferredName);
+            else AddMatchingRegisteredNames(result, seen, registered, preferredName);
         }
 
         foreach (string registeredName in registered) AddDeviceName(result, seen, registeredName);
@@ -518,9 +523,36 @@ public class ScannerBridge
     {
         foreach (string name in names)
         {
-            if (string.Equals(name, candidate, StringComparison.OrdinalIgnoreCase)) return true;
+            if (ProfileNamesMatch(name, candidate)) return true;
         }
         return false;
+    }
+
+    static void AddMatchingRegisteredNames(List<string> result, HashSet<string> seen, List<string> registered, string preferred)
+    {
+        foreach (string name in registered)
+        {
+            if (ProfileNamesMatch(name, preferred)) AddDeviceName(result, seen, name);
+        }
+    }
+
+    static bool ProfileNamesMatch(string registered, string preferred)
+    {
+        if (string.Equals(registered, preferred, StringComparison.OrdinalIgnoreCase)) return true;
+        string a = NormalizeProfileName(registered);
+        string b = NormalizeProfileName(preferred);
+        return a.Length > 0 && b.Length > 0 && (a.IndexOf(b, StringComparison.OrdinalIgnoreCase) >= 0 || b.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0);
+    }
+
+    static string NormalizeProfileName(string name)
+    {
+        if (name == null) return "";
+        StringBuilder sb = new StringBuilder();
+        foreach (char c in name)
+        {
+            if (char.IsLetterOrDigit(c)) sb.Append(char.ToLowerInvariant(c));
+        }
+        return sb.ToString();
     }
 
     static void CleanupScanner(bool detachEvent)

@@ -165,6 +165,20 @@ function Get-OposObject($type) {
 # first one that matches our preferred order. This handles installations like
 # the Crisp setup where multiple Datalogic logical devices are registered but
 # only the ones with the right Usage code actually work for this hardware.
+function Normalize-OposName {
+    param([string]$Name)
+    if (-not $Name) { return '' }
+    return ([regex]::Replace($Name.ToLowerInvariant(), '[^a-z0-9]', ''))
+}
+
+function Test-OposNameMatch {
+    param([string]$Registered, [string]$Preferred)
+    if ($Registered -eq $Preferred) { return $true }
+    $r = Normalize-OposName $Registered
+    $p = Normalize-OposName $Preferred
+    return ($r -and $p -and ($r.Contains($p) -or $p.Contains($r)))
+}
+
 function Get-DeviceName($oposType, $preferredName) {
     if ($preferredName) { return $preferredName }
 
@@ -175,7 +189,7 @@ function Get-DeviceName($oposType, $preferredName) {
         # TableScanner FIRST: empirically verified working in DualTest on this hardware.
         # USBScanner is functionally equivalent per Datalogic docs but didn't deliver
         # DataEvents in our bridge — keeping it as fallback.
-        'Scanner'    = @('TableScanner', 'USBScanner', 'Bologna-USB-HID', 'USBHHScanner', 'HandScanner', 'Unit1', 'Scanner1')
+        'Scanner'    = @('TableScanner', 'Magellan1500i', 'Magellan1500iScanner', 'Magellan1500i-USB', 'Magellan1500i-USB-OEM', 'MGL1500i', 'MGL1500iScanner', 'MagellanSC', 'USBScanner', 'Bologna-USB-HID', 'USBHHScanner', 'HandScanner', 'Unit1', 'Scanner1')
     }
 
     # Collect every registered logical device name
@@ -189,7 +203,8 @@ function Get-DeviceName($oposType, $preferredName) {
     # Prefer the first known-good name that's actually registered
     if ($preferred[$oposType]) {
         foreach ($name in $preferred[$oposType]) {
-            if ($registered -contains $name) { return $name }
+            $match = $registered | Where-Object { Test-OposNameMatch $_ $name } | Select-Object -First 1
+            if ($match) { return $match }
         }
     }
 

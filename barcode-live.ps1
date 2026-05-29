@@ -1,7 +1,8 @@
 <#
 barcode-live.ps1
 ================
-Brand-new, self-contained live barcode viewer for the Datalogic Magellan 3200VSi.
+Brand-new, self-contained live barcode viewer for Datalogic Magellan scanners
+(3200VSi, 1500i, and similar OPOS profiles).
 Run it in YOUR OWN terminal window (or double-click barcode-live.cmd). Every time you
 scan an item, the barcode prints in this window THE INSTANT the scanner fires it --
 it is driven by the OPOS DataEvent, not by polling, so there is no delay.
@@ -17,6 +18,7 @@ Usage (from a normal PowerShell window in this folder):
   powershell -NoProfile -ExecutionPolicy Bypass -File .\barcode-live.ps1
   powershell -NoProfile -ExecutionPolicy Bypass -File .\barcode-live.ps1 -Plain     # barcode only
   powershell -NoProfile -ExecutionPolicy Bypass -File .\barcode-live.ps1 -Device MagellanSC
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\barcode-live.ps1 -Device Magellan1500i
   powershell -NoProfile -ExecutionPolicy Bypass -File .\barcode-live.ps1 -NoKill     # if PTPOS already closed
 
 Stop with Ctrl+C.
@@ -24,7 +26,7 @@ Stop with Ctrl+C.
 
 [CmdletBinding()]
 param(
-    [string]$Device = 'TableScanner',   # OPOS profile name. This PC also has MagellanSC, USBScanner.
+    [string]$Device = 'TableScanner',   # OPOS profile name; auto-fallback tries registered scanner profiles.
     [switch]$Plain,                      # print only the barcode (no timestamp / sequence / type)
     [switch]$Json,                       # emit one JSON event per line (for YieldPOS to consume on stdout)
     [switch]$NoKill,                     # skip stopping PTPOS/GUARDIAN (use if they are already closed)
@@ -118,7 +120,7 @@ public class BarcodeLive
     static readonly object gate = new object();
     static readonly Guid ScannerEventsIid = new Guid("CCB90183-B81E-11D2-AB74-0040054C3719");
 
-    // ── JSON helpers (used when -Json: YieldPOS reads these events on stdout) ──
+    // JSON helpers (used when -Json: YieldPOS reads these events on stdout)
     static void EmitJson(string s) { Console.WriteLine(s); Console.Out.Flush(); }
 
     static string JsonStr(string v)
@@ -143,6 +145,18 @@ public class BarcodeLive
             }
         }
         sb.Append("\"");
+        return sb.ToString();
+    }
+
+    static string JsonArray(string[] values)
+    {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < values.Length; i++)
+        {
+            if (i > 0) sb.Append(",");
+            sb.Append(JsonStr(values[i]));
+        }
+        sb.Append("]");
         return sb.ToString();
     }
 
@@ -194,36 +208,8 @@ public class BarcodeLive
                 return 2;
             }
 
-            scanner = Activator.CreateInstance(t);
-
-            int rc = (int)scanner.Open(device);
-            if (rc != 0)
-            {
-                if (json) EmitJson("{\"event\":\"open_failed\",\"rc\":" + rc + ",\"device\":" + JsonStr(device) + "}");
-                else { Console.Error.WriteLine("ERROR: Open('" + device + "') failed rc=" + rc); PrintProfiles(); }
-                return 3;
-            }
-
-            rc = (int)scanner.ClaimDevice(claimTimeoutMs);
-            if (rc != 0)
-            {
-                if (json)
-                {
-                    // Treat a transient claim failure as "busy/retry" so YieldPOS retries the
-                    // listener; the device-not-registered case is reported as fatal above.
-                    EmitJson("{\"event\":\"claim_failed\",\"rc\":" + rc + ",\"device\":" + JsonStr(device) +
-                             ",\"retry_in\":3,\"hint\":" + JsonStr(OposCode(rc) + " — another app (PTPOS) holds it, or the scanner needs a power-cycle") + "}");
-                }
-                else
-                {
-                    Console.Error.WriteLine("ERROR: ClaimDevice failed rc=" + rc + " (" + OposCode(rc) + ")");
-                    if (rc == 102) Console.Error.WriteLine("  -> another program already has the scanner claimed (close PTPOS / YieldPOS).");
-                    else if (rc == 111) Console.Error.WriteLine("  -> general device failure: the scanner is not responding. Power-cycle it (unplug USB ~5s, replug) and retry.");
-                    else if (rc == 108) Console.Error.WriteLine("  -> device offline: check the scanner's power and USB connection.");
-                    else if (rc == 112) Console.Error.WriteLine("  -> claim timed out: scanner busy or not responding. Power-cycle and retry.");
-                }
-                return 4;
-            }
+            int openResult = OpenAndClaimAny(t, ref device, claimTimeoutMs);
+            if (openResult != 0) return openResult;
 
             try { scanner.DataEventEnabled = false; } catch {}
             try { scanner.DeviceEnabled = false; } catch {}
@@ -272,6 +258,86 @@ public class BarcodeLive
             return 1;
         }
         finally { Cleanup(); }
+    }
+
+    static int OpenAndClaimAny(Type scannerType, ref string device, int claimTimeoutMs)
+    {
+        string[] candidates = GetCandidateDeviceNames(device);
+        if (json)
+        {
+            EmitJson("{\"event\":\"starting\",\"device\":" + JsonStr(device) + ",\"candidates\":" + JsonArray(candidates) + ",\"bitness\":" + JsonStr((IntPtr.Size * 8).ToString()) + "}");
+        }
+        else if (candidates.Length > 1)
+        {
+            Console.Error.WriteLine("Trying OPOS scanner profiles: " + string.Join(", ", candidates));
+        }
+
+        string lastDevice = device;
+        int lastOpenRc = 0;
+        int lastClaimRc = 0;
+        bool sawOpen = false;
+
+        foreach (string candidate in candidates)
+        {
+            lastDevice = candidate;
+            scanner = Activator.CreateInstance(scannerType);
+
+            int rc = (int)scanner.Open(candidate);
+            if (rc != 0)
+            {
+                lastOpenRc = rc;
+                if (!json) Console.Error.WriteLine("Open('" + candidate + "') failed rc=" + rc);
+                Cleanup();
+                continue;
+            }
+
+            sawOpen = true;
+            rc = (int)scanner.ClaimDevice(claimTimeoutMs);
+            if (rc == 0)
+            {
+                device = candidate;
+                return 0;
+            }
+
+            lastClaimRc = rc;
+            if (!json) Console.Error.WriteLine("ClaimDevice('" + candidate + "') failed rc=" + rc + " (" + OposCode(rc) + ")");
+            Cleanup();
+
+            if (IsBusyClaimRc(rc))
+            {
+                if (json)
+                {
+                    EmitJson("{\"event\":\"claim_failed\",\"rc\":" + rc + ",\"device\":" + JsonStr(candidate) +
+                             ",\"retry_in\":3,\"hint\":" + JsonStr(OposCode(rc) + " - another app (PTPOS) holds it, or the scanner needs a power-cycle") + "}");
+                }
+                else
+                {
+                    Console.Error.WriteLine("ERROR: ClaimDevice failed rc=" + rc + " (" + OposCode(rc) + ")");
+                    if (rc == 102) Console.Error.WriteLine("  -> another program already has the scanner claimed (close PTPOS / YieldPOS).");
+                    else if (rc == 112) Console.Error.WriteLine("  -> claim timed out: scanner busy or not responding. Power-cycle and retry.");
+                }
+                return 4;
+            }
+        }
+
+        if (sawOpen)
+        {
+            if (json)
+            {
+                EmitJson("{\"event\":\"claim_failed\",\"rc\":" + lastClaimRc + ",\"device\":" + JsonStr(lastDevice) +
+                         ",\"retry_in\":3,\"hint\":" + JsonStr(OposCode(lastClaimRc) + " - tried OPOS scanner profiles: " + string.Join(", ", candidates)) + "}");
+            }
+            else
+            {
+                Console.Error.WriteLine("ERROR: ClaimDevice failed for every candidate. Last rc=" + lastClaimRc + " (" + OposCode(lastClaimRc) + ")");
+                PrintProfiles();
+            }
+            return 4;
+        }
+
+        if (json) EmitJson("{\"event\":\"open_failed\",\"rc\":" + lastOpenRc + ",\"device\":" + JsonStr(lastDevice) + ",\"candidates\":" + JsonArray(candidates) + "}");
+        else { Console.Error.WriteLine("ERROR: no OPOS scanner profile opened. Last Open('" + lastDevice + "') rc=" + lastOpenRc); PrintProfiles(); }
+        return 3;
     }
 
     static void AttachSink()
@@ -334,6 +400,11 @@ public class BarcodeLive
         }
     }
 
+    static bool IsBusyClaimRc(int rc)
+    {
+        return rc == 102 || rc == 112 || rc == 113;
+    }
+
     static Type GetScannerType(out string factory)
     {
         string[] progIds = { "OPOS.Scanner", "OPOSScanner.OPOSScanner", "OPOSScanner_CCO.OPOSScanner.1" };
@@ -349,6 +420,94 @@ public class BarcodeLive
         catch {}
         factory = "";
         return null;
+    }
+
+    static string[] GetCandidateDeviceNames(string requested)
+    {
+        List<string> result = new List<string>();
+        HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        List<string> registered = GetRegisteredScannerNames();
+        string[] preferred = {
+            "TableScanner",
+            "Magellan1500i",
+            "Magellan1500iScanner",
+            "Magellan1500i-USB",
+            "Magellan1500i-USB-OEM",
+            "MGL1500i",
+            "MGL1500iScanner",
+            "MagellanSC",
+            "USBScanner",
+            "Bologna-USB-HID",
+            "USBHHScanner",
+            "HandScanner",
+            "Unit1",
+            "Scanner1"
+        };
+
+        AddDeviceName(result, seen, requested);
+        foreach (string preferredName in preferred)
+        {
+            if (registered.Count == 0) AddDeviceName(result, seen, preferredName);
+            else AddMatchingRegisteredNames(result, seen, registered, preferredName);
+        }
+        foreach (string registeredName in registered) AddDeviceName(result, seen, registeredName);
+
+        if (result.Count == 0) result.Add("TableScanner");
+        return result.ToArray();
+    }
+
+    static List<string> GetRegisteredScannerNames()
+    {
+        string[] paths = { @"SOFTWARE\OLEforRetail\ServiceOPOS\Scanner", @"SOFTWARE\WOW6432Node\OLEforRetail\ServiceOPOS\Scanner" };
+        List<string> names = new List<string>();
+        HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string path in paths)
+        {
+            try
+            {
+                using (RegistryKey k = Registry.LocalMachine.OpenSubKey(path))
+                {
+                    if (k == null) continue;
+                    foreach (string n in k.GetSubKeyNames()) if (seen.Add(n)) names.Add(n);
+                }
+            }
+            catch {}
+        }
+        return names;
+    }
+
+    static void AddMatchingRegisteredNames(List<string> result, HashSet<string> seen, List<string> registered, string preferred)
+    {
+        foreach (string name in registered)
+        {
+            if (ProfileNamesMatch(name, preferred)) AddDeviceName(result, seen, name);
+        }
+    }
+
+    static void AddDeviceName(List<string> names, HashSet<string> seen, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        name = name.Trim();
+        if (seen.Add(name)) names.Add(name);
+    }
+
+    static bool ProfileNamesMatch(string registered, string preferred)
+    {
+        if (string.Equals(registered, preferred, StringComparison.OrdinalIgnoreCase)) return true;
+        string a = NormalizeProfileName(registered);
+        string b = NormalizeProfileName(preferred);
+        return a.Length > 0 && b.Length > 0 && (a.IndexOf(b, StringComparison.OrdinalIgnoreCase) >= 0 || b.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0);
+    }
+
+    static string NormalizeProfileName(string name)
+    {
+        if (name == null) return "";
+        StringBuilder sb = new StringBuilder();
+        foreach (char c in name)
+        {
+            if (char.IsLetterOrDigit(c)) sb.Append(char.ToLowerInvariant(c));
+        }
+        return sb.ToString();
     }
 
     static void PrintProfiles()

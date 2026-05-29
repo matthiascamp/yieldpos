@@ -3,6 +3,8 @@
 ## The problem
 The lane scanner (Datalogic **Magellan 3200VSi**, read over OPOS profile `TableScanner`)
 wasn't feeding scans into YieldPOS, and YieldPOS couldn't kill PTPOS on startup.
+The same scanner path now also covers the Datalogic **Magellan 1500i** when it is
+configured as USB keyboard/HID or when Datalogic OPOS registers a Scanner profile.
 
 **Root cause:** PTPOS holds the OPOS scanner exclusively. PTPOS.EXE and its watchdog
 GUARDIAN.EXE are launched **elevated** by a Scheduled Task named `GUARDIAN`
@@ -54,4 +56,6 @@ Scans print like:
 - The scripts live in this folder; the installer copies `kill-ptpos.ps1` to
   `C:\ProgramData\YieldPOS\` so the scheduled task survives if this folder is moved.
 - If a scan still doesn't appear: confirm PTPOS is gone (`Get-Process PTPOS,GUARDIAN`),
-  and that the scanner is on OPOS profile `TableScanner` (also try `-Device MagellanSC`).
+  and that the scanner is on an OPOS Scanner profile. Known-good/profile candidates
+  include `TableScanner`, `MagellanSC`, `USBScanner`, `Magellan1500i`, and `MGL1500i`.
+  The app also tries every registered OPOS Scanner profile it can find.
