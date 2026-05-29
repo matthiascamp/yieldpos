@@ -252,6 +252,7 @@ CREATE TABLE IF NOT EXISTS keyboard_buttons (
   price           REAL DEFAULT 0,
   image           TEXT,
   image_scale     REAL DEFAULT 100,
+  font_size       REAL,
   color           TEXT DEFAULT '#fff',
   bg_color        TEXT DEFAULT '#1a3d2a',
   parent_id       TEXT,

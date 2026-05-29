@@ -201,6 +201,7 @@ CREATE TABLE keyboard_buttons (
   price           NUMERIC(10,2) DEFAULT 0,
   image           TEXT,
   image_scale     NUMERIC(6,2) DEFAULT 100,
+  font_size       NUMERIC(6,2),
   color           TEXT DEFAULT '#fff',
   bg_color        TEXT DEFAULT '#1a3d2a',
   parent_id       TEXT,

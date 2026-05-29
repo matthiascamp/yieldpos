@@ -32,6 +32,12 @@ function isLocalOnlySetting (key) {
   return LOCAL_ONLY_SETTINGS.has(key)
 }
 
+function normaliseKeyboardFontSize (value) {
+  const size = Number(value)
+  if (!Number.isFinite(size) || size <= 0) return null
+  return Math.max(8, Math.min(36, Math.round(size * 10) / 10))
+}
+
 // ─── Push: transactions + items + payments to Supabase ──────────────────────
 
 export async function pushPending() {
@@ -353,6 +359,7 @@ export async function pushKeyboard() {
     price: b.price || 0,
     image: b.image || null,
     image_scale: Number(b.image_scale || 100) || 100,
+    font_size: normaliseKeyboardFontSize(b.font_size),
     color: b.color || '#fff',
     bg_color: b.bg_color || '#1a3d2a',
     parent_id: b.parent_id || null,

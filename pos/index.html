@@ -144,6 +144,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:#020604;color:#1a1a2e;d
 /* ─── PLU badge (top-left corner) ───────────────────────────────── */
 .btn-plu-badge{position:absolute;top:2px;left:3px;z-index:3;font-size:clamp(8px,0.78vw,11px);font-weight:600;color:rgba(255,255,255,.66);background:rgba(0,0,0,.44);padding:2px 4px;border-radius:3px;letter-spacing:-.2px;pointer-events:none;font-family:'JetBrains Mono','Courier New',monospace}
 .btn-cat-badge{position:absolute;top:2px;left:3px;z-index:3;font-size:clamp(7px,0.65vw,9px);font-weight:800;color:#111;background:rgba(255,255,255,.92);padding:1px 4px;border-radius:3px;letter-spacing:.2px;pointer-events:none;font-family:'JetBrains Mono','Courier New',monospace}
+.pos-grid-btn.compact-key{padding:2px 3px;line-height:1.05}
+.pos-grid-btn.compact-key > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge){max-width:100%;overflow-wrap:anywhere;word-break:normal;line-height:1.05;font-size:clamp(7px,0.72vw,10px)}
+.pos-grid-btn.compact-key.dense-label > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge){font-size:clamp(7px,0.65vw,8px)}
+.pos-grid-btn.compact-key.has-img > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge){margin-bottom:1px;padding:2px 3px;background:rgba(0,0,0,.56);border-radius:3px}
+.pos-grid-btn.compact-key.img-contain.has-img img{inset:15px 3px 20px 3px;max-width:calc(100% - 6px);max-height:calc(100% - 35px)}
+.pos-grid-btn.compact-key.img-contain.has-img > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge){min-height:18px;padding:1px 3px 2px;color:#0b2418;background:rgba(255,253,247,.96)}
+.pos-grid-btn.compact-key .btn-price-badge,
+.pos-grid-btn.compact-key .btn-cat-badge{top:2px;font-size:7px;padding:1px 3px;max-width:70%;overflow:hidden;text-overflow:ellipsis}
+.pos-grid-btn.compact-key .btn-plu-badge{display:none}
 
 /* ─── Numpad zone ────────────────────────────────────────────────── */
 .pos-grid-btn.digit-btn{font-size:clamp(18px,2.5vw,28px);font-weight:700;background:linear-gradient(180deg,#ffffff 0%,#f8f4ea 100%);color:#0b2418;border:1px solid rgba(107,74,50,.14);border-radius:clamp(8px,1vw,14px);box-shadow:0 4px 10px rgba(0,0,0,.12),0 2px 3px rgba(0,0,0,.06),inset 0 -3px 0 rgba(11,36,24,.04),inset 0 1px 0 rgba(255,255,255,.95)}
@@ -2161,6 +2170,33 @@ function posButtonCellPriority (btn) {
   return 10
 }
 
+function posButtonArea (btn) {
+  return Math.max(1, Number(btn?.col_span || 1)) * Math.max(1, Number(btn?.row_span || 1))
+}
+
+function posButtonIsCompact (btn) {
+  return posButtonArea(btn) <= 1
+}
+
+function posButtonSizeClass (btn) {
+  const labelLength = posButtonLabel(btn).replace(/\s+/g, '').length
+  return [
+    posButtonIsCompact(btn) ? ' compact-key' : '',
+    posButtonIsCompact(btn) && labelLength > 16 ? ' dense-label' : ''
+  ].join('')
+}
+
+function posButtonFontSize (btn) {
+  const size = Number(btn?.font_size || 0)
+  const maxSize = posButtonIsCompact(btn) ? 11 : 36
+  return Number.isFinite(size) && size > 0 ? Math.max(8, Math.min(maxSize, size)) : 0
+}
+
+function posButtonFontStyle (btn) {
+  const size = posButtonFontSize(btn)
+  return size ? `font-size:${size}px` : ''
+}
+
 function posButtonLabel (btn) {
   const type = posButtonEffectiveType(btn)
   if (type === 'price_change' && String(btn?.label || '').replace(/\\n|\s+/g, '').toUpperCase() === 'PRICEMODE') {
@@ -2185,6 +2221,10 @@ function renderPosButton (btn, gridStyle) {
   const imgScale = Number.isFinite(imgScaleRaw) && imgScaleRaw > 0 ? Math.max(50, Math.min(220, imgScaleRaw)) / 100 : 1
   const imgHtml = imgSrc ? `<img src="${esc(imgSrc)}" alt="" style="--key-img-scale:${imgScale}">` : ''
   const imgClass = imgSrc ? ` has-img img-${imageFit}` : ''
+  const fontStyle = posButtonFontStyle(btn)
+  const fontStyleAttr = fontStyle ? ` style="${fontStyle}"` : ''
+  const buttonFontStyle = fontStyle ? `;${fontStyle}` : ''
+  const sizeClass = posButtonSizeClass(btn)
 
   // Numpad display — not a button but an indicator cell
   if (type === 'num_display') {
@@ -2198,20 +2238,20 @@ function renderPosButton (btn, gridStyle) {
     if (type === 'qtyx') extra += ' num-action num-orange'
     const digitVal = btn.category_filter || btn.label || ''
     const dataAttr = type === 'digit' ? `data-val="${esc(digitVal)}"` : `data-action="${type}"`
-    return `<div class="pos-grid-btn ${extra}" ${dataAttr} style="${gridStyle};background:${bg};color:${color}">${label.replace(/\\n/g,'<br>')}</div>`
+    return `<div class="pos-grid-btn ${extra}${sizeClass}" ${dataAttr} style="${gridStyle};background:${bg};color:${color}${buttonFontStyle}">${label.replace(/\\n/g,'<br>')}</div>`
   }
 
   // Function buttons — small utility keys with DB color
   if (FUNC_TYPES.has(type)) {
     const activeClass = type === 'price_change' && priceChangeMode ? ' price-change-active' : ''
-    return `<div class="pos-grid-btn func-key${activeClass}" data-type="${esc(type)}" data-action="${esc(type)}"
-      style="${gridStyle};background:${bg};color:${color}">${label.replace(/\\n/g,'<br>')}</div>`
+    return `<div class="pos-grid-btn func-key${activeClass}${sizeClass}" data-type="${esc(type)}" data-action="${esc(type)}"
+      style="${gridStyle};background:${bg};color:${color}${buttonFontStyle}">${label.replace(/\\n/g,'<br>')}</div>`
   }
 
   // Payment buttons
   if (PAY_TYPES.has(type) || type === 'subtotal') {
-    return `<div class="pos-grid-btn pay-key" data-type="${esc(type)}" data-action="${esc(type)}"
-      style="${gridStyle};background:${bg};color:${color}">${label.replace(/\\n/g,'<br>')}</div>`
+    return `<div class="pos-grid-btn pay-key${sizeClass}" data-type="${esc(type)}" data-action="${esc(type)}"
+      style="${gridStyle};background:${bg};color:${color}${buttonFontStyle}">${label.replace(/\\n/g,'<br>')}</div>`
   }
 
   // Category color glow for image buttons
@@ -2220,22 +2260,22 @@ function renderPosButton (btn, gridStyle) {
   // Back/home navigation button — matches section-nav-btn style
   if (type === 'back_home') {
     const backLabel = label.includes('\u2190') ? label : '\u2190 ' + label
-    return `<div class="pos-grid-btn back-key" data-type="back_home" data-action="back_home"
-      style="${gridStyle}">${backLabel.replace(/\\n/g,'<br>')}</div>`
+    return `<div class="pos-grid-btn back-key${sizeClass}" data-type="back_home" data-action="back_home"
+      style="${gridStyle}${buttonFontStyle}">${backLabel.replace(/\\n/g,'<br>')}</div>`
   }
 
   // Page link buttons
   if (type === 'page_link' && btn.parent_id) {
     let dispLabel = label.replace(/\\n/g,'<br>')
     dispLabel = dispLabel.replace(/<br>\$[\d.]+.*$/, '')
-    return `<div class="pos-grid-btn dept-key cat-key${imgClass}" data-type="${esc(type)}" data-page-link="${btn.parent_id}"
-      style="${gridStyle};background:${bg};color:${color}${catColorStyle}">${imgHtml}<span>${dispLabel}</span><span class="btn-cat-badge">CAT</span></div>`
+    return `<div class="pos-grid-btn dept-key cat-key${imgClass}${sizeClass}" data-type="${esc(type)}" data-page-link="${btn.parent_id}"
+      style="${gridStyle};background:${bg};color:${color}${catColorStyle}">${imgHtml}<span${fontStyleAttr}>${dispLabel}</span><span class="btn-cat-badge">CAT</span></div>`
   }
 
   if (type === 'weighed_open') {
     const dispLabel = label.replace(/(?:\\n|\n)\/?KG\b/i, '').replace(/(?:\\n|\n)/g, '<br>')
-    return `<div class="pos-grid-btn dept-key cat-key${imgClass}" data-type="${esc(type)}" data-action="${esc(type)}"
-      style="${gridStyle};background:${bg};color:${color}${catColorStyle}">${imgHtml}<span>${dispLabel}</span><span class="btn-cat-badge">KG</span></div>`
+    return `<div class="pos-grid-btn dept-key cat-key${imgClass}${sizeClass}" data-type="${esc(type)}" data-action="${esc(type)}"
+      style="${gridStyle};background:${bg};color:${color}${catColorStyle}">${imgHtml}<span${fontStyleAttr}>${dispLabel}</span><span class="btn-cat-badge">KG</span></div>`
   }
 
   // Department / product / nav — everything else
@@ -2253,18 +2293,18 @@ function renderPosButton (btn, gridStyle) {
   const priceSuffix = priceUnit === 'kg' ? '/kg' : priceUnit === '100g' ? '/100g' : '/each'
   const priceBadge = isOpenPriceButton
     ? '<span class="btn-price-badge">O/P</span>'
-    : (showPriceBadge ? `<span class="btn-price-badge">${money(priceVal)}${priceSuffix}</span>` : '')
+    : (showPriceBadge ? `<span class="btn-price-badge">${money(priceVal)}${posButtonIsCompact(btn) ? '' : priceSuffix}</span>` : '')
   const btnPlu = btn.product_plu || (/^\d{3,6}$/.test(btn.category_filter || '') ? btn.category_filter : '')
-  const pluBadge = btnPlu ? `<span class="btn-plu-badge">${esc(btnPlu)}</span>` : ''
+  const pluBadge = btnPlu && !posButtonIsCompact(btn) ? `<span class="btn-plu-badge">${esc(btnPlu)}</span>` : ''
   // Strip embedded price lines from open-price labels; fixed/product buttons show them as badges.
   let displayLabel = label.replace(/\\n/g,'<br>')
   if (priceBadge || isOpenPriceButton) displayLabel = displayLabel.replace(/<br>\$[\d.]+.*$/, '')
-  const labelHtml = `<span>${displayLabel}</span>${priceBadge}${pluBadge}`
+  const labelHtml = `<span${fontStyleAttr}>${displayLabel}</span>${priceBadge}${pluBadge}`
   const standardMerchClass = (isItem || type === 'section') ? ' cat-key' : ''
   const itemClass = `${isOpenPriceButton ? ' open-price-key' : ''}${standardMerchClass}`
   const catBadge = type === 'section' ? '<span class="btn-cat-badge">CAT</span>' : ''
   const productRef = btn.category_filter || ''
-  return `<div class="pos-grid-btn dept-key${imgClass}${itemClass}" data-type="${esc(type)}" data-cat="${esc(productRef)}"
+  return `<div class="pos-grid-btn dept-key${imgClass}${itemClass}${sizeClass}" data-type="${esc(type)}" data-cat="${esc(productRef)}"
     data-alpha="${esc(btn.alpha_range || '')}" data-label2="${label}" data-price="${priceVal}"
     data-action="${esc(type)}" data-page-link="${btn.parent_id || ''}" data-product-id="${esc(matchedProductId)}"
     style="${gridStyle};background:${bg};color:${color}${catColorStyle}">${imgHtml}${labelHtml}${catBadge}</div>`

@@ -936,9 +936,18 @@ body{
     const n = Number(value)
     return Number.isFinite(n) ? n : null
   }
+  function positiveFiniteNumber(value) {
+    const n = finiteNumber(value)
+    return n !== null && n > 0 ? n : null
+  }
   function money(n) {
     const value = finiteNumber(n)
     return value === null ? '' : '$' + value.toFixed(2)
+  }
+  function cleanQty(n) {
+    const value = positiveFiniteNumber(n)
+    if (value === null) return ''
+    return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)))
   }
   function esc(s) { return cleanText(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
   function itemQtyText(item) {
@@ -957,10 +966,10 @@ body{
   }
   function dealTierText(cfg = {}) {
     const tiers = Array.isArray(cfg.tiers) ? cfg.tiers : []
-    const validTier = tiers.find(t => finiteNumber(t?.qty) !== null && finiteNumber(t?.price) !== null)
-    const qty = finiteNumber(validTier?.qty ?? cfg.qty)
-    const price = finiteNumber(validTier?.price ?? cfg.price)
-    return qty !== null && price !== null ? `${qty} for ${money(price)}` : ''
+    const validTier = tiers.find(t => positiveFiniteNumber(t?.qty) !== null && positiveFiniteNumber(t?.price) !== null)
+    const qty = positiveFiniteNumber(validTier?.qty ?? cfg.qty)
+    const price = positiveFiniteNumber(validTier?.price ?? cfg.price)
+    return qty !== null && price !== null ? `${cleanQty(qty)} for ${money(price)}` : ''
   }
   function safeDeal(deal) {
     const name = cleanText(deal?.name)
@@ -1085,6 +1094,7 @@ body{
         let cfg = {}
         try { cfg = typeof d.config === 'string' ? JSON.parse(d.config) : (d.config || {}) } catch (_) { cfg = {} }
         const text = d.type === 'multi_buy' ? dealTierText(cfg) : cleanText(d.name)
+        if (d.type === 'multi_buy' && !text) continue
         const deal = safeDeal({ id: d.id, name: d.name, specialText: text, emoji: emojiForProduct(d.name), badge: 'special', isSpecial: true, displayPriority: cachedDeals.length + 1 })
         if (deal) cachedDeals.push(deal)
       }

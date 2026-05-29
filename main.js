@@ -475,6 +475,7 @@ async function initDatabase() {
     "ALTER TABLE keyboard_buttons ADD COLUMN col_span INTEGER DEFAULT 1",
     "ALTER TABLE keyboard_buttons ADD COLUMN row_span INTEGER DEFAULT 1",
     "ALTER TABLE keyboard_buttons ADD COLUMN image_scale REAL DEFAULT 100",
+    "ALTER TABLE keyboard_buttons ADD COLUMN font_size REAL",
     "INSERT OR IGNORE INTO keyboard_buttons (id, label, type, color, bg_color, sort_order, position, page, grid_row, grid_col, col_span, row_span) VALUES ('np-display', '', 'num_display', '#00cc00', '#111111', 29, 'grid', 1, 2, 3, 1, 4)",
     // Fix np-display overlap: must be inactive (overlaps btn-meat at row 2, col 3)
     "UPDATE keyboard_buttons SET active = 0 WHERE id = 'np-display'",
@@ -1507,9 +1508,15 @@ async function initDatabase() {
       const SQL3 = await initSqlJs3()
       const bundledDb = new SQL3.Database(fs.readFileSync(BUNDLED_DB_PATH))
       const pageRows = bundledDb.exec("SELECT page, name, cols, rows FROM keyboard_pages WHERE page > 5 ORDER BY page")
-      const buttonRows = bundledDb.exec(`SELECT id, label, type, price, image, image_scale, color, bg_color,
-          parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col,
-          col_span, row_span, active, product_id
+      const bundledButtonColumns = new Set(databaseAll(bundledDb, "PRAGMA table_info('keyboard_buttons')").map(row => row.name))
+      const bundledButtonSelect = [
+        'id', 'label', 'type', 'price', 'image', 'image_scale',
+        bundledButtonColumns.has('font_size') ? 'font_size' : 'NULL AS font_size',
+        'color', 'bg_color', 'parent_id', 'category_filter', 'alpha_range',
+        'sort_order', 'position', 'page', 'grid_row', 'grid_col',
+        'col_span', 'row_span', 'active', 'product_id'
+      ].join(', ')
+      const buttonRows = bundledDb.exec(`SELECT ${bundledButtonSelect}
         FROM keyboard_buttons WHERE page > 5 ORDER BY page, sort_order, id`)
 
       if (pageRows.length) {
@@ -1520,9 +1527,9 @@ async function initDatabase() {
       if (buttonRows.length) {
         db.run("DELETE FROM keyboard_buttons WHERE page > 5")
         const stmt = db.prepare(`INSERT OR REPLACE INTO keyboard_buttons
-          (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter,
+          (id, label, type, price, image, image_scale, font_size, color, bg_color, parent_id, category_filter,
            alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
-          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, datetime('now'))`)
+          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, datetime('now'))`)
         for (const row of buttonRows[0].values) stmt.run(row)
         stmt.free()
       }
@@ -1977,10 +1984,10 @@ async function initDatabase() {
         let btnCount = 0
         for (const btn of (data.buttons || [])) {
           const id = btn.id || uuid()
-          db.run(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
-            VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,datetime('now'))`,
+          db.run(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, font_size, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
+            VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,datetime('now'))`,
             [id, btn.label, btn.type, btn.price || 0, btn.image || null, Number(btn.image_scale || 100) || 100,
-             btn.color || '#fff', btn.bg_color || '#409850', btn.parent_id || null,
+             normaliseKeyboardFontSize(btn.font_size), btn.color || '#fff', btn.bg_color || '#409850', btn.parent_id || null,
              btn.category_filter || null, btn.alpha_range || null, btn.sort_order || 0, btn.position || 'grid',
              btn.page || 1, btn.grid_row || 0, btn.grid_col || 0, btn.col_span || 1,
              btn.row_span || 1, btn.active !== undefined ? btn.active : 1,
@@ -2959,6 +2966,12 @@ function dbValueEqual(a, b) {
   if (a == null && b == null) return true
   if (a == null || b == null) return false
   return String(a) === String(b)
+}
+
+function normaliseKeyboardFontSize (value) {
+  const size = Number(value)
+  if (!Number.isFinite(size) || size <= 0) return null
+  return Math.max(8, Math.min(36, Math.round(size * 10) / 10))
 }
 
 function fileSha256(filePath) {
@@ -4933,6 +4946,33 @@ function setupIPC() {
     return { ok: true, ids }
   }
 
+  function parseDealConfig (config) {
+    if (!config) return {}
+    if (typeof config !== 'string') return config
+    try { return JSON.parse(config) || {} } catch (_) { return {} }
+  }
+
+  function normaliseDealTiersFromConfig (config = {}) {
+    const rawTiers = Array.isArray(config.tiers)
+      ? config.tiers
+      : ((config.qty !== undefined || config.price !== undefined) ? [{ qty: config.qty, price: config.price }] : [])
+    return rawTiers.map(t => ({
+      qty: parseInt(t?.qty, 10) || 0,
+      price: parseFloat(t?.price) || 0
+    }))
+  }
+
+  function validateDealPricingConfig (config = {}) {
+    const tiers = normaliseDealTiersFromConfig(config)
+      .filter(t => t.qty > 0 || t.price > 0)
+      .sort((a, b) => a.qty - b.qty)
+    if (!tiers.length) return { ok: false, error: 'Add at least one deal tier' }
+    if (tiers.some(t => t.qty < 1 || t.price <= 0)) {
+      return { ok: false, error: 'Each deal tier needs a quantity and price greater than 0' }
+    }
+    return { ok: true, tiers }
+  }
+
   function normaliseDealFamilyText (value) {
     return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
   }
@@ -4985,8 +5025,13 @@ function setupIPC() {
 
   ipcMain.handle('db:deals:upsert', (_e, deal) => {
     const id = deal.id || uuid()
-    const config = deal.config || {}
+    const config = parseDealConfig(deal.config)
     if (deal.active !== false) {
+      const pricingValid = validateDealPricingConfig(config)
+      if (!pricingValid.ok) return { error: pricingValid.error }
+      config.tiers = pricingValid.tiers
+      delete config.qty
+      delete config.price
       let idsToValidate = Array.isArray(deal.product_ids) ? deal.product_ids : null
       if (!idsToValidate && deal.id) {
         idsToValidate = dbAll("SELECT product_id FROM deal_products WHERE deal_id = ?1", [deal.id]).map(r => r.product_id)
@@ -5085,7 +5130,15 @@ function setupIPC() {
     for (const d of deals) {
       if (!d.id || !d.name) continue
       if (deletedIds.has(d.id)) continue
-      const config = typeof d.config === 'string' ? d.config : JSON.stringify(d.config || {})
+      const parsedConfig = parseDealConfig(d.config)
+      if (d.active !== false) {
+        const pricingValid = validateDealPricingConfig(parsedConfig)
+        if (!pricingValid.ok) continue
+        parsedConfig.tiers = pricingValid.tiers
+        delete parsedConfig.qty
+        delete parsedConfig.price
+      }
+      const config = JSON.stringify(parsedConfig)
       dbRun(`INSERT OR REPLACE INTO deals (id, name, type, config, start_date, end_date, active, updated_at)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))`,
         [d.id, d.name, d.type, config, d.start_date || null, d.end_date || null, d.active !== false ? 1 : 0])
@@ -5868,14 +5921,13 @@ function setupIPC() {
     const previousButton = btn.id ? dbGet("SELECT image FROM keyboard_buttons WHERE id = ?1", [id]) : null
     const incomingImage = btn.image || null
     dbRun(`
-      INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
-      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, datetime('now'))
+      INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, font_size, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, datetime('now'))
     `, [id, btn.label, buttonType, btn.price || 0, incomingImage, Number(btn.image_scale || 100) || 100,
-        btn.color || '#fff', btn.bg_color || '#409850', btn.parent_id || null, btn.category_filter || null,
-        btn.alpha_range || null, btn.sort_order || 0, btn.position || 'grid',
-        btn.page || 1, btn.grid_row || 0, btn.grid_col || 0,
-        btn.col_span || 1, btn.row_span || 1, btn.product_id || null,
-        btn.active !== false ? 1 : 0])
+        normaliseKeyboardFontSize(btn.font_size), btn.color || '#fff', btn.bg_color || '#409850',
+        btn.parent_id || null, btn.category_filter || null, btn.alpha_range || null,
+        btn.sort_order || 0, btn.position || 'grid', btn.page || 1, btn.grid_row || 0, btn.grid_col || 0,
+        btn.col_span || 1, btn.row_span || 1, btn.product_id || null, btn.active !== false ? 1 : 0])
     const imageRemovedKey = `keyboard_image_removed_${id}`
     if (!incomingImage && previousButton?.image) {
       dbRun("INSERT OR REPLACE INTO settings (key, value) VALUES (?1, '1')", [imageRemovedKey])
@@ -5928,18 +5980,19 @@ function setupIPC() {
     for (const b of buttons) {
       if (!b.id || !b.label) continue
       if (deletedIds.has(b.id)) continue
-      db.run(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
-        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,datetime('now'))
+      db.run(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, font_size, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
+        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,datetime('now'))
         ON CONFLICT(id) DO UPDATE SET
           label=excluded.label, type=excluded.type, price=excluded.price, image=excluded.image, image_scale=excluded.image_scale,
-          color=excluded.color, bg_color=excluded.bg_color, parent_id=excluded.parent_id,
+          font_size=excluded.font_size, color=excluded.color, bg_color=excluded.bg_color, parent_id=excluded.parent_id,
           category_filter=excluded.category_filter, alpha_range=excluded.alpha_range,
           sort_order=excluded.sort_order, position=excluded.position, page=excluded.page,
           grid_row=excluded.grid_row, grid_col=excluded.grid_col, col_span=excluded.col_span,
           row_span=excluded.row_span, product_id=excluded.product_id, active=excluded.active,
           updated_at=excluded.updated_at`,
         [b.id, b.label, b.type, b.price || 0, b.image || null, Number(b.image_scale || 100) || 100,
-         b.color || '#fff', b.bg_color || '#409850', b.parent_id || null, b.category_filter || null,
+         normaliseKeyboardFontSize(b.font_size), b.color || '#fff', b.bg_color || '#409850',
+         b.parent_id || null, b.category_filter || null,
          b.alpha_range || null, b.sort_order || 0, b.position || 'grid',
          b.page || 1, b.grid_row || 0, b.grid_col || 0, b.col_span || 1, b.row_span || 1,
          b.product_id || null, b.active !== false ? 1 : 0])
@@ -5964,9 +6017,9 @@ function setupIPC() {
     const buttons = dbAll("SELECT * FROM keyboard_buttons WHERE page = ?1 AND active = 1", [srcPage])
     for (const btn of buttons) {
       const newId = uuid()
-      dbRun(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
-        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,1,datetime('now'))`,
-        [newId, btn.label, btn.type, btn.price, btn.image, btn.image_scale || 100, btn.color, btn.bg_color,
+      dbRun(`INSERT INTO keyboard_buttons (id, label, type, price, image, image_scale, font_size, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
+        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,1,datetime('now'))`,
+        [newId, btn.label, btn.type, btn.price, btn.image, btn.image_scale || 100, normaliseKeyboardFontSize(btn.font_size), btn.color, btn.bg_color,
          btn.parent_id, btn.category_filter, btn.alpha_range, btn.sort_order, btn.position || 'grid',
          newPage, btn.grid_row, btn.grid_col, btn.col_span, btn.row_span, btn.product_id || null])
     }
@@ -5992,7 +6045,7 @@ function setupIPC() {
       ? dbAll(`SELECT * FROM products WHERE id IN (${productIds.map(() => '?').join(',')})`, productIds)
       : []
     return {
-      version: 4,
+      version: 5,
       exported_at: new Date().toISOString(),
       pages,
       buttons,
@@ -6024,10 +6077,11 @@ function setupIPC() {
         skipped++; continue
       }
       const id = btn.id || uuid()
-      dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
-        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,datetime('now'))`,
+      dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, font_size, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, active, product_id, updated_at)
+        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,datetime('now'))`,
         [id, btn.label, btn.type, btn.price || 0, btn.image || null, Number(btn.image_scale || 100) || 100,
-         btn.color || '#fff', btn.bg_color || '#409850', btn.parent_id || null, btn.category_filter || null,
+         normaliseKeyboardFontSize(btn.font_size), btn.color || '#fff', btn.bg_color || '#409850',
+         btn.parent_id || null, btn.category_filter || null,
          btn.alpha_range || null, btn.sort_order || 0, btn.position || 'grid',
          btn.page || 1, row, col, cs, rs, btn.active !== undefined ? btn.active : 1,
          btn.product_id || null])

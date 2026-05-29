@@ -610,6 +610,62 @@
     .kb-btn-price-badge { top:2px; right:3px; font-size:10px; font-weight:800; color:#111; background:rgba(255,255,255,.92); padding:2px 5px; border-radius:3px; }
     .kb-btn-plu-badge { top:2px; left:3px; font-size:10px; font-weight:600; color:rgba(255,255,255,.66); background:rgba(0,0,0,.44); padding:2px 4px; border-radius:3px; letter-spacing:-.2px; }
     .kb-btn-cat-badge { top:2px; left:3px; font-size:9px; font-weight:800; color:#111; background:rgba(255,255,255,.92); padding:1px 4px; border-radius:3px; letter-spacing:.2px; }
+    .kb-cell.compact-key,
+    .kb-live.compact-key,
+    #kbGrid .pos-grid-btn.compact-key,
+    #kbPreviewGrid .pos-grid-btn.compact-key,
+    .kb-live.pos-grid-btn.compact-key { padding:2px 3px; line-height:1.05; }
+    .kb-cell.compact-key > .kb-main-label,
+    .kb-live.compact-key > .kb-main-label,
+    #kbGrid .pos-grid-btn.compact-key > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge),
+    #kbPreviewGrid .pos-grid-btn.compact-key > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge),
+    .kb-live.pos-grid-btn.compact-key > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge) {
+      max-width:100%; overflow-wrap:anywhere; word-break:normal; line-height:1.05; font-size:9px;
+    }
+    .kb-cell.compact-key.dense-label > .kb-main-label,
+    .kb-live.compact-key.dense-label > .kb-main-label,
+    #kbGrid .pos-grid-btn.compact-key.dense-label > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge),
+    #kbPreviewGrid .pos-grid-btn.compact-key.dense-label > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge),
+    .kb-live.pos-grid-btn.compact-key.dense-label > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge) { font-size:8px; }
+    .kb-cell.compact-key.has-img > .kb-main-label,
+    .kb-live.compact-key.has-img > .kb-main-label,
+    #kbGrid .pos-grid-btn.compact-key.has-img > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge),
+    #kbPreviewGrid .pos-grid-btn.compact-key.has-img > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge),
+    .kb-live.pos-grid-btn.compact-key.has-img > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge) {
+      margin-bottom:1px; padding:2px 3px; background:rgba(0,0,0,.56); border-radius:3px;
+    }
+    .kb-cell.compact-key.img-contain.has-img img,
+    .kb-live.compact-key.img-contain.has-img img,
+    #kbGrid .pos-grid-btn.compact-key.img-contain.has-img img,
+    #kbPreviewGrid .pos-grid-btn.compact-key.img-contain.has-img img,
+    .kb-live.pos-grid-btn.compact-key.img-contain.has-img img {
+      inset:15px 3px 20px 3px; max-width:calc(100% - 6px); max-height:calc(100% - 35px);
+    }
+    .kb-cell.compact-key.img-contain.has-img > .kb-main-label,
+    .kb-live.compact-key.img-contain.has-img > .kb-main-label,
+    #kbGrid .pos-grid-btn.compact-key.img-contain.has-img > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge),
+    #kbPreviewGrid .pos-grid-btn.compact-key.img-contain.has-img > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge),
+    .kb-live.pos-grid-btn.compact-key.img-contain.has-img > span:not(.btn-price-badge):not(.btn-plu-badge):not(.btn-cat-badge) {
+      min-height:18px; padding:1px 3px 2px; color:#0b2418; background:rgba(255,253,247,.96);
+    }
+    .kb-cell.compact-key .btn-price-badge,
+    .kb-cell.compact-key .btn-plu-badge,
+    .kb-cell.compact-key .btn-cat-badge,
+    #kbGrid .compact-key .btn-price-badge,
+    #kbGrid .compact-key .btn-plu-badge,
+    #kbGrid .compact-key .btn-cat-badge,
+    #kbPreviewGrid .compact-key .btn-price-badge,
+    #kbPreviewGrid .compact-key .btn-plu-badge,
+    #kbPreviewGrid .compact-key .btn-cat-badge,
+    .kb-live.compact-key .btn-price-badge,
+    .kb-live.compact-key .btn-plu-badge,
+    .kb-live.compact-key .btn-cat-badge {
+      top:2px; font-size:7px; padding:1px 3px; max-width:52%; overflow:hidden; text-overflow:ellipsis;
+    }
+    .kb-cell.compact-key .btn-plu-badge,
+    #kbGrid .compact-key .btn-plu-badge,
+    #kbPreviewGrid .compact-key .btn-plu-badge,
+    .kb-live.compact-key .btn-plu-badge { display:none; }
     .kb-cell .kb-cell-type {
       position: absolute; top: 2px; right: 3px;
       font-size: 7px; font-weight: 600; opacity: .6; text-transform: uppercase; letter-spacing: .3px;
@@ -2656,13 +2712,19 @@
                     <option value="lock">Lock</option>
                     <option value="reprint">Reprint</option>
                     <option value="pricecheck">Price Check</option>
+                    <option value="price_change">Price Change Mode</option>
                     <option value="errcorrect">Error Correct</option>
                     <option value="recall">Recall Sale</option>
                     <option value="pctdiscount">% Discount</option>
                     <option value="pctone">% One Item</option>
+                    <option value="discount">Discount</option>
+                    <option value="endofday">End of Day</option>
                     <option value="movedrawer">Move Drawer</option>
                     <option value="ubereats">Uber Eats</option>
                     <option value="viewor">View Or</option>
+                    <option value="product_lookup">Product Lookup</option>
+                    <option value="item_search">Item Search</option>
+                    <option value="management">Management</option>
                   </optgroup>
                   <optgroup label="Numpad">
                     <option value="digit">Digit</option>
@@ -2745,6 +2807,7 @@
             <div class="kb-color-row" style="margin-bottom:10px">
               <div style="text-align:center"><input type="color" id="kbBgColor" value="#409850"><div class="kb-color-label">BG</div></div>
               <div style="text-align:center"><input type="color" id="kbColor" value="#ffffff"><div class="kb-color-label">Text</div></div>
+              <div class="kb-field" style="flex:1"><label>Font Size</label><input type="number" id="kbFontSize" min="8" max="36" step="1" placeholder="Auto"></div>
               <div class="kb-field" style="flex:1"><label>Col Span</label><input type="number" id="kbColSpan" value="1" min="1" max="12"></div>
               <div class="kb-field" style="flex:1"><label>Row Span</label><input type="number" id="kbRowSpan" value="1" min="1" max="10"></div>
             </div>
@@ -4262,8 +4325,12 @@
       }))
       $('#dealsTable').innerHTML = deals.length ? deals.map(d => {
         const cfg = JSON.parse(d.config || '{}')
-        const tiers = cfg.tiers || [{ qty: cfg.qty || 2, price: cfg.price || 0 }]
-        const detail = tiers.map(t => `${t.qty} for $${t.price.toFixed(2)}`).join(', ')
+        const rawTiers = Array.isArray(cfg.tiers) ? cfg.tiers : [{ qty: cfg.qty, price: cfg.price }]
+        const tiers = rawTiers
+          .map(t => ({ qty: parseInt(t?.qty, 10) || 0, price: parseFloat(t?.price) || 0 }))
+          .filter(t => t.qty > 0 && t.price > 0)
+          .sort((a, b) => a.qty - b.qty)
+        const detail = tiers.length ? tiers.map(t => `${t.qty} for $${t.price.toFixed(2)}`).join(', ') : '<span style="color:var(--red)">No valid tiers</span>'
         const dates = d.start_date || d.end_date
           ? `${d.start_date || '...'} to ${d.end_date || '...'}`
           : '<span style="color:var(--text-dim)">Always</span>'
@@ -4386,10 +4453,13 @@
     $('#dSaveBtn').addEventListener('click', async () => {
       const name = $('#dName').value.trim()
       if (!name) { showToast('Deal name is required', 'error'); return }
-      if (!dealTiers.length || dealTiers.some(t => !t.qty || t.qty < 1)) {
-        showToast('Each tier needs a quantity of at least 1', 'error'); return
+      const tiers = dealTiers
+        .map(t => ({ qty: parseInt(t.qty, 10) || 0, price: parseFloat(t.price) || 0 }))
+        .filter(t => t.qty > 0 || t.price > 0)
+        .sort((a, b) => a.qty - b.qty)
+      if (!tiers.length || tiers.some(t => t.qty < 1 || t.price <= 0)) {
+        showToast('Each tier needs a quantity and price greater than 0', 'error'); return
       }
-      const tiers = dealTiers.sort((a, b) => a.qty - b.qty)
       const family = $('#dFamily').value.trim()
       const config = family ? { tiers, family } : { tiers }
 
@@ -6987,13 +7057,29 @@
     function kbCornerPrice (btn) {
       const price = Number(btn.active_price ?? btn.price ?? 0)
       if (price <= 0) return ''
-      return `${money(price)}${kbPriceSuffix(btn)}`
+      return kbIsCompactButton(btn) ? money(price) : `${money(price)}${kbPriceSuffix(btn)}`
     }
 
     function kbIsOpenPrice (btn) {
       if (!btn) return false
       const hasLinkedProduct = !!(btn.product_id || btn.product_plu)
       return Number(btn.product_open_price || 0) === 1 || (!hasLinkedProduct && btn.type === 'open_price')
+    }
+
+    function kbButtonArea (btn) {
+      return Math.max(1, Number(btn?.col_span || 1)) * Math.max(1, Number(btn?.row_span || 1))
+    }
+
+    function kbIsCompactButton (btn) {
+      return kbButtonArea(btn) <= 1
+    }
+
+    function kbButtonSizeClass (btn) {
+      const labelLength = kbDisplayLabel(btn).replace(/\s+/g, '').length
+      return [
+        kbIsCompactButton(btn) ? 'compact-key' : '',
+        kbIsCompactButton(btn) && labelLength > 16 ? 'dense-label' : ''
+      ].filter(Boolean).join(' ')
     }
 
     function kbImageFit (btn) {
@@ -7011,6 +7097,17 @@
       return Number.isFinite(scale) && scale > 0 ? Math.max(50, Math.min(220, scale)) : 100
     }
 
+    function kbFontSize (btn) {
+      const size = Number(btn?.font_size || 0)
+      const maxSize = kbIsCompactButton(btn) ? 11 : 36
+      return Number.isFinite(size) && size > 0 ? Math.max(8, Math.min(maxSize, size)) : 0
+    }
+
+    function kbFontStyle (btn) {
+      const size = kbFontSize(btn)
+      return size ? `font-size:${size}px` : ''
+    }
+
     function kbIsCategoryButton (btn) {
       return btn && (btn.type === 'page_link' || btn.type === 'section')
     }
@@ -7024,13 +7121,14 @@
       else if (['digit','clear','qtyx','codeenter'].includes(btn.type)) keyClass = `digit-btn${btn.type === 'clear' || btn.type === 'codeenter' ? ' num-action' : ''}${btn.type === 'qtyx' ? ' num-action num-orange' : ''}`
       else if (['pay_cash','pay_card','park'].includes(btn.type) || btn.type === 'subtotal') keyClass = 'pay-key'
       else if (btn.type === 'back_home') keyClass = 'back-key'
-      else if (['void','return','hold','nosale','supervisor','lock','reprint','pricecheck','errcorrect','recall','pctdiscount','pctone','movedrawer','ubereats','viewor','endofday','discount','product_lookup','item_search','management'].includes(btn.type)) keyClass = 'func-key'
+      else if (['void','return','hold','nosale','supervisor','lock','reprint','pricecheck','price_change','errcorrect','recall','pctdiscount','pctone','movedrawer','ubereats','viewor','endofday','discount','product_lookup','item_search','management'].includes(btn.type)) keyClass = 'func-key'
       else keyClass = 'dept-key'
       return [
         'kb-cell',
         'pos-grid-btn',
         keyClass,
         selected ? 'selected' : '',
+        kbButtonSizeClass(btn),
         imgSrc ? `has-img img-${imgFit}` : '',
         isMerch ? 'cat-key' : '',
         kbIsOpenPrice(btn) ? 'open-price-key' : ''
@@ -7042,7 +7140,7 @@
       const isOpen = kbIsOpenPrice(btn)
       const isProduct = ['product', 'fixed_price', 'open_price'].includes(btn.type)
       const productRef = btn.product_plu || (/^\d{3,10}$/.test(btn.category_filter || '') ? btn.category_filter : '')
-      const pluBadge = isProduct && productRef ? `<span class="btn-plu-badge kb-btn-plu-badge">${esc(productRef)}</span>` : ''
+      const pluBadge = isProduct && productRef && !kbIsCompactButton(btn) ? `<span class="btn-plu-badge kb-btn-plu-badge">${esc(productRef)}</span>` : ''
       const catBadge = isCategory ? '<span class="btn-cat-badge kb-btn-cat-badge">CAT</span>' : (btn.type === 'weighed_open' ? '<span class="btn-cat-badge kb-btn-cat-badge">KG</span>' : '')
       const priceText = (!isCategory && isOpen) ? 'O/P' : (!isCategory && Number(btn.active_price ?? btn.price ?? 0) > 0 ? kbCornerPrice(btn) : '')
       const priceBadge = priceText ? `<span class="btn-price-badge kb-btn-price-badge">${esc(priceText)}</span>` : ''
@@ -7079,7 +7177,7 @@
         const r = b.grid_row || 0, c = b.grid_col || 0, cs = b.col_span || 1, rs = b.row_span || 1
         const imgSrc = kbImageSrc(b)
         const imgHtml = imgSrc ? `<img src="${esc(imgSrc)}" alt="" style="--kb-img-scale:${kbImageScale(b) / 100}">` : ''
-        return `<div class="${kbCellClass(b)}" style="grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs};background:${esc(b.bg_color || KB_DEFAULT_BG)};color:${esc(b.color || KB_DEFAULT_TEXT)}">${imgHtml}<span>${esc(kbDisplayLabel(b)).replace(/\n/g, '<br>')}</span>${kbButtonBadges(b)}</div>`
+        return `<div class="${kbCellClass(b)}" style="grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs};background:${esc(b.bg_color || KB_DEFAULT_BG)};color:${esc(b.color || KB_DEFAULT_TEXT)}">${imgHtml}<span style="${kbFontStyle(b)}">${esc(kbDisplayLabel(b)).replace(/\n/g, '<br>')}</span>${kbButtonBadges(b)}</div>`
       }).join('')
       panel.querySelector('#kbPreviewClose').addEventListener('click', () => overlay.remove())
       overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
@@ -7128,7 +7226,7 @@
             html += `<div class="${kbCellClass(btn, btn.id === selectedBtnId)}" data-id="${esc(btn.id)}" data-row="${r}" data-col="${c}" draggable="true"
               style="background:${esc(btn.bg_color || KB_DEFAULT_BG)};color:${esc(btn.color || KB_DEFAULT_TEXT)};grid-column:${c+1}/span ${cs};grid-row:${r+1}/span ${rs}">
               ${imgHtml}
-              <span class="kb-main-label">${esc(kbDisplayLabel(btn)).replace(/\n/g, '<br>')}</span>
+              <span class="kb-main-label" style="${kbFontStyle(btn)}">${esc(kbDisplayLabel(btn)).replace(/\n/g, '<br>')}</span>
               ${extra}
             </div>`
           } else if (!occupied.has(key)) {
@@ -7604,6 +7702,7 @@
       $('#kbAlphaRange').value = ''
       $('#kbColor').value = KB_DEFAULT_TEXT
       $('#kbBgColor').value = KB_DEFAULT_BG
+      $('#kbFontSize').value = ''
       $('#kbColSpan').value = 1
       $('#kbRowSpan').value = 1
       $('#kbImageData').value = ''
@@ -7625,6 +7724,24 @@
       updateImageRemoveButton()
     }
 
+    function ensureKeyboardTypeOption (type) {
+      if (!type) return
+      const select = $('#kbType')
+      const exists = Array.from(select.options).some(opt => opt.value === type)
+      if (exists) return
+      const customGroup = Array.from(select.querySelectorAll('optgroup')).find(group => group.label === 'Other')
+        || (() => {
+          const group = document.createElement('optgroup')
+          group.label = 'Other'
+          select.appendChild(group)
+          return group
+        })()
+      const option = document.createElement('option')
+      option.value = type
+      option.textContent = type.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())
+      customGroup.appendChild(option)
+    }
+
     function openEditPanel (btn) {
       $('#kbEditId').value = btn.id
       $('#kbLabel').value = labelFromDb(btn.label) || btn.product_name || ''
@@ -7633,6 +7750,7 @@
       const editType = effectiveProductId && ['product', 'open_price', 'fixed_price', 'weighed_open'].includes(btn.type)
         ? 'product'
         : btn.type
+      ensureKeyboardTypeOption(editType)
       $('#kbType').value = editType
       $('#kbOpenPrice').checked = Number(btn.product_open_price || 0) === 1
       $('#kbPrice').value = btn.price || 0
@@ -7641,6 +7759,7 @@
       $('#kbAlphaRange').value = btn.alpha_range || ''
       $('#kbColor').value = btn.color || KB_DEFAULT_TEXT
       $('#kbBgColor').value = btn.bg_color || KB_DEFAULT_BG
+      $('#kbFontSize').value = kbFontSize(btn) || ''
       $('#kbColSpan').value = btn.col_span || 1
       $('#kbRowSpan').value = btn.row_span || 1
       $('#kbImageData').value = btn.image || ''
@@ -7708,6 +7827,9 @@
         price,
         color: $('#kbColor').value,
         bg_color: $('#kbBgColor').value,
+        font_size: parseFloat($('#kbFontSize').value || '0') || null,
+        col_span: parseInt($('#kbColSpan').value || '1') || 1,
+        row_span: parseInt($('#kbRowSpan').value || '1') || 1,
         product_plu: $('#kbProductPlu').value.trim(),
         product_open_price: isOpen ? 1 : 0,
         product_unit: $('#kbProductUnit').value || 'each'
@@ -7716,7 +7838,7 @@
       preview.style.background = $('#kbBgColor').value
       preview.style.color = $('#kbColor').value
       preview.style.setProperty('--kb-img-scale', String(kbImageScale(previewBtn) / 100))
-      preview.innerHTML = `${image ? `<img src="${esc(image)}" alt="">` : ''}<span class="kb-main-label">${esc(val).replace(/\n/g, '<br>')}</span>${kbButtonBadges(previewBtn)}`
+      preview.innerHTML = `${image ? `<img src="${esc(image)}" alt="">` : ''}<span class="kb-main-label" style="${kbFontStyle(previewBtn)}">${esc(val).replace(/\n/g, '<br>')}</span>${kbButtonBadges(previewBtn)}`
     }
 
     function updateImageRemoveButton () {
@@ -7726,7 +7848,7 @@
       $('#kbImageScaleRow').style.display = hasImage ? 'block' : 'none'
     }
 
-    ;['kbLabel', 'kbBgColor', 'kbColor', 'kbPrice', 'kbProductPrice', 'kbProductPlu'].forEach(id => {
+    ;['kbLabel', 'kbBgColor', 'kbColor', 'kbFontSize', 'kbPrice', 'kbProductPrice', 'kbProductPlu'].forEach(id => {
       $(`#${id}`).addEventListener('input', updateLivePreview)
     })
     const kbProductPluLookup = debounce(() => { kbResolveTypedPlu({ silent: true, fillLabel: kbShouldFillLabelFromProduct() }).catch(() => {}) }, 300)
@@ -7966,6 +8088,7 @@
         alpha_range: imageRemoved ? 'image:none' : ((btnType === 'nav') ? ($('#kbAlphaRange').value.trim() || null) : (imageFitTypes.has(btnType) ? imageFitMode : null)),
         color: $('#kbColor').value,
         bg_color: $('#kbBgColor').value,
+        font_size: parseFloat($('#kbFontSize').value || '0') || null,
         col_span: colSpan,
         row_span: rowSpan,
         grid_row: gridRow,

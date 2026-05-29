@@ -35,8 +35,8 @@ let state = {
   serverId: null,
   serverStartedAt: null,
   hostname: os.hostname(),
-  clients: [],        // server tracks connected client IPs
-  activeSessions: {}  // server tracks active staff: { staffId: { registerId, staffName, loginTime } }
+  clients: [],        // server tracks connected client lanes: { key, ip, registerId, lastSeen }
+  activeSessions: {}  // server tracks active staff per lane: { "staffId@registerId": { staffId, registerId, staffName, loginTime } }
 }
 
 // ─── Exports ─────────────────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ const MASTER_TABLE_COLUMNS = {
   specials: ['id', 'product_id', 'special_price', 'start_date', 'end_date', 'active', 'updated_at'],
   deals: ['id', 'name', 'type', 'config', 'start_date', 'end_date', 'active', 'updated_at'],
   staff: ['id', 'name', 'pin', 'role', 'active', 'updated_at'],
-  keyboard_buttons: ['id', 'label', 'type', 'price', 'image', 'image_scale', 'color', 'bg_color', 'parent_id', 'category_filter', 'alpha_range', 'sort_order', 'position', 'page', 'grid_row', 'grid_col', 'col_span', 'row_span', 'product_id', 'active', 'updated_at'],
+  keyboard_buttons: ['id', 'label', 'type', 'price', 'image', 'image_scale', 'font_size', 'color', 'bg_color', 'parent_id', 'category_filter', 'alpha_range', 'sort_order', 'position', 'page', 'grid_row', 'grid_col', 'col_span', 'row_span', 'product_id', 'active', 'updated_at'],
   keyboard_pages: ['page', 'name', 'cols', 'rows']
 }
 
@@ -185,6 +185,12 @@ function firstNonBlank (...values) {
   return null
 }
 
+function normaliseKeyboardFontSize (value) {
+  const size = Number(value)
+  if (!Number.isFinite(size) || size <= 0) return null
+  return Math.max(8, Math.min(36, Math.round(size * 10) / 10))
+}
+
 function captureKeyboardThemeById () {
   const byId = new Map()
   if (!db) return byId
@@ -205,9 +211,10 @@ function replaceKeyboardButtonsFromServer (buttons) {
   db.dbRun("DELETE FROM keyboard_buttons")
   for (const b of buttons) {
     const localTheme = localThemeById.get(String(b.id))
-    db.dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
-              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)`,
+    db.dbRun(`INSERT OR REPLACE INTO keyboard_buttons (id, label, type, price, image, image_scale, font_size, color, bg_color, parent_id, category_filter, alpha_range, sort_order, position, page, grid_row, grid_col, col_span, row_span, product_id, active, updated_at)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)`,
              [b.id, b.label, b.type, b.price || null, b.image || null, Number(b.image_scale || 100) || 100,
+              normaliseKeyboardFontSize(b.font_size),
               firstNonBlank(localTheme?.color, b.color, '#fff'),
               firstNonBlank(localTheme?.bg_color, b.bg_color, '#1a3d2a'),
               b.parent_id || null, b.category_filter || null,
@@ -236,6 +243,76 @@ function getStatus () {
 
 function isServerListening () {
   return !!(server && server.listening && state.mode === 'server')
+}
+
+function cleanRegisterId (value) {
+  const id = String(value || '').trim()
+  return id || 'unknown'
+}
+
+function clientKeyFor (registerId, ip) {
+  return `${cleanRegisterId(registerId)}@${normalizeIp(ip) || 'unknown'}`
+}
+
+function touchClient (req, registerId, path) {
+  if (path === '/api/heartbeat') return
+  const ip = normalizeIp(req?.socket?.remoteAddress)
+  if (!ip) return
+  const regId = cleanRegisterId(registerId)
+  const key = clientKeyFor(regId, ip)
+  const now = new Date().toISOString()
+
+  if (regId !== 'unknown') {
+    state.clients = state.clients.filter(c => !(c.ip === ip && c.registerId === 'unknown'))
+  }
+
+  const existing = state.clients.find(c => c.key === key)
+  if (existing) {
+    existing.lastSeen = now
+    existing.registerId = regId
+    existing.ip = ip
+  } else {
+    state.clients.push({ key, ip, registerId: regId, lastSeen: now })
+  }
+}
+
+function sessionKeyFor (staffId, registerId) {
+  return `${String(staffId || '').trim()}@${cleanRegisterId(registerId)}`
+}
+
+function loginSession (staffId, staffName, registerId) {
+  const sid = String(staffId || '').trim()
+  if (!sid) return { allowed: true }
+  const regId = cleanRegisterId(registerId)
+  state.activeSessions[sessionKeyFor(sid, regId)] = {
+    staffId: sid,
+    registerId: regId,
+    staffName: staffName || '',
+    loginTime: new Date().toISOString()
+  }
+  return { allowed: true }
+}
+
+function logoutSession (staffId, registerId) {
+  const sid = String(staffId || '').trim()
+  if (!sid) return { ok: true }
+  const regId = cleanRegisterId(registerId)
+  if (regId !== 'unknown') {
+    delete state.activeSessions[sessionKeyFor(sid, regId)]
+  } else {
+    for (const [key, sess] of Object.entries(state.activeSessions)) {
+      if (sess.staffId === sid) delete state.activeSessions[key]
+    }
+  }
+  return { ok: true }
+}
+
+function logoutRegisterSessions (registerId) {
+  const regId = cleanRegisterId(registerId)
+  for (const [key, sess] of Object.entries(state.activeSessions)) {
+    if (cleanRegisterId(sess.registerId) === regId) delete state.activeSessions[key]
+  }
+  return { ok: true }
 }
 
 // ─── HTTP Helpers ────────────────────────────────────────────────────────────
@@ -360,15 +437,9 @@ function startServer (port, dbHelpers) {
       }
     }
 
-    // Track client
-    const clientIp = req.socket.remoteAddress
+    // Track real client lanes by register identity, not just IP.
     const registerId = req.headers['x-register-id'] || 'unknown'
-    if (clientIp && !state.clients.find(c => c.ip === clientIp)) {
-      state.clients.push({ ip: clientIp, registerId, lastSeen: new Date().toISOString() })
-    } else if (clientIp) {
-      const c = state.clients.find(c => c.ip === clientIp)
-      if (c) { c.lastSeen = new Date().toISOString(); c.registerId = registerId }
-    }
+    touchClient(req, registerId, path)
 
     try {
       await handleRoute(req, res, url, path, registerId)
@@ -584,22 +655,13 @@ async function handleRoute (req, res, url, path, registerId = 'unknown') {
       case '/api/session': {
         const { staffId, staffName, registerId: regId, action: sessAction } = body || {}
         if (sessAction === 'login') {
-          const existing = state.activeSessions[staffId]
-          if (existing && existing.registerId !== regId) {
-            return jsonReply(res, { allowed: false, error: `${staffName || 'This user'} is already logged in on ${existing.registerId}` })
-          }
-          state.activeSessions[staffId] = { registerId: regId, staffName: staffName || '', loginTime: new Date().toISOString() }
-          return jsonReply(res, { allowed: true })
+          return jsonReply(res, loginSession(staffId, staffName, regId))
         }
         if (sessAction === 'logout') {
-          if (staffId) delete state.activeSessions[staffId]
-          return jsonReply(res, { ok: true })
+          return jsonReply(res, logoutSession(staffId, regId))
         }
         if (sessAction === 'logout_register') {
-          for (const [sid, sess] of Object.entries(state.activeSessions)) {
-            if (sess.registerId === regId) delete state.activeSessions[sid]
-          }
-          return jsonReply(res, { ok: true })
+          return jsonReply(res, logoutRegisterSessions(regId))
         }
         return jsonReply(res, { error: 'Invalid session action' }, 400)
       }
@@ -1256,19 +1318,11 @@ function httpPost (path, body) {
 async function sessionAction (action, staffId, staffName, registerId) {
   if (state.mode === 'server') {
     if (action === 'login') {
-      const existing = state.activeSessions[staffId]
-      if (existing && existing.registerId !== registerId) {
-        return { allowed: false, error: `${staffName || 'This user'} is already logged in on ${existing.registerId}` }
-      }
-      state.activeSessions[staffId] = { registerId, staffName: staffName || '', loginTime: new Date().toISOString() }
-      return { allowed: true }
+      return loginSession(staffId, staffName, registerId)
     }
-    if (action === 'logout') { delete state.activeSessions[staffId]; return { ok: true } }
+    if (action === 'logout') return logoutSession(staffId, registerId)
     if (action === 'logout_register') {
-      for (const [sid, sess] of Object.entries(state.activeSessions)) {
-        if (sess.registerId === registerId) delete state.activeSessions[sid]
-      }
-      return { ok: true }
+      return logoutRegisterSessions(registerId)
     }
   }
   if (state.mode === 'client' && state.serverIp) {
@@ -1278,7 +1332,12 @@ async function sessionAction (action, staffId, staffName, registerId) {
         const opts = {
           hostname: state.serverIp, port: state.port || 5555,
           path: '/api/session', method: 'POST', timeout: 3000,
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data), 'X-POS-Secret': state.secret || '' }
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data),
+            'X-POS-Secret': state.secret || '',
+            'X-Register-Id': registerId || getRegisterId()
+          }
         }
         const req = http.request(opts, res => {
           const chunks = []
@@ -1310,7 +1369,7 @@ async function getPeers () {
         const opts = {
           hostname: state.serverIp, port: state.port || 5555,
           path: '/api/peers', method: 'GET', timeout: 3000,
-          headers: { 'X-POS-Secret': state.secret || '' }
+          headers: { 'X-POS-Secret': state.secret || '', 'X-Register-Id': getRegisterId() }
         }
         const req = http.request(opts, res => {
           const chunks = []
