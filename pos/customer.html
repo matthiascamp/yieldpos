@@ -971,6 +971,27 @@ body{
     const price = positiveFiniteNumber(validTier?.price ?? cfg.price)
     return qty !== null && price !== null ? `${cleanQty(qty)} for ${money(price)}` : ''
   }
+  function hasZeroDealText(value) {
+    return /\b0(?:\.0+)?\s+for\s+\$?\s*0(?:\.00?)?\b/i.test(cleanText(value))
+  }
+  function productNameFromDealRow(deal) {
+    const names = cleanText(deal?.product_names)
+      .split('|')
+      .map(cleanText)
+      .filter(Boolean)
+    return names[0] || ''
+  }
+  function multiBuyDisplayName(deal, tierText) {
+    const rawName = cleanText(deal?.name)
+    const productName = productNameFromDealRow(deal)
+    const stripped = rawName
+      .replace(/\b\d+(?:\.\d+)?\s+for\s+\$?\s*\d+(?:\.\d{1,2})?\b/ig, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+    if (stripped && !hasZeroDealText(stripped)) return stripped
+    if (productName) return productName
+    return tierText ? 'Multi-buy special' : ''
+  }
   function safeDeal(deal) {
     const name = cleanText(deal?.name)
     if (!name) return null
@@ -1094,8 +1115,10 @@ body{
         let cfg = {}
         try { cfg = typeof d.config === 'string' ? JSON.parse(d.config) : (d.config || {}) } catch (_) { cfg = {} }
         const text = d.type === 'multi_buy' ? dealTierText(cfg) : cleanText(d.name)
-        if (d.type === 'multi_buy' && !text) continue
-        const deal = safeDeal({ id: d.id, name: d.name, specialText: text, emoji: emojiForProduct(d.name), badge: 'special', isSpecial: true, displayPriority: cachedDeals.length + 1 })
+        if (d.type === 'multi_buy' && (!text || hasZeroDealText(text))) continue
+        const name = d.type === 'multi_buy' ? multiBuyDisplayName(d, text) : cleanText(d.name)
+        if (!name || hasZeroDealText(name)) continue
+        const deal = safeDeal({ id: d.id, name, specialText: text, emoji: emojiForProduct(name), badge: 'special', isSpecial: true, displayPriority: cachedDeals.length + 1 })
         if (deal) cachedDeals.push(deal)
       }
     } catch (e) { console.warn('Failed to load deals from DB:', e) }
