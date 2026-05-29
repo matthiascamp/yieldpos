@@ -4344,14 +4344,25 @@ function setupIPC() {
     }
     const updateRoot = repoRoot || candidates.find(looksLikeInstallRoot) || path.dirname(process.execPath)
 
-    const updaterCandidates = [
+    const updaterCandidates = Array.from(new Set([
       path.join(updateRoot, 'update-yieldpos-from-git.cmd'),
-      path.join(__dirname, 'update-yieldpos-from-git.cmd'),
-      process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', 'update-yieldpos-from-git.cmd') : ''
-    ].filter(Boolean)
+      ...candidates.map(dir => path.join(dir, 'update-yieldpos-from-git.cmd')),
+      process.resourcesPath ? path.join(process.resourcesPath, 'update-yieldpos-from-git.cmd') : '',
+      process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', 'update-yieldpos-from-git.cmd') : '',
+      process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'update-yieldpos-from-git.cmd') : '',
+      process.resourcesPath ? path.join(path.dirname(process.resourcesPath), 'update-yieldpos-from-git.cmd') : ''
+    ].filter(Boolean)))
     const updaterPath = updaterCandidates.find(p => fs.existsSync(p)) || ''
     if (!fs.existsSync(updaterPath)) {
       return { error: 'update-yieldpos-from-git.cmd was not found. Pull the latest code once manually, then the in-app updater can use it.' }
+    }
+    const updateRootUpdaterPath = path.join(updateRoot, 'update-yieldpos-from-git.cmd')
+    if (path.resolve(updaterPath) !== path.resolve(updateRootUpdaterPath)) {
+      try {
+        if (fs.existsSync(updateRoot) && !fs.existsSync(updateRootUpdaterPath)) {
+          fs.copyFileSync(updaterPath, updateRootUpdaterPath)
+        }
+      } catch (_) {}
     }
     const updaterRunPath = path.join(os.tmpdir(), `yieldpos-git-updater-${Date.now()}.cmd`)
     try {
